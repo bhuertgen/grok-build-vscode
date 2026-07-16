@@ -1,5 +1,8 @@
 # Installation aus VSIX — ausführliche Anleitung
 
+> **Nicht offiziell von xAI.** Community-Extension (Publisher: `bhuertgen`).  
+> Agent-Logik, Safety und Tools liegen im **offiziellen** Grok Build CLI; diese Extension ist nur der VS-Code-ACP-Client.
+
 Die Extension liegt **nicht** im offiziellen VS-Code-Marketplace.  
 Du bekommst eine Datei **`.vsix`** (wie ein Installationspaket) und installierst sie **manuell** in der Desktop-App **Visual Studio Code**.
 

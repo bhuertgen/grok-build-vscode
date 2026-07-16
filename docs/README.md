@@ -1,5 +1,7 @@
 # Documentation — Grok Build for VS Code
 
+> **Not affiliated with xAI.** Community extension over the official Grok Build CLI.
+
 This repository documents the product in **two languages** under separate folders.
 
 | Language | Folder | Start here |
