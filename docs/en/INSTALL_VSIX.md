@@ -1,49 +1,140 @@
-# Install from VSIX (step by step)
+# Install from VSIX — detailed guide
 
-The extension is distributed as a **`.vsix` file** (not yet on the VS Code Marketplace).  
-You install it **once** like a plugin package.
+This extension is **not** on the official VS Code Marketplace.  
+You get a **`.vsix` file** (an install package) and install it **manually** in the **Visual Studio Code desktop app**.
 
----
-
-## 1. Download the file
-
-1. Open: https://github.com/bhuertgen/grok-build-vscode/releases  
-2. Open the latest release (e.g. **v0.2.1**).  
-3. Under **Assets**, click **`grok-build-vscode-x.y.z.vsix`**.  
-4. Save it somewhere easy to find, e.g. `Downloads`.
-
-You need the **`.vsix` file**, not the Source code zip.
+> **Important:** “Install from VSIX” does **not** appear in Marketplace search results.  
+> You are **not** searching the store for “Grok” — you install a **local file**.
 
 ---
 
-## 2. Install in VS Code (UI)
+## Overview (three paths)
 
-### Path A — Extensions view (most common)
+| Path | When to use | Short |
+|------|-------------|--------|
+| **A — Command Palette** | **Recommended** if you cannot find the menus | `Ctrl+Shift+P` → type `VSIX` |
+| **B — Three-dot menu** | Classic UI path | Extensions → `…` → Install from VSIX |
+| **C — Terminal** | If you prefer the CLI | `code --install-extension …` |
 
-1. Open **Visual Studio Code** (normal window, not only the browser).  
-2. Open the **Extensions** view:
-   - Click the **Extensions** icon in the left Activity Bar  
-     (four squares / puzzle-piece style icon), **or**  
-   - Press **`Ctrl+Shift+X`** (Windows/Linux) / **`Cmd+Shift+X`** (Mac).  
-3. At the **top** of the Extensions panel (next to the search box “Search Extensions in Marketplace”), look for a **`…`** (three dots) button.  
-4. Click **`…`**.  
-5. Choose **Install from VSIX…**  
-   - German VS Code UI: **Von VSIX installieren…**  
-6. In the file dialog, select the downloaded  
-   `grok-build-vscode-….vsix`  
-   and confirm **Install**.  
-7. Wait for “Completed installing …”.  
-8. If VS Code asks to **reload**, click **Reload**.
+---
 
-### Path B — Command Palette (if you cannot find `…`)
+## 1. Download the `.vsix` file
 
-1. Press **`Ctrl+Shift+P`** (Mac: **`Cmd+Shift+P`**).  
-2. Type:  
-   `Install from VSIX`  
-3. Select the command:  
-   **Extensions: Install from VSIX…**  
-   - German UI: **Erweiterungen: Von VSIX installieren…**  
-4. Pick the `.vsix` file → Install → Reload if asked.
+1. Open in a browser:  
+   **https://github.com/bhuertgen/grok-build-vscode/releases**
+2. Open the **latest** release (e.g. **v0.2.1**).
+3. Scroll to **Assets**.
+4. Click **`grok-build-vscode-x.y.z.vsix`** (not “Source code”).
+5. Save it somewhere easy, e.g.  
+   `C:\Users\<YourName>\Downloads\`
+
+| Correct | Wrong |
+|---------|--------|
+| `grok-build-vscode-0.2.1.vsix` | Source code (zip) |
+| | Source code (tar.gz) |
+| | Cloning the repo only (that is not an install) |
+
+---
+
+## 2. Install in VS Code
+
+### Path A — Command Palette (recommended, easiest to find)
+
+This is the **most reliable** path. You search for the command by name — you do **not** need the three-dot button.
+
+1. Start **Visual Studio Code** (desktop app — not only github.com or the web Marketplace).
+2. Open the **Command Palette**:
+   - Windows / Linux: **`Ctrl` + `Shift` + `P`**
+   - Mac: **`Cmd` + `Shift` + `P`**
+3. A text field appears at the top center (often with `>` in front).
+4. Type until the command appears:
+
+   ```text
+   Install from VSIX
+   ```
+
+   or simply:
+
+   ```text
+   VSIX
+   ```
+
+5. Select this command from the list:
+
+   | VS Code UI language | Command |
+   |---------------------|---------|
+   | **English** | **Extensions: Install from VSIX…** |
+   | **German** | **Erweiterungen: Von VSIX installieren…** |
+
+6. The OS **file open** dialog appears.
+7. Navigate to the downloaded file, e.g. `Downloads` → `grok-build-vscode-0.2.1.vsix`.
+8. Select the file → **Open** / **Install**.
+9. Wait for a toast such as “Completed installing …”.
+10. If VS Code offers **Reload**, click it.  
+    Otherwise: Command Palette → `Developer: Reload Window`.
+
+**Done.** Continue at [section 3](#3-verify-it-is-installed).
+
+---
+
+### Path B — Three-dot menu in the Extensions view
+
+Many people look for the entry **inside the extension search list** — it is **not** there.  
+It lives in the **`…` (three dots) menu** at the **top** of the Extensions sidebar.
+
+#### Step by step
+
+1. Start VS Code.
+2. Open the **Extensions** view — pick **one**:
+   - **Keyboard:**  
+     Windows/Linux: **`Ctrl` + `Shift` + `X`**  
+     Mac: **`Cmd` + `Shift` + `X`**
+   - **Mouse:** On the **left Activity Bar**, click the **Extensions** icon  
+     (four squares / puzzle-style; tooltip “Extensions”).
+3. The Extensions sidebar opens:
+   - At the top: a **search box**  
+     (“Search Extensions in Marketplace”)
+   - **On the same row, to the right of the search box:**  
+     a **`…`** (three dots) button
+4. Click **`…`**.
+5. In the dropdown menu, choose:
+   - **Install from VSIX…**  
+   - German UI: **Von VSIX installieren…**
+6. Pick the `.vsix` file → Install → Reload if asked.
+
+#### Text map: where the three dots are
+
+```
+┌─ Activity Bar ──┐   ┌──────────── Extensions view ─────────────────────────┐
+│ Explorer        │   │                                                      │
+│ Search          │   │   [  Search Extensions in Marketplace …      ] [ … ] │
+│ …               │   │                                                  ↑   │
+│ ■ Extensions    │←──│                                    click here: …     │
+│                 │   │   ─────────────────────────────────────────────────  │
+│                 │   │   INSTALLED                                          │
+│                 │   │   RECOMMENDED                                        │
+└─────────────────┘   └──────────────────────────────────────────────────────┘
+
+After clicking … you should see something like:
+
+    ┌─────────────────────────────────┐
+    │ Check for Extension Updates     │
+    │ …                               │
+    │ Install from VSIX…         ←────│  this one
+    └─────────────────────────────────┘
+```
+
+#### If you still cannot see `…`
+
+| Situation | What to do |
+|-----------|------------|
+| Search box visible, no `…` | Widen the window; do not make the sidebar too narrow. |
+| Mixed DE/EN UI | Use **Path A** (Command Palette) — search `VSIX`. |
+| Only browser Marketplace open | That is not the desktop app. Launch **VS Code** locally. |
+| Cursor / VSCodium | Same idea; terminal may use `cursor` / `codium` instead of `code`. |
+| Menu missing or cut off | **Path A** always works without the `…` button. |
+
+---
 
 ### Path C — Terminal
 
@@ -51,61 +142,84 @@ You need the **`.vsix` file**, not the Source code zip.
 code --install-extension path/to/grok-build-vscode-0.2.1.vsix
 ```
 
-If `code` is not found, open VS Code → Command Palette → **Shell Command: Install 'code' command in PATH**, then retry.
+Windows PowerShell example:
+
+```powershell
+code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-0.2.1.vsix"
+```
+
+If `code` is not recognized:
+
+1. Open VS Code  
+2. Command Palette (`Ctrl+Shift+P`)  
+3. Run: **Shell Command: Install 'code' command in PATH**  
+4. Reopen the terminal and retry
+
+**Cursor:**
+
+```powershell
+cursor --install-extension C:\Users\You\Downloads\grok-build-vscode-0.2.1.vsix
+```
 
 ---
 
 ## 3. Verify it is installed
 
-1. Open Extensions (`Ctrl+Shift+X`).  
-2. In the search box type: **`Grok Build`**  
-3. You should see **Grok Build for VS Code** under **Installed**.  
-4. Open the Command Palette (`Ctrl+Shift+P`) → type **`Grok Build: Open Chat`** → run it.
+1. Open Extensions: **`Ctrl+Shift+X`**.
+2. Search: **`Grok Build`** (or filter **Installed**).
+3. You should see **Grok Build for VS Code** as **Installed**.
+4. Command Palette → run **`Grok Build: Open Chat`**.
+5. Optional: **Grok** icon on the Activity Bar.
 
-Also install/login the **Grok CLI** (`grok --version`), or the chat will show “CLI required”.
+### Also: Grok CLI
+
+The extension drives the **Grok Build CLI**. Without it you may see “CLI required”.
+
+```bash
+grok --version
+```
+
+If missing: command **Grok Build: Setup CLI…** or https://x.ai/cli
 
 ---
 
-## 4. Where people usually get stuck
+## 4. Common stuck points
 
-| Problem | Fix |
-|---------|-----|
-| No “Install from VSIX” in Marketplace search | That menu is **not** in the search results — use the **`…`** menu **above** the list, or Path B. |
-| Only “Browse Marketplace” | You are looking at Marketplace web; use the **desktop** VS Code app. |
-| Cursor / VSCodium | Same idea: Extensions view → `…` → Install from VSIX, or `cursor --install-extension …` / `codium --install-extension …`. |
-| Extension missing after install | Reload window: `Ctrl+Shift+P` → **Developer: Reload Window**. |
-| Updates later | Download newer `.vsix` from Releases and install again (overwrites). |
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| No “Install from VSIX” in extension search | That is Marketplace search, not the menu | **Path A**: Command Palette → `VSIX` |
+| Only web Marketplace | Browser, not desktop VS Code | Launch the **VS Code app** |
+| Nothing after install | Window not reloaded | Command Palette → **Developer: Reload Window** |
+| Extension installed, chat wants CLI | CLI missing / not on PATH | `grok --version`, then Setup CLI |
+| Update later | No Marketplace auto-update | Download newer `.vsix` and install again |
+| Wrong file | Source zip instead of VSIX | Check Release **Assets** again |
 
 ---
 
-## 5. Screenshot of the menu location (text map)
+## 5. DE ↔ EN UI labels
 
-```
-┌─ Activity Bar ─┐  ┌──────── Extensions ─────────────────────┐
-│ Explorer       │  │  [Search Extensions in Marketplace  ] … │  ← click these three dots
-│ Search         │  │  ─────────────────────────────────────  │
-│ …              │  │  INSTALLED                              │
-│ [Extensions] ← │  │  …                                      │
-│                │  │                                         │
-└────────────────┘  └─────────────────────────────────────────┘
-                              │
-                              ▼
-                    • Check for Extension Updates
-                    • … 
-                    • Install from VSIX…     ← this one
-```
-
-German UI labels:
-
-| English | German (VS Code) |
-|---------|------------------|
+| English | German |
+|---------|--------|
 | Extensions | Erweiterungen |
+| Search Extensions in Marketplace | Im Marketplace nach Erweiterungen suchen |
 | Install from VSIX… | Von VSIX installieren… |
 | Extensions: Install from VSIX… | Erweiterungen: Von VSIX installieren… |
+| Reload | Neu laden |
+| Developer: Reload Window | Entwickler: Fenster neu laden |
+| Installed | Installiert |
 
 ---
 
-## Next steps
+## 6. One-line cheat sheet
+
+> **`Ctrl+Shift+P`** → type **`VSIX`** → **Extensions: Install from VSIX…** → pick the file.
+
+That is enough in almost all cases — even if the three dots are hard to find.
+
+---
+
+## Next
 
 - [User guide](./USER_GUIDE.md)  
-- CLI setup: command **Grok Build: Setup CLI…** if the banner appears  
+- In VS Code: **Grok Build: Setup CLI…**  
+- German version: [../de/INSTALL_VSIX.md](../de/INSTALL_VSIX.md)  

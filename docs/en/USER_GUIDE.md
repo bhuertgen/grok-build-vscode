@@ -21,16 +21,20 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 
 ### Install the extension
 
-**A) Release (recommended)** — full walkthrough: **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+The extension is **not** in Marketplace search. You install a **local `.vsix` file**.  
+**Full walkthrough (recommended):** **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+
+**A) Release — easiest path (Command Palette)**
 
 1. [GitHub Releases](https://github.com/bhuertgen/grok-build-vscode/releases) → download **`….vsix`** (not Source code zip).  
-2. In VS Code: **`Ctrl+Shift+X`** / **`Cmd+Shift+X`** (Extensions view).  
-3. Top of the Extensions panel → **`…`** (three dots, next to the search box).  
-4. **Install from VSIX…** (German UI: **Von VSIX installieren…**).  
+2. In VS Code: **`Ctrl+Shift+P`** / **`Cmd+Shift+P`** (Command Palette).  
+3. Type: **`VSIX`**.  
+4. Run: **Extensions: Install from VSIX…**  
+   (German UI: **Erweiterungen: Von VSIX installieren…**).  
 5. Pick the file → Install → Reload if asked.
 
-Alternative: **`Ctrl+Shift+P`** → `Install from VSIX` → **Extensions: Install from VSIX…**
-
+**A′) UI path with three dots:** **`Ctrl+Shift+X`** (Extensions) → **top row next to the search box** click **`…`** → **Install from VSIX…**.  
+It does **not** appear in Marketplace search results — only via `…` or the Command Palette.
 **B) From this repo**
 
 ```bash
