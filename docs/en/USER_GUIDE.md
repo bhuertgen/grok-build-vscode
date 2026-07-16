@@ -31,7 +31,7 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 npm install
 npm run build
 npm run package
-code --install-extension grok-build-vscode-0.2.0.vsix
+code --install-extension grok-build-vscode-0.2.1.vsix
 ```
 
 ### First chat

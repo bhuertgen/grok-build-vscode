@@ -2,7 +2,7 @@
   "name": "grok-build-vscode",
   "displayName": "Grok Build for VS Code",
   "description": "Hybrid ACP client for xAI Grok Build: native VS Code UI over the official CLI (grok agent stdio). Multi-session, plan/execute, diffs, context.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "bhuertgen",
   "license": "MIT",
   "engines": {
