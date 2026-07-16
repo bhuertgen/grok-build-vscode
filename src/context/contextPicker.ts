@@ -12,6 +12,7 @@ export class ContextPicker {
   private readonly log = getLogger();
 
   async pick(): Promise<ContextItem | undefined> {
+    // Prefer kind chosen in webview bottom menu; this QuickPick is palette fallback only
     type ContextKind = 'file' | 'symbol' | 'git' | 'folder' | 'active';
     type Item = vscode.QuickPickItem & { contextKind: ContextKind };
     const picked = await vscode.window.showQuickPick<Item>(
@@ -47,8 +48,14 @@ export class ContextPicker {
     if (!picked) {
       return undefined;
     }
+    return this.pickKind(picked.contextKind);
+  }
 
-    switch (picked.contextKind) {
+  /** Direct kind pick (used by webview bottom menu — skips the top QuickPick hub). */
+  async pickKind(
+    kind: 'file' | 'symbol' | 'git' | 'folder' | 'active' | string
+  ): Promise<ContextItem | undefined> {
+    switch (kind) {
       case 'file':
         return this.pickFile();
       case 'symbol':
@@ -65,6 +72,12 @@ export class ContextPicker {
   }
 
   private async pickFile(): Promise<ContextItem | undefined> {
+    // Prefer in-workspace file list (Claude Code–style @file), not OS file dialog
+    const files = await this.listWorkspaceFiles('', 200);
+    if (files.length > 0) {
+      return this.pickWorkspaceFile('');
+    }
+    // Fallback: OS dialog when workspace is empty / no matches
     const uris = await vscode.window.showOpenDialog({
       canSelectMany: false,
       openLabel: 'Add as context',
@@ -74,6 +87,141 @@ export class ContextPicker {
       return undefined;
     }
     return (await this.collector.fromUri(uris[0])) ?? undefined;
+  }
+
+  /**
+   * List workspace files for @-mention autocomplete (filtered).
+   */
+  async listWorkspaceFiles(
+    query = '',
+    limit = 80
+  ): Promise<Array<{ path: string; label: string; description: string }>> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) {
+      return [];
+    }
+    const exclude =
+      '{**/node_modules/**,**/.git/**,**/dist/**,**/out/**,**/.grok/**,**/bin/**,**/obj/**}';
+    let uris: vscode.Uri[];
+    try {
+      uris = await vscode.workspace.findFiles('**/*', exclude, 800);
+    } catch (err) {
+      this.log.warn('findFiles failed', err);
+      return [];
+    }
+    const q = query.trim().toLowerCase().replace(/\\/g, '/');
+    const scored: Array<{
+      path: string;
+      label: string;
+      description: string;
+      score: number;
+    }> = [];
+    for (const u of uris) {
+      if (u.scheme !== 'file') {
+        continue;
+      }
+      const rel = vscode.workspace.asRelativePath(u, false).replace(/\\/g, '/');
+      const base = path.basename(rel);
+      if (q) {
+        const relL = rel.toLowerCase();
+        const baseL = base.toLowerCase();
+        if (!relL.includes(q) && !baseL.includes(q)) {
+          continue;
+        }
+        let score = 0;
+        if (baseL.startsWith(q)) {
+          score += 100;
+        } else if (baseL.includes(q)) {
+          score += 50;
+        }
+        if (relL.startsWith(q)) {
+          score += 30;
+        } else if (relL.includes(q)) {
+          score += 10;
+        }
+        score -= rel.length * 0.01;
+        scored.push({
+          path: u.fsPath,
+          label: base,
+          description: rel,
+          score,
+        });
+      } else {
+        scored.push({
+          path: u.fsPath,
+          label: base,
+          description: rel,
+          score: -rel.length,
+        });
+      }
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit).map(({ path: p, label, description }) => ({
+      path: p,
+      label,
+      description,
+    }));
+  }
+
+  /**
+   * QuickPick over workspace files (used by @ and "Add file").
+   * Returns undefined if cancelled or no files (caller may fall back to dialog).
+   */
+  async pickWorkspaceFile(
+    query = ''
+  ): Promise<ContextItem | undefined> {
+    let files = await this.listWorkspaceFiles(query, 200);
+    if (files.length === 0) {
+      if (!vscode.workspace.workspaceFolders?.length) {
+        void vscode.window.showWarningMessage(
+          'Kein Workspace-Ordner geöffnet — @-Dateien brauchen einen Projektordner.'
+        );
+        return undefined;
+      }
+      // Empty project: offer OS dialog once
+      const uris = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        openLabel: 'Add as context',
+        defaultUri: vscode.workspace.workspaceFolders[0]?.uri,
+      });
+      if (!uris?.[0]) {
+        return undefined;
+      }
+      return (await this.collector.fromUri(uris[0])) ?? undefined;
+    }
+
+    type Item = vscode.QuickPickItem & { fsPath: string };
+    const picked = await vscode.window.showQuickPick<Item>(
+      files.map((f) => ({
+        label: f.label,
+        description: f.description,
+        fsPath: f.path,
+      })),
+      {
+        placeHolder: query
+          ? `Dateien filtern: ${query}`
+          : 'Datei als Kontext hinzufügen (@)',
+        matchOnDescription: true,
+      }
+    );
+    if (!picked) {
+      return undefined;
+    }
+    return (
+      (await this.collector.fromUri(vscode.Uri.file(picked.fsPath))) ??
+      undefined
+    );
+  }
+
+  async fromPath(fsPath: string): Promise<ContextItem | undefined> {
+    try {
+      return (
+        (await this.collector.fromUri(vscode.Uri.file(fsPath))) ?? undefined
+      );
+    } catch (err) {
+      this.log.warn('fromPath failed', err);
+      return undefined;
+    }
   }
 
   private async pickFolder(): Promise<ContextItem | undefined> {

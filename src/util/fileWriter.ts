@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { assertWorkspaceTrustedForWrite } from './workspaceTrust';
 
 /**
  * Shared file write used by EditController and ACP fs/write handlers.
@@ -10,6 +11,8 @@ export async function applyTextWrite(
   filePath: string,
   content: string
 ): Promise<void> {
+  assertWorkspaceTrustedForWrite(filePath);
+
   const uri = vscode.Uri.file(filePath);
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
@@ -24,7 +27,12 @@ export async function applyTextWrite(
       openDoc.positionAt(openDoc.getText().length)
     );
     edit.replace(uri, fullRange, content);
-    await vscode.workspace.applyEdit(edit);
+    const ok = await vscode.workspace.applyEdit(edit);
+    if (!ok) {
+      throw new Error(
+        `WorkspaceEdit failed for ${filePath}. If VS Code is in Restricted Mode, trust the folder first.`
+      );
+    }
     await openDoc.save();
     return;
   }

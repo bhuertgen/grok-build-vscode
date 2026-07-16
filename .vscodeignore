@@ -1,8 +1,13 @@
 .vscode/**
 .vscode-test/**
+.vscode-test-workspace/**
 src/**
 webview/**
 node_modules/**
+dist-test/**
+tests/**
+scripts/**
+errors/**
 .gitignore
 .eslintrc*
 **/tsconfig.json
@@ -11,6 +16,7 @@ node_modules/**
 !dist/**
 esbuild.mjs
 start-prompt.txt
+erweiterung1-prompt.txt
 *.vsix
 .git/**
 docs/**
@@ -18,3 +24,4 @@ docs/**
 !README.md
 !docs/ARCHITECTURE.md
 !LICENSE
+package-lock.json

@@ -23,6 +23,7 @@ import {
   type SessionUpdate,
   type StopReason,
 } from './types';
+import { buildAgentArgv } from '../util/agentArgs';
 import { getConfig, getWorkspaceCwd } from '../util/config';
 import { getLogger } from '../util/logger';
 import type { EditController } from '../edits/editController';
@@ -338,98 +339,80 @@ export class AcpClient extends EventEmitter {
 /**
  * Build CLI args for ACP.
  * Base: `grok agent [options…] stdio`
- * Options from extension settings are inserted after `agent`.
+ * Options from extension settings are inserted after `agent` (not after stdio).
  *
  * Important: always pass `--no-leader` unless the user opted into leader mode.
  * Shared leader processes ignore per-spawn `-m` and stay on the default model.
  */
 export function buildAgentArgs(cliArgs: string[], model?: string): string[] {
   const cfg = getConfig();
-  // Start from configured base, ensure agent + stdio shape
-  let args = cliArgs.length ? [...cliArgs] : ['agent', 'stdio'];
-  if (!args.includes('agent')) {
-    args = ['agent', ...args];
-  }
-  if (!args.includes('stdio')) {
-    args.push('stdio');
-  }
+  const extra: string[] = [];
+  const push = (flag: string, value?: string) => {
+    if (value != null) {
+      extra.push(flag, value);
+    } else {
+      extra.push(flag);
+    }
+  };
 
-  const flags: string[] = [];
-  const has = (flag: string) =>
-    args.includes(flag) || flags.includes(flag);
-
-  // Force isolated agent process so -m / flags apply (not a shared leader)
-  if (!has('--leader') && !has('--no-leader')) {
-    flags.push('--no-leader');
-  }
-
-  const m = (model ?? cfg.defaultModel)?.trim();
-  if (m && !has('-m') && !has('--model')) {
-    flags.push('-m', m);
-  }
-  if (cfg.reasoningEffort?.trim() && !has('--reasoning-effort') && !has('--effort')) {
-    flags.push('--reasoning-effort', cfg.reasoningEffort.trim());
-  }
-  if (cfg.alwaysApprove && !has('--always-approve')) {
-    flags.push('--always-approve');
-  }
-  // Map UI permissionMode → CLI when alwaysApprove not set
-  if (!cfg.alwaysApprove && !has('--always-approve')) {
-    if (cfg.cliPermissionMode && !has('--permission-mode')) {
-      // only if agent accepts it; also map bypass via always-approve
+  if (!cfg.alwaysApprove) {
+    if (cfg.cliPermissionMode) {
       if (cfg.cliPermissionMode === 'bypassPermissions') {
-        flags.push('--always-approve');
+        push('--always-approve');
       } else {
-        flags.push('--permission-mode', cfg.cliPermissionMode);
+        push('--permission-mode', cfg.cliPermissionMode);
       }
-    } else if (cfg.permissionMode === 'allow-always' && !has('--always-approve')) {
-      flags.push('--always-approve');
+    } else if (cfg.permissionMode === 'allow-always') {
+      push('--always-approve');
     }
   }
-  if (cfg.maxTurns != null && cfg.maxTurns > 0 && !has('--max-turns')) {
-    flags.push('--max-turns', String(cfg.maxTurns));
+  if (cfg.maxTurns != null && cfg.maxTurns > 0) {
+    push('--max-turns', String(cfg.maxTurns));
   }
-  if (cfg.noSubagents && !has('--no-subagents')) {
-    flags.push('--no-subagents');
+  if (cfg.noSubagents) {
+    push('--no-subagents');
   }
-  if (cfg.noPlan && !has('--no-plan')) {
-    flags.push('--no-plan');
+  if (cfg.noPlan) {
+    push('--no-plan');
   }
-  if (cfg.noMemory && !has('--no-memory')) {
-    flags.push('--no-memory');
+  if (cfg.noMemory) {
+    push('--no-memory');
   }
-  if (cfg.experimentalMemory && !has('--experimental-memory')) {
-    flags.push('--experimental-memory');
+  if (cfg.experimentalMemory) {
+    push('--experimental-memory');
   }
-  if (cfg.disableWebSearch && !has('--disable-web-search')) {
-    flags.push('--disable-web-search');
+  if (cfg.disableWebSearch) {
+    push('--disable-web-search');
   }
-  if (cfg.sandbox?.trim() && !has('--sandbox')) {
-    flags.push('--sandbox', cfg.sandbox.trim());
+  if (cfg.sandbox?.trim()) {
+    push('--sandbox', cfg.sandbox.trim());
   }
-  if (cfg.tools?.trim() && !has('--tools')) {
-    flags.push('--tools', cfg.tools.trim());
+  if (cfg.tools?.trim()) {
+    push('--tools', cfg.tools.trim());
   }
-  if (cfg.disallowedTools?.trim() && !has('--disallowed-tools')) {
-    flags.push('--disallowed-tools', cfg.disallowedTools.trim());
+  if (cfg.disallowedTools?.trim()) {
+    push('--disallowed-tools', cfg.disallowedTools.trim());
   }
-  if (cfg.rules?.trim() && !has('--rules')) {
-    flags.push('--rules', cfg.rules.trim());
+  if (cfg.rules?.trim()) {
+    push('--rules', cfg.rules.trim());
   }
-  if (cfg.debug && !has('--debug')) {
-    flags.push('--debug');
+  if (cfg.debug) {
+    push('--debug');
   }
-  for (const extra of cfg.extraCliArgs ?? []) {
-    if (extra && !args.includes(extra) && !flags.includes(extra)) {
-      flags.push(extra);
+  for (const e of cfg.extraCliArgs ?? []) {
+    if (e) {
+      extra.push(e);
     }
   }
 
-  // Insert flags after `agent`, before `stdio`
-  const agentIdx = args.findIndex((a) => a === 'agent');
-  const insertAt = agentIdx >= 0 ? agentIdx + 1 : 0;
-  args.splice(insertAt, 0, ...flags);
-  return args;
+  return buildAgentArgv({
+    baseArgs: cliArgs.length ? cliArgs : ['agent', 'stdio'],
+    model: model ?? cfg.defaultModel,
+    noLeader: true,
+    reasoningEffort: cfg.reasoningEffort,
+    alwaysApprove: cfg.alwaysApprove,
+    extraFlags: extra,
+  });
 }
 
 export type { SessionUpdate, StopReason, SessionModeState, SessionConfigOption };

@@ -519,6 +519,12 @@ export interface ChatMessage {
   timestamp: number;
   streaming?: boolean;
   images?: Array<{ mimeType: string; dataUrl: string }>;
+  /** Visible @-context refs attached when this message was sent */
+  attachments?: Array<{
+    kind: string;
+    label: string;
+    path?: string;
+  }>;
 }
 
 export interface ChatToolCall {

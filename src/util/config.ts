@@ -52,6 +52,8 @@ export interface GrokBuildConfig {
   /** Extension UI: how to handle ACP session/request_permission */
   permissionMode: 'ask' | 'allow-once' | 'allow-session' | 'allow-always';
   showDiffBeforeApply: boolean;
+  /** Execute mode: auto-allow tool permissions (prevents hung turns) */
+  autoAllowInExecuteMode: boolean;
   maxContextFileBytes: number;
   sessionHistoryLimit: number;
   enableTerminal: boolean;
@@ -88,7 +90,8 @@ export function getConfig(): GrokBuildConfig {
       'permissionMode',
       'ask'
     ),
-    showDiffBeforeApply: c.get<boolean>('showDiffBeforeApply', true),
+    showDiffBeforeApply: c.get<boolean>('showDiffBeforeApply', false),
+    autoAllowInExecuteMode: c.get<boolean>('autoAllowInExecuteMode', true),
     maxContextFileBytes: c.get<number>('maxContextFileBytes', 200_000),
     sessionHistoryLimit: c.get<number>('sessionHistoryLimit', 50),
     enableTerminal: c.get<boolean>('enableTerminal', true),

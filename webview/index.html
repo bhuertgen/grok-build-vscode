@@ -2,20 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src {{cspSource}}; img-src {{cspSource}} data: blob:; font-src {{cspSource}};" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src {{cspSource}}; img-src {{cspSource}} data: blob:; font-src {{cspSource}};" />
   <title>Grok Build</title>
   <link rel="stylesheet" href="{{styleUri}}" />
   <style>
-    /* Injected host font size — matches VS Code editor.fontSize (default 14) */
     :root {
       --fs-base: {{fontSize}}px;
       --fs-msg: {{fontSize}}px;
+      --fs-agent: {{fontSizeAgent}}px;
       --fs-input: {{fontSize}}px;
       --fs-sm: calc({{fontSize}}px - 1px);
       --fs-xs: calc({{fontSize}}px - 2px);
-      --fs-code: calc({{fontSize}}px - 0.5px);
+      --fs-code: calc({{fontSizeAgent}}px - 1px);
     }
   </style>
 </head>
@@ -23,31 +22,70 @@
   <div id="app">
     <header class="topbar">
       <div class="brand" title="Grok Build">
-        <img class="brand-logo" id="brandLogo" src="{{logoUri}}" alt="Grok" width="18" height="18" />
-        <span class="brand-name">Grok</span>
+        <img class="brand-logo" id="brandLogo" src="{{logoUri}}" alt="Grok" width="16" height="16" />
+        <span class="brand-name">Grok Build</span>
       </div>
       <div class="session-tabs" id="sessionTabs"></div>
       <div class="topbar-actions">
+        <button type="button" class="chip-btn" id="chipModel" title="Change model">Model</button>
+        <button type="button" class="chip-btn" id="chipPerm" title="Permission mode">Perm</button>
+        <button type="button" class="mode-btn execute" id="btnMode" title="Toggle plan/execute">Execute</button>
         <button type="button" class="icon-btn" id="btnNew" title="New session">+</button>
-        <button type="button" class="icon-btn" id="btnHistory" title="Resume session">⏱</button>
-        <button type="button" class="mode-btn" id="btnMode" title="Toggle plan/execute mode">Execute</button>
+        <button type="button" class="icon-btn" id="btnHistory" title="Resume session">↺</button>
       </div>
     </header>
 
     <div class="cli-banner hidden" id="cliBanner">
       <div class="cli-banner-text">
         <strong>Grok CLI required</strong>
-        <span id="cliBannerDetail">This extension uses the official CLI via ACP (<code>grok agent stdio</code>).</span>
+        <span id="cliBannerDetail">Uses official <code>grok agent stdio</code> (ACP).</span>
       </div>
       <button type="button" class="text-btn primary-btn" id="btnSetupCli">Setup CLI…</button>
     </div>
 
+    <div class="update-banner hidden" id="updateBanner">
+      <div class="cli-banner-text">
+        <strong>CLI update available</strong>
+        <span id="updateBannerDetail">A newer Grok CLI version is available.</span>
+      </div>
+      <div class="memory-banner-actions">
+        <button type="button" class="text-btn primary-btn" id="btnUpdateCli">Update CLI</button>
+        <button type="button" class="text-btn" id="btnDismissUpdate">Later</button>
+      </div>
+    </div>
+
+    <div class="update-banner ext-update-banner hidden" id="extUpdateBanner">
+      <div class="cli-banner-text">
+        <strong>Extension update available</strong>
+        <span id="extUpdateBannerDetail">A newer Grok Build for VS Code is on GitHub.</span>
+      </div>
+      <div class="memory-banner-actions">
+        <button type="button" class="text-btn primary-btn" id="btnOpenExtRelease">Open release</button>
+        <button type="button" class="text-btn" id="btnDismissExtUpdate">Later</button>
+      </div>
+    </div>
+
+    <div class="trust-banner hidden" id="trustBanner">
+      <div class="cli-banner-text">
+        <strong>Restricted Mode</strong>
+        <span id="trustBannerDetail">This workspace is not trusted. Grok cannot write files or run tools until you trust the folder.</span>
+      </div>
+      <button type="button" class="text-btn primary-btn" id="btnTrust">Trust workspace…</button>
+    </div>
+
+    <div class="memory-banner hidden" id="memoryBanner">
+      <div class="cli-banner-text">
+        <strong id="memoryBannerTitle">Agent-Kontext</strong>
+        <span id="memoryBannerDetail"></span>
+      </div>
+      <div class="memory-banner-actions">
+        <button type="button" class="text-btn primary-btn hidden" id="btnSeedHistory">Verlauf in Kontext laden</button>
+        <button type="button" class="text-btn" id="btnDismissMemory">OK</button>
+      </div>
+    </div>
+
     <div class="status-bar" id="statusBar">
       <span id="statusText">Ready</span>
-      <span class="status-actions">
-        <button type="button" class="status-chip" id="chipModel" title="Change model">Model: —</button>
-        <button type="button" class="status-chip" id="chipPerm" title="Change permission mode">Perm: Ask</button>
-      </span>
       <span id="usageText" class="usage"></span>
     </div>
 
@@ -56,28 +94,82 @@
       <ul id="planList"></ul>
     </div>
 
+    <div class="agents-panel hidden" id="agentsPanel">
+      <div class="agents-list" id="agentsList" aria-label="Active tools"></div>
+    </div>
+
+    <div class="perm-card hidden" id="permCard">
+      <div class="perm-card-title" id="permCardTitle">Permission</div>
+      <div class="perm-card-detail" id="permCardDetail"></div>
+      <div class="perm-card-actions">
+        <button type="button" class="text-btn" id="permReject">Reject</button>
+        <button type="button" class="text-btn primary-btn" id="permAllow">Allow</button>
+        <button type="button" class="text-btn primary-btn" id="permAllowAlways">Allow always</button>
+      </div>
+    </div>
+
     <main class="messages" id="messages"></main>
 
     <div class="context-chips" id="contextChips"></div>
 
     <footer class="composer">
-      <div class="composer-toolbar">
-        <button type="button" class="text-btn" id="btnContext" title="Add context (Alt+G)">@ Context</button>
-        <button type="button" class="text-btn" id="btnSlash" title="Slash commands">/ Commands</button>
-        <button type="button" class="text-btn" id="btnImage" title="Attach image">🖼 Image</button>
-        <button type="button" class="text-btn" id="btnModel" title="Select model">Model</button>
-        <button type="button" class="text-btn" id="btnPerm" title="Permission mode">Perm</button>
+      <!-- + insert menu (context / media) -->
+      <div class="attach-menu hidden" id="attachMenu" role="menu" aria-label="Einfügen">
+        <div class="menu-section-label">Einfügen</div>
+        <button type="button" class="attach-item" id="btnContext" data-action="context">
+          <span class="attach-icon">@</span>
+          <span class="attach-label">
+            <span class="attach-title">Kontext / Datei</span>
+            <span class="attach-desc">@file, Symbol, Git, Ordner</span>
+          </span>
+        </button>
+        <button type="button" class="attach-item" id="btnImage" data-action="image">
+          <span class="attach-icon">🖼</span>
+          <span class="attach-label">
+            <span class="attach-title">Bild</span>
+            <span class="attach-desc">Bild als Anhang</span>
+          </span>
+        </button>
+        <button type="button" class="attach-item" id="btnActiveFile" data-action="active">
+          <span class="attach-icon">📄</span>
+          <span class="attach-label">
+            <span class="attach-title">Aktive Datei</span>
+            <span class="attach-desc">Offener Editor / Auswahl</span>
+          </span>
+        </button>
         <input type="file" id="imageInput" accept="image/*" multiple hidden />
       </div>
+
+      <!-- / actions menu (Claude-style parameters) -->
+      <div class="actions-menu hidden" id="actionsMenu" role="menu" aria-label="Aktionen">
+        <input
+          type="search"
+          class="actions-filter"
+          id="actionsFilter"
+          placeholder="Aktionen filtern…"
+          autocomplete="off"
+        />
+        <div class="actions-list" id="actionsList"></div>
+        <div class="actions-footer">Esc schließen · ↑↓ wählen · Enter</div>
+      </div>
+
       <div class="composer-wrap">
         <div class="slash-menu hidden" id="slashMenu" role="listbox" aria-label="Slash commands"></div>
-        <div class="composer-row">
-          <textarea id="input" rows="2" placeholder="Message Grok Build… (/ commands, @ context, Enter to send)"></textarea>
+        <div class="slash-menu hidden" id="bottomPicker" role="listbox" aria-label="Picker"></div>
+        <div class="composer-shell">
+          <div class="composer-left">
+            <button type="button" class="icon-btn plus-btn" id="btnPlus" title="Einfügen (+)">+</button>
+            <button type="button" class="icon-btn slash-btn" id="btnSlash" title="Aktionen (/)">/</button>
+          </div>
+          <textarea id="input" rows="1" placeholder="Message Grok…"></textarea>
           <div class="composer-actions">
             <button type="button" class="send-btn" id="btnSend" title="Send">↑</button>
             <button type="button" class="stop-btn hidden" id="btnStop" title="Cancel">■</button>
           </div>
         </div>
+      </div>
+      <div class="composer-hint">
+        <span><kbd>+</kbd> einfügen · <kbd>/</kbd> Aktionen · <kbd>@</kbd> Datei · <kbd>Enter</kbd> senden</span>
       </div>
       <div class="pending-edits hidden" id="pendingEdits"></div>
     </footer>

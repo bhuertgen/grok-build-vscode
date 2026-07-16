@@ -1,9 +1,11 @@
 node_modules/
 dist/
+dist-test/
 *.vsix
 .DS_Store
 *.log
 .vscode-test/
+.vscode-test-workspace/
 out/
 *.tsbuildinfo
 errors/

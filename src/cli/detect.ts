@@ -89,11 +89,20 @@ function tryNext(
   let out = '';
   let proc;
   try {
-    proc = spawn(cliPath, ['--version'], {
-      shell: process.platform === 'win32',
-      windowsHide: true,
-      env: { ...process.env },
-    });
+    // Avoid shell:true + args[] (Node DEP0190 red noise in Debug Console).
+    // .cmd/.bat shims on Windows still need a shell — pass a single command string.
+    const isWinShim = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cliPath);
+    proc = isWinShim
+      ? spawn(`"${cliPath}" --version`, {
+          shell: true,
+          windowsHide: true,
+          env: { ...process.env },
+        })
+      : spawn(cliPath, ['--version'], {
+          shell: false,
+          windowsHide: true,
+          env: { ...process.env },
+        });
   } catch (err) {
     log.debug('CLI spawn failed', cliPath, err);
     tryNext(candidates, index + 1, resolve, log);

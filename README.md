@@ -52,6 +52,18 @@ npm run watch
 
 Press **F5** in VS Code (launch config *Run Extension*).
 
+## Automated checks
+
+```bash
+npm test                 # unit tests (chat format, @-mention, cwd)
+npm run test:integration # VS Code Extension Host (downloads VS Code once)
+npm run test:all         # unit + integration
+npm run smoke            # typecheck + build + security markers + unit tests
+npm run check            # alias for smoke
+```
+
+Manual UX / security scenarios: [docs/TEST_CONCEPT.md](docs/TEST_CONCEPT.md).
+
 ## Connect to Grok Build CLI
 
 Default settings assume `grok` is on your `PATH`:

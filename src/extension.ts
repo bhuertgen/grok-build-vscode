@@ -8,6 +8,13 @@ import { registerCommands } from './commands/registerCommands';
 import { ensureCliReady, resetCliOnboardSkip } from './cli/onboard';
 import { detectGrokCli } from './cli/detect';
 import { getCliStatus } from './cli/cliStatus';
+import { checkCliUpdate } from './cli/updateCheck';
+import { checkExtensionUpdate } from './util/extensionUpdate';
+import {
+  getTrustBannerMessage,
+  isWorkspaceTrusted,
+  promptTrustWorkspace,
+} from './util/workspaceTrust';
 
 let sessions: SessionManager | undefined;
 
@@ -65,9 +72,9 @@ export async function activate(
         void vscode.window.showInformationMessage(
           `Grok CLI ready${result.detection.version ? `: ${result.detection.version}` : ''} (${result.detection.cliPath})`
         );
-        // Offer a session if none exist
+        // Restore last project chat or create empty session
         if (sessions && sessions.listSessions().length === 0) {
-          await sessions.createSession();
+          await sessions.ensureBootstrapSession();
           chatView.pushState();
         }
       }
@@ -95,6 +102,7 @@ export async function activate(
 
   const refreshStatusBar = () => {
     const snap = cliStatus.snapshot;
+    status.backgroundColor = undefined;
     if (cliStatus.checking) {
       status.text = '$(sync~spin) Grok';
       status.tooltip = 'Checking Grok CLI…';
@@ -106,6 +114,32 @@ export async function activate(
       status.tooltip =
         'Grok CLI not found — click to run Setup CLI…';
       status.command = 'grokBuild.setupCli';
+      return;
+    }
+    if (snap.updateAvailable || snap.extensionUpdateAvailable) {
+      status.backgroundColor = new vscode.ThemeColor(
+        'statusBarItem.warningBackground'
+      );
+      if (snap.extensionUpdateAvailable && !snap.updateAvailable) {
+        status.text = `$(cloud-download) Grok Ext ${snap.extensionUpdateLatest ?? ''}`.trim();
+        status.tooltip =
+          (snap.extensionUpdateMessage ?? 'Extension update available') +
+          '\nClick to open Grok Build · GitHub Release';
+      } else if (snap.updateAvailable && !snap.extensionUpdateAvailable) {
+        status.text = `$(cloud-download) Grok CLI ${snap.updateLatest ?? ''}`.trim();
+        status.tooltip =
+          (snap.updateMessage ?? 'Grok CLI update available') +
+          '\nClick to open Grok Build · Update: grok update';
+      } else {
+        status.text = '$(cloud-download) Grok updates';
+        status.tooltip = [
+          snap.extensionUpdateMessage,
+          snap.updateMessage,
+        ]
+          .filter(Boolean)
+          .join('\n');
+      }
+      status.command = 'grokBuild.openChat';
       return;
     }
     const active = sessions?.getActive();
@@ -132,7 +166,26 @@ export async function activate(
     },
   });
 
-  // CLI detection (async; UI already registered)
+  // Workspace Trust / Restricted Mode
+  const pushTrustState = () => {
+    chatView.pushState();
+    // Editor panel gets state via its own provider instance on next push
+  };
+  if (!isWorkspaceTrusted()) {
+    log.warn(getTrustBannerMessage());
+    void promptTrustWorkspace();
+  }
+  context.subscriptions.push(
+    vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      log.info('Workspace trust granted — writes/tools enabled');
+      void vscode.window.showInformationMessage(
+        'Workspace trusted. Grok Build can write files and run tools now.'
+      );
+      pushTrustState();
+    })
+  );
+
+  // CLI detection + update check (async; UI already registered)
   void (async () => {
     cliStatus.setChecking();
     const result = await ensureCliReady(context);
@@ -141,10 +194,31 @@ export async function activate(
       log.info(
         `CLI OK: ${result.detection.cliPath}${result.detection.version ? ` (${result.detection.version})` : ''}`
       );
+      try {
+        const upd = await checkCliUpdate(result.detection.cliPath);
+        cliStatus.setUpdateInfo(upd);
+        if (upd.updateAvailable) {
+          log.info(upd.message ?? 'CLI update available');
+        }
+      } catch (err) {
+        log.debug('CLI update check failed', err);
+      }
     } else {
       log.warn('CLI not ready', result.detection.error);
     }
+    try {
+      const extUpd = await checkExtensionUpdate();
+      cliStatus.setExtensionUpdateInfo(extUpd);
+      if (extUpd.updateAvailable) {
+        log.info(extUpd.message ?? 'Extension update available');
+      } else if (extUpd.message) {
+        log.debug(extUpd.message);
+      }
+    } catch (err) {
+      log.debug('Extension update check failed', err);
+    }
     refreshStatusBar();
+    pushTrustState();
   })();
 
   log.info('Grok Build activated');

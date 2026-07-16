@@ -13,12 +13,12 @@ export interface QueueWriteParams {
 }
 
 /**
- * Manages pending file edits with native VS Code diff preview
- * and Apply / Reject / Apply All / Apply Always semantics.
+ * Tracks file edits for UI (diff / history).
+ * Writes are applied immediately by default so the ACP agent is not blocked.
  */
 export class EditController extends EventEmitter {
   private pending = new Map<string, PendingEdit>();
-  private applyAlways = false;
+  private applyAlways = true; // default: apply without blocking the agent
   private seq = 0;
   private readonly log = getLogger();
   private applyWriteImpl?: (filePath: string, content: string) => Promise<void>;
@@ -41,7 +41,21 @@ export class EditController extends EventEmitter {
     return sessionId ? all.filter((e) => e.sessionId === sessionId) : all;
   }
 
-  async queueWrite(params: QueueWriteParams): Promise<PendingEdit> {
+  listRecent(sessionId?: string, limit = 20): PendingEdit[] {
+    let all = [...this.pending.values()].sort(
+      (a, b) => b.id.localeCompare(a.id)
+    );
+    if (sessionId) {
+      all = all.filter((e) => e.sessionId === sessionId);
+    }
+    return all.slice(0, limit);
+  }
+
+  /**
+   * Apply write immediately and track it. Never blocks waiting for UI.
+   * Optional toast offers "Show Diff" after the fact.
+   */
+  async writeAndTrack(params: QueueWriteParams): Promise<PendingEdit> {
     const id = `edit_${++this.seq}_${Date.now()}`;
     const edit: PendingEdit = {
       id,
@@ -54,47 +68,46 @@ export class EditController extends EventEmitter {
     };
     this.pending.set(id, edit);
     this.emit('queued', edit);
-    this.log.info('Queued edit', params.path);
 
-    if (this.applyAlways) {
-      await this.apply(id);
-      return edit;
+    if (!this.applyWriteImpl) {
+      throw new Error('EditController: applyWrite not configured');
     }
 
-    // Non-blocking: show notification with actions
-    const fileName = path.basename(params.path);
-    const choice = await vscode.window.showInformationMessage(
-      `Grok Build proposes changes to ${fileName}`,
-      'Show Diff',
-      'Apply',
-      'Apply All',
-      'Apply Always',
-      'Reject'
-    );
+    try {
+      await this.applyWriteImpl(params.path, params.newText);
+      edit.status = 'applied';
+      this.emit('applied', edit);
+      this.log.info('Applied write', params.path);
 
-    switch (choice) {
-      case 'Show Diff':
-        await this.showDiff(id);
-        break;
-      case 'Apply':
-        await this.apply(id);
-        break;
-      case 'Apply All':
-        await this.applyAll(params.sessionId);
-        break;
-      case 'Apply Always':
-        this.setApplyAlways(true);
-        await this.applyAll(params.sessionId);
-        break;
-      case 'Reject':
-        await this.reject(id);
-        break;
-      default:
-        // left pending — user can act via commands / webview
-        break;
+      const fileName = path.basename(params.path);
+      // Non-blocking toast — never await user choice for agent progress
+      void vscode.window
+        .showInformationMessage(
+          `Grok wrote ${fileName}`,
+          'Show Diff',
+          'Open File'
+        )
+        .then(async (choice) => {
+          if (choice === 'Show Diff') {
+            await this.showDiff(id);
+          } else if (choice === 'Open File') {
+            const doc = await vscode.workspace.openTextDocument(params.path);
+            await vscode.window.showTextDocument(doc, { preview: true });
+          }
+        });
+    } catch (err) {
+      edit.status = 'rejected';
+      this.emit('rejected', edit);
+      throw err;
     }
 
     return edit;
+  }
+
+  /** @deprecated Prefer writeAndTrack — kept for manual queue/apply UX */
+  async queueWrite(params: QueueWriteParams): Promise<PendingEdit> {
+    // Non-blocking path: always write immediately (fixes hung agent turns)
+    return this.writeAndTrack(params);
   }
 
   async showDiff(editId: string): Promise<void> {
@@ -110,19 +123,13 @@ export class EditController extends EventEmitter {
       `grok-build-diff:right/${encodeURIComponent(edit.path)}?id=${editId}`
     );
 
-    // Use virtual documents via a content provider registered by extension
     this.emit('needDiffContent', edit);
-
     const title = `${path.basename(edit.path)} (Grok Build)`;
     await vscode.commands.executeCommand('vscode.diff', left, right, title);
   }
 
   getEdit(editId: string): PendingEdit | undefined {
     return this.pending.get(editId);
-  }
-
-  getEditByPathQuery(queryId: string): PendingEdit | undefined {
-    return this.pending.get(queryId);
   }
 
   async apply(editId: string): Promise<void> {
@@ -174,9 +181,6 @@ export class EditController extends EventEmitter {
   }
 }
 
-/**
- * Virtual document provider for left/right sides of the Grok Build diff.
- */
 export class DiffContentProvider implements vscode.TextDocumentContentProvider {
   private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this._onDidChange.event;
@@ -189,7 +193,6 @@ export class DiffContentProvider implements vscode.TextDocumentContentProvider {
     if (!edit) {
       return '';
     }
-    // URI form: grok-build-diff:left/<path>?id=… or …:right/…
     const isLeft =
       uri.path.includes('left/') ||
       uri.authority === 'left' ||

@@ -2,8 +2,8 @@
   "name": "grok-build-vscode",
   "displayName": "Grok Build for VS Code",
   "description": "Hybrid ACP client for xAI Grok Build: native VS Code UI over the official CLI (grok agent stdio). Multi-session, plan/execute, diffs, context.",
-  "version": "0.1.0",
-  "publisher": "grok-build",
+  "version": "0.2.0",
+  "publisher": "bhuertgen",
   "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
@@ -28,6 +28,12 @@
   ],
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Grok Build needs a trusted workspace to write files, apply edits, and run terminal tools. In Restricted Mode only chat/read features work reliably."
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -155,18 +161,23 @@
       },
       {
         "command": "grokBuild.resumeSession",
-        "title": "Resume Session",
+        "title": "Chat History (this project)",
         "category": "Grok Build",
         "icon": "$(history)"
       },
       {
         "command": "grokBuild.clearHistory",
-        "title": "Clear Session History",
+        "title": "Clear Chat History",
         "category": "Grok Build"
       },
       {
         "command": "grokBuild.checkCli",
         "title": "Check Grok CLI Status",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.updateCli",
+        "title": "Update Grok CLI",
         "category": "Grok Build"
       },
       {
@@ -346,7 +357,10 @@
           "description": "CLI --always-approve: auto-approve all tool executions in the agent process."
         },
         "grokBuild.maxTurns": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "default": null,
           "description": "CLI --max-turns. Null/0 = unlimited (agent default)."
         },
@@ -431,8 +445,13 @@
         },
         "grokBuild.showDiffBeforeApply": {
           "type": "boolean",
+          "default": false,
+          "description": "After a successful write, offer a non-blocking toast with Show Diff. Writes are always applied immediately so the agent is not blocked."
+        },
+        "grokBuild.autoAllowInExecuteMode": {
+          "type": "boolean",
           "default": true,
-          "description": "Open a native VS Code diff preview before applying file writes from the agent."
+          "description": "In Execute mode, auto-allow tool permissions so the agent is not blocked on a hidden dialog. Plan mode still prompts."
         },
         "grokBuild.maxContextFileBytes": {
           "type": "number",
@@ -443,6 +462,21 @@
           "type": "number",
           "default": 50,
           "description": "Maximum number of sessions to keep in local history."
+        },
+        "grokBuild.updateRepo": {
+          "type": "string",
+          "default": "bhuertgen/grok-build-vscode",
+          "description": "GitHub repository (owner/name) for extension update checks via Releases."
+        },
+        "grokBuild.githubToken": {
+          "type": "string",
+          "default": "",
+          "description": "Optional GitHub token for private-repo release checks. Prefer VS Code GitHub sign-in when possible."
+        },
+        "grokBuild.checkPrereleaseUpdates": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include prerelease GitHub releases in extension update checks."
         },
         "grokBuild.enableTerminal": {
           "type": "boolean",
@@ -489,21 +523,32 @@
     "watch": "node esbuild.mjs --watch",
     "compile": "tsc -p ./ --noEmit",
     "package": "vsce package --no-dependencies",
-    "lint": "tsc -p ./ --noEmit"
+    "lint": "tsc -p ./ --noEmit",
+    "test:bundle": "node scripts/build-test-bundle.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs",
+    "test:integration:bundle": "node scripts/build-integration-tests.mjs",
+    "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
+    "test": "npm run test:unit",
+    "test:all": "npm run test:unit && npm run test:integration",
+    "smoke": "node scripts/smoke-check.mjs",
+    "check": "node scripts/smoke-check.mjs"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.25.0",
+    "mocha": "^11.7.6",
     "typescript": "^5.5.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/xai-org/grok-build-vscode"
+    "url": "https://github.com/bhuertgen/grok-build-vscode.git"
   },
   "bugs": {
-    "url": "https://github.com/xai-org/grok-build-vscode/issues"
+    "url": "https://github.com/bhuertgen/grok-build-vscode/issues"
   },
-  "homepage": "https://github.com/xai-org/grok-build-vscode#readme"
+  "homepage": "https://github.com/bhuertgen/grok-build-vscode#readme"
 }

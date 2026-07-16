@@ -22,6 +22,11 @@ import type {
 import { getConfig } from '../util/config';
 import { getLogger } from '../util/logger';
 import { applyTextWrite } from '../util/fileWriter';
+import {
+  assertWorkspaceTrustedForWrite,
+  isWorkspaceTrusted,
+  promptTrustWorkspace,
+} from '../util/workspaceTrust';
 import type { EditController } from '../edits/editController';
 
 interface ManagedTerminal {
@@ -100,6 +105,13 @@ export class ClientHandlers {
     const filePath = params.path;
     this.log.info('fs/write_text_file', filePath);
 
+    // Restricted Mode: fail loudly so the agent can report it (no silent hang)
+    if (!isWorkspaceTrusted()) {
+      this.log.warn('Write blocked — workspace untrusted (Restricted Mode)', filePath);
+      void promptTrustWorkspace();
+      assertWorkspaceTrustedForWrite(filePath);
+    }
+
     let oldText = '';
     try {
       const uri = vscode.Uri.file(filePath);
@@ -115,23 +127,20 @@ export class ClientHandlers {
       oldText = '';
     }
 
-    const cfg = getConfig();
-    if (cfg.showDiffBeforeApply && !this.globalAllowAlways) {
-      // Queue as pending edit — EditController may auto-apply or wait
-      await this.editController.queueWrite({
-        sessionId: params.sessionId,
-        path: filePath,
-        oldText,
-        newText: params.content,
-      });
-    } else {
-      await this.applyWrite(filePath, params.content);
-    }
+    // Always write immediately so the agent turn is not blocked on a hidden dialog.
+    // UI gets a non-blocking toast + optional "Show Diff" (see EditController.writeAndTrack).
+    await this.editController.writeAndTrack({
+      sessionId: params.sessionId,
+      path: filePath,
+      oldText,
+      newText: params.content,
+    });
 
     return {};
   }
 
   async applyWrite(filePath: string, content: string): Promise<void> {
+    assertWorkspaceTrustedForWrite(filePath);
     await applyTextWrite(filePath, content);
   }
 
@@ -143,17 +152,45 @@ export class ClientHandlers {
     const cfg = getConfig();
     this.log.info('session/request_permission', params.toolCall?.title, params.toolCall?.kind);
 
-    if (this.globalAllowAlways || cfg.permissionMode === 'allow-always') {
-      const allow = params.options.find(
-        (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
+    // In Restricted Mode, warn before any write-related permission
+    const kind = params.toolCall?.kind ?? '';
+    const title = (params.toolCall?.title ?? '').toLowerCase();
+    const looksLikeWrite =
+      kind === 'edit' ||
+      kind === 'delete' ||
+      kind === 'move' ||
+      /write|edit|create|delete|file/i.test(title);
+    if (!isWorkspaceTrusted() && looksLikeWrite) {
+      void promptTrustWorkspace();
+      // Prefer reject so the agent does not hang on a silent write
+      const reject = params.options.find(
+        (o) => o.kind === 'reject_once' || o.kind === 'reject_always'
       );
+      if (reject) {
+        return {
+          outcome: { outcome: 'selected', optionId: reject.optionId },
+        };
+      }
+    }
+
+    const findAllow = () =>
+      params.options.find(
+        (o) =>
+          o.kind === 'allow_once' ||
+          o.kind === 'allow_always' ||
+          /allow/i.test(o.kind) ||
+          /allow/i.test(o.name)
+      );
+
+    if (this.globalAllowAlways || cfg.permissionMode === 'allow-always') {
+      const allow = findAllow();
       if (allow) {
         return { outcome: { outcome: 'selected', optionId: allow.optionId } };
       }
     }
 
     if (cfg.permissionMode === 'allow-session' || cfg.permissionMode === 'allow-once') {
-      const allow = params.options.find((o) => o.kind === 'allow_once');
+      const allow = findAllow();
       if (allow) {
         return { outcome: { outcome: 'selected', optionId: allow.optionId } };
       }
@@ -248,15 +285,16 @@ export class ClientHandlers {
     const args = params.args ?? [];
     this.log.info('terminal/create', params.command, args.join(' '));
 
+    // Windows: shell needed for .cmd/.bat; avoid DEP0190 by using one command string.
     const isWin = process.platform === 'win32';
     const proc = isWin
-      ? spawn(params.command, args, {
+      ? spawn(quoteWinCommand(params.command, args), {
           cwd,
           env,
           shell: true,
           windowsHide: true,
         })
-      : spawn(params.command, args, { cwd, env });
+      : spawn(params.command, args, { cwd, env, shell: false });
 
     const limit = params.outputByteLimit ?? 1_000_000;
     const managed: ManagedTerminal = {
@@ -385,4 +423,18 @@ export class ClientHandlers {
     }
     this.terminals.clear();
   }
+}
+
+/** Build a single cmd.exe-safe command line (for shell:true without args[]). */
+function quoteWinCommand(command: string, args: string[]): string {
+  const parts = [command, ...args].map((p) => {
+    if (!p) {
+      return '""';
+    }
+    if (/[\s"]/g.test(p)) {
+      return `"${p.replace(/"/g, '\\"')}"`;
+    }
+    return p;
+  });
+  return parts.join(' ');
 }

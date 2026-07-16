@@ -19,11 +19,35 @@ import type {
   UsageInfo,
 } from '../acp/types';
 import { getConfig, getWorkspaceCwd } from '../util/config';
+import {
+  buildHistorySeedTranscript,
+  formatUserMessageWithAttachments,
+  stripTrailingDecorations,
+} from '../util/chatFormat';
 import { applyTextWrite } from '../util/fileWriter';
 import { getLogger } from '../util/logger';
+import {
+  formatModelLabel,
+  loadModelCatalog,
+  sessionModelContextBlock,
+} from '../util/modelCatalog';
 import type { EditController } from '../edits/editController';
-import { SessionStore, type StoredSession } from './sessionStore';
+import {
+  SessionStore,
+  sameCwd,
+  type StoredSession,
+} from './sessionStore';
 import { ContextCollector } from '../context/contextCollector';
+
+/**
+ * How much conversation memory the live CLI agent has.
+ * UI history can exist independently of agent context.
+ */
+export type AgentContextStatus =
+  | 'new' // empty / fresh agent session
+  | 'resumed' // CLI session/resume succeeded — agent should remember
+  | 'local-only' // UI shows history, agent started cold
+  | 'seeded'; // local history was injected into agent prompt context
 
 export interface SessionState {
   localId: string;
@@ -47,6 +71,15 @@ export interface SessionState {
   lastError?: string;
   /** Context chips attached for the next prompt */
   contextItems: ContextItem[];
+  /** Agent memory vs UI history (shown as banner) */
+  agentContext: AgentContextStatus;
+  /**
+   * When true, the next sendPrompt prepends a transcript of local messages
+   * so the cold agent can "remember" the restored chat.
+   */
+  seedHistoryOnNextPrompt?: boolean;
+  /** User closed the memory banner for this open */
+  contextNoticeDismissed?: boolean;
 }
 
 /** Local slash commands always offered (extension UX), even before the agent advertises any. */
@@ -93,6 +126,26 @@ export interface ContextItem {
 }
 
 let sessionCounter = 0;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
 
 function newLocalId(): string {
   return `local_${Date.now()}_${++sessionCounter}`;
@@ -163,6 +216,10 @@ export class SessionManager extends EventEmitter {
   setActive(localId: string): void {
     if (this.sessions.has(localId)) {
       this.activeLocalId = localId;
+      const s = this.sessions.get(localId);
+      if (s) {
+        void this.store.setLastActiveLocalId(s.cwd, localId);
+      }
       this.emit('activeChanged', localId);
       this.emitChange(localId);
     }
@@ -170,6 +227,7 @@ export class SessionManager extends EventEmitter {
 
   /**
    * Ensure at least one session exists (safe under concurrent webview listeners).
+   * Claude Code–style: reopen the last chat for this workspace (full text history).
    */
   async ensureBootstrapSession(): Promise<SessionState | undefined> {
     if (this.sessions.size > 0) {
@@ -178,10 +236,54 @@ export class SessionManager extends EventEmitter {
     if (this.bootstrapInFlight) {
       return this.bootstrapInFlight;
     }
-    this.bootstrapInFlight = this.createSession().finally(() => {
+    this.bootstrapInFlight = this.bootstrapForWorkspace().finally(() => {
       this.bootstrapInFlight = null;
     });
     return this.bootstrapInFlight;
+  }
+
+  /**
+   * Restore last session for the open folder, or start a fresh chat.
+   */
+  private async bootstrapForWorkspace(): Promise<SessionState> {
+    const cwd = getWorkspaceCwd();
+    const stored = this.store.findResumeTarget(cwd);
+    if (stored) {
+      this.log.info(
+        `Restoring session ${stored.localId} for workspace (${stored.messages.length} messages)`
+      );
+      return this.openStored(stored, true);
+    }
+    return this.createSession();
+  }
+
+  /** History entries for the current project (webview / QuickPick). */
+  listHistoryForWorkspace(limit = 40): Array<{
+    localId: string;
+    title: string;
+    preview?: string;
+    updatedAt: number;
+    messageCount: number;
+    mode: string;
+    model?: string;
+    isOpen: boolean;
+    isActive: boolean;
+  }> {
+    const cwd = getWorkspaceCwd();
+    return this.store
+      .listMetaForCwd(cwd)
+      .slice(0, limit)
+      .map((m) => ({
+        localId: m.localId,
+        title: m.title || 'Chat',
+        preview: m.preview,
+        updatedAt: m.updatedAt,
+        messageCount: m.messageCount,
+        mode: m.mode,
+        model: m.model,
+        isOpen: this.sessions.has(m.localId),
+        isActive: this.activeLocalId === m.localId,
+      }));
   }
 
   async createSession(options?: { mode?: AgentMode }): Promise<SessionState> {
@@ -201,6 +303,7 @@ export class SessionManager extends EventEmitter {
       busy: false,
       status: 'connecting',
       contextItems: [],
+      agentContext: 'new',
     };
     this.sessions.set(localId, state);
     this.activeLocalId = localId;
@@ -255,21 +358,67 @@ export class SessionManager extends EventEmitter {
   }
 
   async openHistoryPicker(): Promise<SessionState | undefined> {
-    const metas = this.store.listMeta();
-    if (metas.length === 0) {
-      void vscode.window.showInformationMessage('No saved Grok Build sessions.');
+    const cwd = getWorkspaceCwd();
+    const forProject = this.store.listMetaForCwd(cwd);
+    const others = this.store
+      .listMeta()
+      .filter((m) => !sameCwd(m.cwd, cwd))
+      .slice(0, 20);
+
+    if (forProject.length === 0 && others.length === 0) {
+      void vscode.window.showInformationMessage(
+        'No saved Grok Build sessions for this project yet. Chats are saved automatically when you talk to Grok.'
+      );
       return undefined;
     }
-    const picked = await vscode.window.showQuickPick(
-      metas.map((m) => ({
-        label: m.title,
-        description: new Date(m.updatedAt).toLocaleString(),
-        detail: `${m.mode} · ${m.messageCount} messages · ${m.cwd}`,
-        localId: m.localId,
-      })),
-      { placeHolder: 'Resume a previous session' }
-    );
-    if (!picked) {
+
+    type HistItem = vscode.QuickPickItem & { localId?: string };
+    const items: HistItem[] = [];
+
+    if (forProject.length > 0) {
+      items.push({
+        label: 'This project',
+        kind: vscode.QuickPickItemKind.Separator,
+      });
+      for (const m of forProject) {
+        const open = this.sessions.has(m.localId);
+        items.push({
+          label: (open ? '$(comment-discussion) ' : '') + (m.title || 'Chat'),
+          description: new Date(m.updatedAt).toLocaleString(),
+          detail: [
+            m.preview || `${m.messageCount} messages`,
+            m.mode,
+            m.model,
+            open ? 'open' : undefined,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          localId: m.localId,
+        });
+      }
+    }
+
+    if (others.length > 0) {
+      items.push({
+        label: 'Other folders',
+        kind: vscode.QuickPickItemKind.Separator,
+      });
+      for (const m of others) {
+        items.push({
+          label: m.title || 'Chat',
+          description: new Date(m.updatedAt).toLocaleString(),
+          detail: `${m.preview || m.messageCount + ' messages'} · ${m.cwd}`,
+          localId: m.localId,
+        });
+      }
+    }
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Continue a previous chat (saved per project folder)',
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
+    if (!picked?.localId) {
       return undefined;
     }
     return this.resumeFromStore(picked.localId);
@@ -285,6 +434,7 @@ export class SessionManager extends EventEmitter {
       return existing;
     }
 
+    const hasLocalHistory = (stored.messages?.length ?? 0) > 0;
     const state: SessionState = {
       localId: stored.localId,
       agentSessionId: stored.agentSessionId,
@@ -302,10 +452,14 @@ export class SessionManager extends EventEmitter {
       busy: false,
       status: 'connecting',
       contextItems: [],
+      agentContext: hasLocalHistory ? 'local-only' : 'new',
     };
+    // Show saved messages immediately (before CLI connects) — Claude Code style
     this.sessions.set(state.localId, state);
     this.activeLocalId = state.localId;
+    void this.store.setLastActiveLocalId(state.cwd, state.localId);
     this.emit('sessionCreated', state);
+    this.emitChange(state.localId);
 
     try {
       const preferredModel =
@@ -321,6 +475,12 @@ export class SessionManager extends EventEmitter {
           state.modes = res.modes ?? undefined;
           state.configOptions = normalizeConfigOptions(res.configOptions);
           state.status = 'ready';
+          state.agentContext = 'resumed';
+          state.seedHistoryOnNextPrompt = false;
+          this.pushSystem(
+            state,
+            '**Session fortgesetzt (Resume)** — der Agent kennt den bisherigen Verlauf.'
+          );
         } catch (err) {
           this.log.warn('Agent resume failed, creating new agent session', err);
           const res = await client.newSession({ cwd: state.cwd });
@@ -328,10 +488,17 @@ export class SessionManager extends EventEmitter {
           state.modes = res.modes ?? undefined;
           state.configOptions = normalizeConfigOptions(res.configOptions);
           state.status = 'ready';
-          this.pushSystem(
-            state,
-            'Previous agent session could not be resumed on the CLI; started a new agent process (local chat history preserved).'
-          );
+          if (hasLocalHistory) {
+            state.agentContext = 'local-only';
+            this.pushSystem(
+              state,
+              '**Lokaler Verlauf geladen** — der Agent startet neu und kennt den Chat noch nicht. ' +
+                'Mit „Verlauf in Kontext laden“ übergibst du den Text an den Agenten (mit der nächsten Nachricht).'
+            );
+            void this.promptSeedHistory(state);
+          } else {
+            state.agentContext = 'new';
+          }
         }
       } else {
         const res = await client.newSession({ cwd: state.cwd });
@@ -339,6 +506,17 @@ export class SessionManager extends EventEmitter {
         state.modes = res.modes ?? undefined;
         state.configOptions = normalizeConfigOptions(res.configOptions);
         state.status = 'ready';
+        if (hasLocalHistory) {
+          state.agentContext = 'local-only';
+          this.pushSystem(
+            state,
+            '**Lokaler Verlauf geladen** — keine Agent-Session zum Fortsetzen gefunden. ' +
+              'Der Agent startet kalt. Optional: Verlauf in den Kontext laden.'
+          );
+          void this.promptSeedHistory(state);
+        } else {
+          state.agentContext = 'new';
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -348,8 +526,80 @@ export class SessionManager extends EventEmitter {
       await this.teardownClient(state.localId);
     }
 
+    this.schedulePersist(state);
     this.emitChange(state.localId);
     return state;
+  }
+
+  /**
+   * Ask the user whether to inject local transcript into the cold agent.
+   */
+  private async promptSeedHistory(state: SessionState): Promise<void> {
+    const action = await vscode.window.showInformationMessage(
+      'Chat-Verlauf ist in der UI sichtbar, aber der Agent startet ohne Erinnerung. Verlauf in den Agent-Kontext laden?',
+      'Verlauf in Kontext laden',
+      'Ohne Kontext fortfahren'
+    );
+    if (action === 'Verlauf in Kontext laden') {
+      this.enableHistorySeed(state.localId);
+    } else if (action === 'Ohne Kontext fortfahren') {
+      state.seedHistoryOnNextPrompt = false;
+      this.pushSystem(
+        state,
+        'Ohne Kontext fortfahren — der Agent kennt frühere Nachrichten nicht, bis du sie erneut nennst.'
+      );
+      this.emitChange(state.localId);
+    }
+  }
+
+  /** Mark session so the next user message includes a local transcript for the agent. */
+  enableHistorySeed(localId: string): void {
+    const state = this.sessions.get(localId);
+    if (!state) {
+      return;
+    }
+    if (state.agentContext === 'resumed' || state.agentContext === 'seeded') {
+      this.pushSystem(
+        state,
+        state.agentContext === 'resumed'
+          ? 'Agent-Session ist bereits fortgesetzt — extra Kontext ist nicht nötig.'
+          : 'Verlauf wurde bereits in den Kontext geladen.'
+      );
+      this.emitChange(localId);
+      return;
+    }
+    const usable = (state.messages || []).filter(
+      (m) =>
+        (m.role === 'user' || m.role === 'agent') &&
+        String(m.content || '').trim()
+    );
+    if (usable.length === 0) {
+      this.pushSystem(state, 'Kein Chat-Text zum Einlesen vorhanden.');
+      this.emitChange(localId);
+      return;
+    }
+    state.seedHistoryOnNextPrompt = true;
+    state.agentContext = 'local-only';
+    state.contextNoticeDismissed = false;
+    this.pushSystem(
+      state,
+      '**Verlauf wird mit der nächsten Nachricht in den Agent-Kontext geladen.** ' +
+        'Schreib einfach weiter — der Agent erhält die bisherigen User/Grok-Nachrichten als Hintergrund.'
+    );
+    this.emitChange(localId);
+  }
+
+  dismissHistoryBanner(localId: string): void {
+    const state = this.sessions.get(localId);
+    if (!state) {
+      return;
+    }
+    if (state.seedHistoryOnNextPrompt) {
+      state.seedHistoryOnNextPrompt = false;
+      this.pushSystem(state, 'Kontext-Laden abgebrochen.');
+    }
+    state.contextNoticeDismissed = true;
+    this.emitChange(localId);
   }
 
   async closeSession(localId: string): Promise<void> {
@@ -495,6 +745,21 @@ export class SessionManager extends EventEmitter {
     }
 
     const blocks: ContentBlock[] = [];
+    // Inject restored local transcript so a cold agent can continue the chat
+    if (state.seedHistoryOnNextPrompt) {
+      const transcript = buildHistorySeedTranscript(state.messages);
+      if (transcript) {
+        blocks.push({ type: 'text', text: transcript });
+        state.seedHistoryOnNextPrompt = false;
+        state.agentContext = 'seeded';
+        this.pushSystem(
+          state,
+          '**Verlauf in Agent-Kontext geladen** — der Agent erhält die bisherigen Nachrichten als Hintergrund zu deiner Anfrage.'
+        );
+      } else {
+        state.seedHistoryOnNextPrompt = false;
+      }
+    }
     const auto = await this.contextCollector.collectAutoContext();
     for (const item of [...state.contextItems, ...auto]) {
       const block = this.contextItemToBlock(item);
@@ -509,17 +774,48 @@ export class SessionManager extends EventEmitter {
         data: img.data,
       });
     }
+    // Ground model identity: free-form self-report often invents wrong names
+    // (e.g. "grok-code" / "composer only for subagents"). CLI -m sets inference;
+    // this block forces an honest answer when asked "which model?".
+    const modelMeta = sessionModelContextBlock(
+      state.model || getConfig().defaultModel
+    );
+    if (modelMeta) {
+      blocks.push({ type: 'text', text: modelMeta });
+    }
     blocks.push({ type: 'text', text });
+
+    // Visible @-refs in the chat bubble (context was silent before)
+    const attached = [...state.contextItems].map((c) => {
+      let relativePath: string | undefined;
+      if (c.path) {
+        try {
+          relativePath = vscode.workspace
+            .asRelativePath(c.path, false)
+            .replace(/\\/g, '/');
+        } catch {
+          relativePath = undefined;
+        }
+      }
+      return {
+        kind: c.kind,
+        label: c.label,
+        path: c.path,
+        relativePath,
+      };
+    });
+    const displayText = formatUserMessageWithAttachments(text, attached);
 
     const userMsg: ChatMessage = {
       id: newMsgId('user'),
       role: 'user',
-      content: text,
+      content: displayText,
       timestamp: Date.now(),
       images: extras?.images?.map((i) => ({
         mimeType: i.mimeType,
         dataUrl: `data:${i.mimeType};base64,${i.data}`,
       })),
+      attachments: attached.length ? attached : undefined,
     };
     state.messages.push(userMsg);
     if (state.title === 'New chat' && text.trim()) {
@@ -544,14 +840,39 @@ export class SessionManager extends EventEmitter {
     try {
       const result = await live.prompt(state.agentSessionId, blocks);
       agentMsg.streaming = false;
+      agentMsg.timestamp = Date.now();
+      // Strip trailing decorative rules / blank lines (UI “ruled paper” leftovers)
+      if (agentMsg.content) {
+        agentMsg.content = stripTrailingDecorations(agentMsg.content);
+      }
+      // Drop empty agent placeholder if nothing was said
+      if (!agentMsg.content?.trim()) {
+        state.messages = state.messages.filter((m) => m.id !== agentMsg.id);
+      }
+      // Finalize thoughts (stop “streaming” so they collapse cleanly)
+      for (const m of state.messages) {
+        if (m.role === 'thought') {
+          m.streaming = false;
+        }
+      }
+      // Remove empty thoughts
+      state.messages = state.messages.filter(
+        (m) => !(m.role === 'thought' && !m.content?.trim())
+      );
       if (!agentMsg.content && result.stopReason === 'cancelled') {
-        agentMsg.content = '_(cancelled)_';
+        // only if still present
       } else if (!agentMsg.content && result.stopReason === 'refusal') {
-        agentMsg.content = '_(agent refused)_';
+        /* handled by filter above */
+      }
+      if (result.stopReason === 'cancelled' && !state.messages.some((m) => m.id === agentMsg.id)) {
+        this.pushSystem(state, '_(cancelled)_');
+      } else if (result.stopReason === 'refusal' && !state.messages.some((m) => m.id === agentMsg.id)) {
+        this.pushSystem(state, '_(agent refused)_');
       }
       this.log.info('Prompt finished', localId, result.stopReason);
     } catch (err) {
       agentMsg.streaming = false;
+      agentMsg.timestamp = Date.now();
       const message = err instanceof Error ? err.message : String(err);
       if (!agentMsg.content) {
         agentMsg.content = `Error: ${message}`;
@@ -633,7 +954,77 @@ export class SessionManager extends EventEmitter {
     this.emitChange(localId);
   }
 
+  /** Model choices for the webview bottom picker (no VS Code QuickPick). */
+  getModelChoicesForUi(localId?: string): Array<{
+    value: string;
+    label: string;
+    description?: string;
+    selected?: boolean;
+  }> {
+    const state = localId
+      ? this.sessions.get(localId)
+      : this.getActive();
+    if (!state) {
+      return buildModelChoices(
+        {
+          model: getConfig().defaultModel,
+          configOptions: undefined,
+        } as SessionState,
+        undefined
+      ).map((c) => ({
+        value: c.value,
+        label: c.label.replace(/^\$\(check\)\s*/, ''),
+        description: c.description,
+        selected: c.label.startsWith('$(check)'),
+      }));
+    }
+    const modelOpt = findModelConfigOption(state.configOptions);
+    return buildModelChoices(state, modelOpt).map((c) => ({
+      value: c.value,
+      label: c.label.replace(/^\$\(check\)\s*/, ''),
+      description: c.description,
+      detail: c.detail,
+      selected: c.label.startsWith('$(check)'),
+    }));
+  }
+
+  getPermissionChoicesForUi(): Array<{
+    value: string;
+    label: string;
+    description?: string;
+    selected?: boolean;
+  }> {
+    const cfg = getConfig();
+    return [
+      {
+        value: 'ask',
+        label: 'Ask',
+        description: 'Prompt for every tool permission',
+        selected: cfg.permissionMode === 'ask' && !cfg.alwaysApprove,
+      },
+      {
+        value: 'allow-once',
+        label: 'Allow once',
+        description: 'Auto-allow each request once',
+        selected: cfg.permissionMode === 'allow-once' && !cfg.alwaysApprove,
+      },
+      {
+        value: 'allow-session',
+        label: 'Allow session',
+        description: 'Auto-allow for this VS Code session',
+        selected: cfg.permissionMode === 'allow-session' && !cfg.alwaysApprove,
+      },
+      {
+        value: 'allow-always',
+        label: 'Allow always',
+        description: 'No prompts + CLI --always-approve',
+        selected: cfg.permissionMode === 'allow-always' || cfg.alwaysApprove,
+      },
+    ];
+  }
+
   async selectModel(localId?: string): Promise<void> {
+    // Command palette fallback still uses QuickPick
     const state = localId
       ? this.sessions.get(localId)
       : this.getActive();
@@ -641,138 +1032,152 @@ export class SessionManager extends EventEmitter {
       void vscode.window.showWarningMessage('No active Grok session.');
       return;
     }
-
-    const modelOpt = findModelConfigOption(state.configOptions);
-    const choices = buildModelChoices(state, modelOpt);
-    if (choices.length === 0) {
-      void vscode.window.showWarningMessage(
-        'No models available. Set grokBuild.defaultModel or update the Grok CLI.'
-      );
-      return;
-    }
-
-    const picked = await vscode.window.showQuickPick(choices, {
-      placeHolder: 'Select Grok model',
-      title: 'Grok Build: Model',
-      matchOnDescription: true,
-      matchOnDetail: true,
-    });
-    if (!picked) {
-      return;
-    }
-
-    const modelId = picked.value;
-
-    // Always respawn: Grok applies model at process start (`agent -m … stdio`).
-    // ACP set_config_option alone often keeps the process default (e.g. grok-4.5).
-    try {
-      await this.respawnWithModel(state, modelId);
-      this.log.info('Model applied via CLI -m --no-leader respawn', modelId);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      void vscode.window.showErrorMessage(`Could not switch model: ${message}`);
-      return;
-    }
-
-    // Best-effort also set via ACP after restart (if agent exposes the option)
-    const client = this.clients.get(state.localId);
-    const optAfter = findModelConfigOption(state.configOptions);
-    if (client?.isConnected && state.agentSessionId) {
-      try {
-        const res = await client.setConfigOption(
-          state.agentSessionId,
-          optAfter?.id ?? modelOpt?.id ?? 'model',
-          modelId
-        );
-        if (res?.configOptions) {
-          state.configOptions = normalizeConfigOptions(res.configOptions);
-        }
-      } catch (err) {
-        this.log.debug('Post-respawn set_config_option(model) skipped', err);
-      }
-    }
-
-    state.model = modelId;
-    try {
-      await vscode.workspace
-        .getConfiguration('grokBuild')
-        .update('defaultModel', modelId, vscode.ConfigurationTarget.Global);
-    } catch {
-      /* ignore */
-    }
-    this.pushSystem(
-      state,
-      `Model set to **${modelId}** (agent restarted with \`-m ${modelId} --no-leader\`).`
+    const choices = this.getModelChoicesForUi(state.localId);
+    const picked = await vscode.window.showQuickPick(
+      choices.map((c) => ({
+        label: c.selected ? `$(check) ${c.label}` : c.label,
+        description: c.value,
+        detail: c.description,
+        value: c.value,
+      })),
+      { placeHolder: 'Select Grok model', title: 'Grok Build: Model' }
     );
-    this.schedulePersist(state);
-    this.emitChange(state.localId);
-    void vscode.window.showInformationMessage(`Grok model: ${modelId}`);
+    if (picked) {
+      await this.applyModel(state.localId, picked.value);
+    }
   }
 
-  /**
-   * UI permission mode for ACP session/request_permission dialogs.
-   * Shown in the chat status bar; persists to settings.
-   */
+  async applyModel(localId: string, modelId: string): Promise<void> {
+    const state = this.sessions.get(localId) ?? this.getActive();
+    if (!state) {
+      void vscode.window.showWarningMessage('No active Grok session.');
+      return;
+    }
+    const id = modelId.trim();
+    if (!id) {
+      return;
+    }
+    if (state.model === id && state.status === 'ready') {
+      this.pushSystem(state, `Model already **${id}**.`);
+      this.emitChange(state.localId);
+      return;
+    }
+
+    const prevStatus = state.status;
+    state.status = 'connecting';
+    state.lastError = undefined;
+    this.pushSystem(state, `Switching model to **${id}**…`);
+    this.emitChange(state.localId);
+
+    try {
+      await withTimeout(
+        this.respawnWithModel(state, id),
+        45_000,
+        `Model switch timed out after 45s (CLI not responding for \`${id}\`)`
+      );
+      this.log.info('Model applied via CLI -m --no-leader respawn', id);
+
+      const client = this.clients.get(state.localId);
+      const optAfter = findModelConfigOption(state.configOptions);
+      if (client?.isConnected && state.agentSessionId) {
+        try {
+          const res = await client.setConfigOption(
+            state.agentSessionId,
+            optAfter?.id ?? 'model',
+            id
+          );
+          if (res?.configOptions) {
+            state.configOptions = normalizeConfigOptions(res.configOptions);
+          }
+        } catch (err) {
+          this.log.debug('Post-respawn set_config_option(model) skipped', err);
+        }
+      }
+
+      state.model = id;
+      state.status = 'ready';
+      try {
+        await vscode.workspace
+          .getConfiguration('grokBuild')
+          .update('defaultModel', id, vscode.ConfigurationTarget.Global);
+      } catch {
+        /* ignore */
+      }
+      const label = formatModelLabel(id);
+      this.pushSystem(
+        state,
+        `**Aktives Session-Modell: ${label}**\n` +
+          `Agent neu gestartet mit \`grok agent --no-leader -m ${id} stdio\`.\n` +
+          `Hinweis: Bei „Welches Modell bist du?“ gilt diese ID — nicht eine freie Umschreibung des Modells.`
+      );
+      this.schedulePersist(state);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      state.status = prevStatus === 'ready' ? 'error' : prevStatus;
+      state.lastError = message;
+      this.pushSystem(state, `Could not switch model: ${message}`);
+      void vscode.window.showErrorMessage(`Could not switch model: ${message}`);
+      // Best-effort reconnect on previous model
+      try {
+        if (!this.clients.get(state.localId)?.isConnected) {
+          await this.reconnect(state);
+        }
+      } catch (reErr) {
+        this.log.warn('Reconnect after failed model switch failed', reErr);
+      }
+    } finally {
+      if (state.status === 'connecting') {
+        state.status = 'ready';
+      }
+      this.emitChange(state.localId);
+    }
+  }
+
   async selectPermissionMode(localId?: string): Promise<void> {
+    const choices = this.getPermissionChoicesForUi();
+    const picked = await vscode.window.showQuickPick(
+      choices.map((c) => ({
+        label: c.selected ? `$(check) ${c.label}` : c.label,
+        description: c.value,
+        detail: c.description,
+        value: c.value,
+      })),
+      {
+        title: 'Grok Build: Permission mode',
+        placeHolder: `Current: ${permissionModeLabel(getConfig())}`,
+      }
+    );
+    if (picked) {
+      await this.applyPermissionMode(localId, picked.value);
+    }
+  }
+
+  async applyPermissionMode(
+    localId: string | undefined,
+    value: string
+  ): Promise<void> {
     const state = localId
       ? this.sessions.get(localId)
       : this.getActive();
     const cfg = getConfig();
-    type Item = vscode.QuickPickItem & {
-      value: 'ask' | 'allow-once' | 'allow-session' | 'allow-always';
-      alwaysApprove?: boolean;
-    };
-    const items: Item[] = [
-      {
-        label: 'Ask',
-        description: 'ask',
-        detail: 'Prompt for every tool permission (recommended)',
-        value: 'ask',
-        picked: cfg.permissionMode === 'ask' && !cfg.alwaysApprove,
-      },
-      {
-        label: 'Allow once (auto)',
-        description: 'allow-once',
-        detail: 'Auto-allow each request once without dialog',
-        value: 'allow-once',
-        picked: cfg.permissionMode === 'allow-once' && !cfg.alwaysApprove,
-      },
-      {
-        label: 'Allow session',
-        description: 'allow-session',
-        detail: 'Auto-allow for the rest of this VS Code session',
-        value: 'allow-session',
-        picked: cfg.permissionMode === 'allow-session' && !cfg.alwaysApprove,
-      },
-      {
-        label: 'Allow always (+ CLI --always-approve)',
-        description: 'allow-always',
-        detail: 'No prompts; also restarts agent with --always-approve',
-        value: 'allow-always',
-        alwaysApprove: true,
-        picked: cfg.permissionMode === 'allow-always' || cfg.alwaysApprove,
-      },
-    ];
-    const picked = await vscode.window.showQuickPick(items, {
-      title: 'Grok Build: Permission mode',
-      placeHolder: `Current: ${permissionModeLabel(cfg)}`,
-    });
-    if (!picked) {
+    const mode = value as
+      | 'ask'
+      | 'allow-once'
+      | 'allow-session'
+      | 'allow-always';
+    if (!['ask', 'allow-once', 'allow-session', 'allow-always'].includes(mode)) {
       return;
     }
+    const alwaysApprove = mode === 'allow-always';
     const conf = vscode.workspace.getConfiguration('grokBuild');
-    await conf.update(
-      'permissionMode',
-      picked.value,
-      vscode.ConfigurationTarget.Global
-    );
+    await conf.update('permissionMode', mode, vscode.ConfigurationTarget.Global);
     await conf.update(
       'alwaysApprove',
-      !!picked.alwaysApprove,
+      alwaysApprove,
       vscode.ConfigurationTarget.Global
     );
-    // Apply always-approve at process level when needed
-    if (state && cfg.alwaysApprove !== !!picked.alwaysApprove) {
+
+    if (state && cfg.alwaysApprove !== alwaysApprove) {
       try {
         const model =
           state.model || getConfig().defaultModel?.trim() || undefined;
@@ -782,15 +1187,17 @@ export class SessionManager extends EventEmitter {
       }
     }
     if (state) {
-      this.pushSystem(
-        state,
-        `Permission mode: **${picked.label}** (\`${picked.value}\`).`
-      );
+      const label =
+        mode === 'allow-always'
+          ? 'Allow always'
+          : mode === 'allow-once'
+            ? 'Allow once'
+            : mode === 'allow-session'
+              ? 'Allow session'
+              : 'Ask';
+      this.pushSystem(state, `Permission mode: **${label}** (\`${mode}\`).`);
       this.emitChange(state.localId);
     }
-    void vscode.window.showInformationMessage(
-      `Permission mode: ${picked.label}`
-    );
   }
 
   /** Tear down ACP process and start a new one with -m, reusing agent session if possible. */
@@ -972,23 +1379,55 @@ export class SessionManager extends EventEmitter {
         state.messages.push(msg);
       }
       msg.content += text;
+      // Keep agent bubble after tools in the timeline (Grok Build order)
+      msg.timestamp = Date.now();
       return;
     }
 
     if (kind === 'user_message_chunk') {
+      // We already insert the user message locally in sendPrompt().
+      // The agent often echoes the same text via user_message_chunk → would
+      // render the question twice. Deduplicate aggressively.
       const content = u.content as ContentBlock | undefined;
       const text = content?.type === 'text' ? content.text : '';
-      const last = state.messages[state.messages.length - 1];
-      if (last?.role === 'user' && Date.now() - last.timestamp < 500) {
-        last.content += text;
-      } else {
-        state.messages.push({
-          id: newMsgId('user'),
-          role: 'user',
-          content: text,
-          timestamp: Date.now(),
-        });
+      if (!text) {
+        return;
       }
+      const trimmed = text.trim();
+      const lastUser = [...state.messages]
+        .reverse()
+        .find((m) => m.role === 'user');
+
+      if (lastUser) {
+        const existing = lastUser.content.trim();
+        // Same message, chunk append, or prefix/contains → merge or drop
+        if (
+          !existing ||
+          existing === trimmed ||
+          existing.includes(trimmed) ||
+          trimmed.includes(existing) ||
+          state.busy
+        ) {
+          // Streaming echo: only grow content if agent sends a longer full text
+          if (trimmed.length > existing.length && trimmed.startsWith(existing)) {
+            lastUser.content = text;
+          } else if (!existing) {
+            lastUser.content = text;
+          }
+          return;
+        }
+      }
+
+      // True history replay (not busy, not a duplicate)
+      if (state.busy) {
+        return;
+      }
+      state.messages.push({
+        id: newMsgId('user'),
+        role: 'user',
+        content: text,
+        timestamp: Date.now(),
+      });
       return;
     }
 
@@ -1009,6 +1448,7 @@ export class SessionManager extends EventEmitter {
         state.messages.push(msg);
       }
       msg.content += text;
+      msg.timestamp = Date.now();
       return;
     }
 
@@ -1017,23 +1457,31 @@ export class SessionManager extends EventEmitter {
       const title = String(u.title ?? u.kind ?? 'Tool call');
       const toolKind = (u.kind as ChatToolCall['kind']) ?? 'other';
       const status = (u.status as ChatToolCall['status']) ?? 'pending';
-      const tc: ChatToolCall = {
-        id: toolCallId,
-        title,
-        kind: toolKind,
-        status,
-        content: (u.content as ToolCallContent[]) ?? [],
-        locations: u.locations as ChatToolCall['locations'],
-        rawInput: u.rawInput,
-        startedAt: Date.now(),
-      };
-      state.toolCalls.push(tc);
-      state.messages.push({
-        id: newMsgId('tool'),
-        role: 'system',
-        content: `⚙ ${tc.title} (${tc.kind}) — ${tc.status}`,
-        timestamp: Date.now(),
-      });
+      // Do NOT push a chat bubble per tool — UI renders compact collapsible rows
+      // from toolCalls (avoids scroll thrashing).
+      const existing = state.toolCalls.find((t) => t.id === toolCallId);
+      if (existing) {
+        existing.title = title;
+        existing.kind = toolKind;
+        existing.status = status;
+        if (u.content) {
+          existing.content = u.content as ToolCallContent[];
+        }
+        if (u.rawInput !== undefined) {
+          existing.rawInput = u.rawInput;
+        }
+      } else {
+        state.toolCalls.push({
+          id: toolCallId,
+          title,
+          kind: toolKind,
+          status,
+          content: (u.content as ToolCallContent[]) ?? [],
+          locations: u.locations as ChatToolCall['locations'],
+          rawInput: u.rawInput,
+          startedAt: Date.now(),
+        });
+      }
       return;
     }
 
@@ -1056,18 +1504,15 @@ export class SessionManager extends EventEmitter {
         if (u.locations) {
           existing.locations = u.locations as ChatToolCall['locations'];
         }
+        if (u.rawInput !== undefined) {
+          existing.rawInput = u.rawInput;
+        }
         if (
           existing.status === 'completed' ||
           existing.status === 'failed' ||
           existing.status === 'cancelled'
         ) {
           existing.finishedAt = Date.now();
-        }
-        const sys = [...state.messages]
-          .reverse()
-          .find((m) => m.role === 'system' && m.content.includes(existing.title));
-        if (sys) {
-          sys.content = `⚙ ${existing.title} (${existing.kind}) — ${existing.status}`;
         }
       }
       return;
@@ -1154,26 +1599,168 @@ export class SessionManager extends EventEmitter {
     this.log.debug('Unhandled session update', kind);
   }
 
+  private permissionWaiters = new Map<
+    string,
+    {
+      resolve: (r: RequestPermissionResponse) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
+
+  /**
+   * ACP session/request_permission — must not hang silently.
+   * Prefer webview bottom card; fallback modal message; timeout auto-allows in execute mode.
+   */
   private async handlePermission(
-    _sessionId: string,
+    sessionId: string,
     toolCall: ToolCallUpdate,
     options: PermissionOption[]
   ): Promise<RequestPermissionResponse> {
-    type Item = vscode.QuickPickItem & { optionId: string };
-    const items: Item[] = options.map((o) => ({
-      label: o.name,
-      description: o.kind,
-      optionId: o.optionId,
-    }));
-    const picked = await vscode.window.showQuickPick(items, {
-      title: `Permission: ${toolCall.title ?? toolCall.kind ?? 'tool'}`,
-      placeHolder: 'Allow or reject this action',
-      ignoreFocusOut: true,
-    });
-    if (!picked) {
+    const state = [...this.sessions.values()].find(
+      (s) => s.agentSessionId === sessionId
+    );
+    const cfg = getConfig();
+
+    const allowOpt = options.find(
+      (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
+    );
+    const rejectOpt = options.find(
+      (o) => o.kind === 'reject_once' || o.kind === 'reject_always'
+    );
+
+    // Execute mode: auto-allow tools (agentic default) unless disabled in settings.
+    // Plan mode and explicit non-auto settings still prompt (modal + webview).
+    const isExecute =
+      state?.mode === 'execute' ||
+      (!state?.mode && cfg.defaultMode === 'execute');
+    if (
+      isExecute &&
+      allowOpt &&
+      cfg.autoAllowInExecuteMode &&
+      cfg.permissionMode !== 'allow-always' // already handled upstream
+    ) {
+      this.log.info('Auto-allow tool (execute mode)', toolCall.title, toolCall.kind);
+      // No chat spam — tools show as compact collapsible rows
+      return { outcome: { outcome: 'selected', optionId: allowOpt.optionId } };
+    }
+
+    if (!allowOpt && !rejectOpt) {
       return { outcome: { outcome: 'cancelled' } };
     }
-    return { outcome: { outcome: 'selected', optionId: picked.optionId } };
+
+    const permId = `perm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const localId = state?.localId;
+
+    // Notify webview
+    this.emit('permissionRequest', {
+      id: permId,
+      localId,
+      sessionId,
+      toolCall,
+      options: options.map((o) => ({
+        optionId: o.optionId,
+        name: o.name,
+        kind: o.kind,
+      })),
+    });
+
+    // Also show a modal that can't be missed (Extension Host often hides QuickPick)
+    const title = toolCall.title ?? toolCall.kind ?? 'tool action';
+    void vscode.window
+      .showWarningMessage(
+        `Grok wants to: ${title}`,
+        { modal: true, detail: `Session tool permission (${toolCall.kind ?? 'other'})` },
+        'Allow',
+        'Allow always',
+        'Reject'
+      )
+      .then((choice) => {
+        if (!this.permissionWaiters.has(permId)) {
+          return;
+        }
+        if (choice === 'Allow' && allowOpt) {
+          this.resolvePermission(permId, {
+            outcome: { outcome: 'selected', optionId: allowOpt.optionId },
+          });
+        } else if (choice === 'Allow always') {
+          const always =
+            options.find((o) => o.kind === 'allow_always') ?? allowOpt;
+          if (always) {
+            this.resolvePermission(permId, {
+              outcome: { outcome: 'selected', optionId: always.optionId },
+            });
+          }
+        } else if (choice === 'Reject' && rejectOpt) {
+          this.resolvePermission(permId, {
+            outcome: { outcome: 'selected', optionId: rejectOpt.optionId },
+          });
+        } else if (!choice && allowOpt && isExecute) {
+          // Dismissed modal in execute → allow so work continues
+          this.resolvePermission(permId, {
+            outcome: { outcome: 'selected', optionId: allowOpt.optionId },
+          });
+        } else {
+          this.resolvePermission(permId, { outcome: { outcome: 'cancelled' } });
+        }
+      });
+
+    return new Promise<RequestPermissionResponse>((resolve) => {
+      const timer = setTimeout(() => {
+        this.log.warn('Permission timed out — auto-allow', title);
+        if (allowOpt) {
+          this.resolvePermission(permId, {
+            outcome: { outcome: 'selected', optionId: allowOpt.optionId },
+          });
+        } else {
+          this.resolvePermission(permId, { outcome: { outcome: 'cancelled' } });
+        }
+      }, 90_000);
+      this.permissionWaiters.set(permId, { resolve, timer });
+    });
+  }
+
+  resolvePermission(
+    permId: string,
+    response: RequestPermissionResponse
+  ): void {
+    const w = this.permissionWaiters.get(permId);
+    if (!w) {
+      return;
+    }
+    clearTimeout(w.timer);
+    this.permissionWaiters.delete(permId);
+    w.resolve(response);
+    this.emit('permissionResolved', permId);
+  }
+
+  /** Webview / command response to a pending permission card */
+  respondPermissionFromUi(
+    permId: string,
+    decision: 'allow' | 'allow_always' | 'reject' | 'cancel',
+    options: PermissionOption[]
+  ): void {
+    const allowOpt = options.find(
+      (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
+    );
+    const alwaysOpt = options.find((o) => o.kind === 'allow_always') ?? allowOpt;
+    const rejectOpt = options.find(
+      (o) => o.kind === 'reject_once' || o.kind === 'reject_always'
+    );
+    if (decision === 'allow' && allowOpt) {
+      this.resolvePermission(permId, {
+        outcome: { outcome: 'selected', optionId: allowOpt.optionId },
+      });
+    } else if (decision === 'allow_always' && alwaysOpt) {
+      this.resolvePermission(permId, {
+        outcome: { outcome: 'selected', optionId: alwaysOpt.optionId },
+      });
+    } else if (decision === 'reject' && rejectOpt) {
+      this.resolvePermission(permId, {
+        outcome: { outcome: 'selected', optionId: rejectOpt.optionId },
+      });
+    } else {
+      this.resolvePermission(permId, { outcome: { outcome: 'cancelled' } });
+    }
   }
 
   private contextItemToBlock(item: ContextItem): ContentBlock | null {
@@ -1357,7 +1944,11 @@ export function permissionModeLabel(cfg: {
   }
 }
 
-/** Known Grok models when the agent does not advertise configOptions. */
+/**
+ * Extended catalog for the picker UI.
+ * `grok models` / models_cache often lists only a subset (e.g. 4.5 + Composer).
+ * We still offer known IDs so users can try them; the CLI will error if unknown.
+ */
 const FALLBACK_MODELS: Array<{
   value: string;
   name: string;
@@ -1370,13 +1961,8 @@ const FALLBACK_MODELS: Array<{
   },
   {
     value: 'grok-composer-2.5-fast',
-    name: 'Grok Composer 2.5 Fast',
-    description: 'Fast coding / composer',
-  },
-  {
-    value: 'grok-code-fast-1',
-    name: 'Grok Code Fast 1',
-    description: 'Fast coding model',
+    name: 'Composer 2.5',
+    description: "Cursor's latest coding model (fast)",
   },
   {
     value: 'grok-4',
@@ -1384,9 +1970,39 @@ const FALLBACK_MODELS: Array<{
     description: 'Grok 4',
   },
   {
+    value: 'grok-4-fast',
+    name: 'Grok 4 Fast',
+    description: 'Faster Grok 4 variant',
+  },
+  {
+    value: 'grok-4-0709',
+    name: 'Grok 4 (0709)',
+    description: 'Grok 4 snapshot',
+  },
+  {
+    value: 'grok-3',
+    name: 'Grok 3',
+    description: 'Grok 3',
+  },
+  {
+    value: 'grok-3-mini',
+    name: 'Grok 3 Mini',
+    description: 'Smaller / faster Grok 3',
+  },
+  {
+    value: 'grok-code-fast-1',
+    name: 'Grok Code Fast 1',
+    description: 'Fast coding model',
+  },
+  {
     value: 'grok-build',
     name: 'Grok Build',
-    description: 'Build-oriented model id',
+    description: 'Build-oriented model id (ui fork_secondary)',
+  },
+  {
+    value: 'grok-2',
+    name: 'Grok 2',
+    description: 'Legacy Grok 2',
   },
 ];
 
@@ -1479,15 +2095,64 @@ function buildModelChoices(
     }));
   }
 
-  // Fallback catalog (+ any defaultModel not in the list)
-  const list = [...FALLBACK_MODELS];
+  // Merge: live cache (grok models) + extended fallback catalog.
+  // Cache wins on display name when the same id appears in both.
+  const byId = new Map<
+    string,
+    { value: string; name: string; description?: string; live?: boolean }
+  >();
+
+  for (const m of FALLBACK_MODELS) {
+    byId.set(m.value, {
+      value: m.value,
+      name: m.name,
+      description: m.description,
+      live: false,
+    });
+  }
+
+  for (const m of loadModelCatalog()) {
+    byId.set(m.id, {
+      value: m.id,
+      name: m.name || m.id,
+      description: m.description
+        ? `${m.description} · available`
+        : 'Available (grok models)',
+      live: true,
+    });
+  }
+
   const def = getConfig().defaultModel?.trim();
-  if (def && !list.some((m) => m.value === def)) {
-    list.unshift({ value: def, name: def, description: 'Configured default' });
+  if (def && !byId.has(def)) {
+    byId.set(def, {
+      value: def,
+      name: def,
+      description: 'Configured default',
+      live: false,
+    });
   }
-  if (current && !list.some((m) => m.value === current)) {
-    list.unshift({ value: current, name: current, description: 'Current' });
+  if (current && !byId.has(current)) {
+    byId.set(current, {
+      value: current,
+      name: current,
+      description: 'Current session',
+      live: true,
+    });
   }
+
+  // Live / current first, then the rest alphabetically by name
+  const list = [...byId.values()].sort((a, b) => {
+    if (a.value === current) {
+      return -1;
+    }
+    if (b.value === current) {
+      return 1;
+    }
+    if (a.live !== b.live) {
+      return a.live ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
 
   return list.map((m) => ({
     label: m.value === current ? `$(check) ${m.name}` : m.name,

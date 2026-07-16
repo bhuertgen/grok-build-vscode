@@ -5,9 +5,11 @@ import type { ChatViewProvider } from '../providers/chatViewProvider';
 import { EditorChatPanel } from '../providers/editorChatProvider';
 import { ContextPicker } from '../context/contextPicker';
 import { ContextCollector } from '../context/contextCollector';
-import { getConfig } from '../util/config';
+import { getConfig, getWorkspaceCwd } from '../util/config';
 import { getLogger } from '../util/logger';
 import { detectGrokCli, getInstallInstructions } from '../cli/detect';
+import { checkCliUpdate, runCliUpdate } from '../cli/updateCheck';
+import { getCliStatus } from '../cli/cliStatus';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -21,6 +23,10 @@ export function registerCommands(
 
   const ensureSession = async () => {
     let s = sessions.getActive();
+    if (!s) {
+      // Restore last project chat if any, otherwise new session
+      s = (await sessions.ensureBootstrapSession()) ?? undefined;
+    }
     if (!s) {
       s = await sessions.createSession();
     }
@@ -259,19 +265,28 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('grokBuild.clearHistory', async () => {
-      const ok = await vscode.window.showWarningMessage(
-        'Clear all saved Grok Build session history?',
+      const choice = await vscode.window.showWarningMessage(
+        'Grok Build Chat-History löschen?',
         { modal: true },
-        'Clear'
+        'Nur dieses Projekt',
+        'Alles löschen'
       );
-      if (ok === 'Clear') {
+      if (choice === 'Nur dieses Projekt') {
+        const n = await sessions.store.clearForCwd(getWorkspaceCwd());
+        void vscode.window.showInformationMessage(
+          n === 0
+            ? 'Keine History für dieses Projekt.'
+            : `${n} Chat(s) für dieses Projekt gelöscht.`
+        );
+      } else if (choice === 'Alles löschen') {
         await sessions.store.clearAll();
-        void vscode.window.showInformationMessage('Session history cleared.');
+        void vscode.window.showInformationMessage('Gesamte Session-History gelöscht.');
       }
     }),
 
     vscode.commands.registerCommand('grokBuild.checkCli', async () => {
       const cfg = getConfig();
+      const cli = getCliStatus();
       const result = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -280,9 +295,24 @@ export function registerCommands(
         async () => detectGrokCli()
       );
       if (result.ok) {
-        void vscode.window.showInformationMessage(
-          `Grok CLI ready: ${result.version ?? 'OK'} (${result.cliPath}). Hybrid mode: each session runs \`grok agent stdio\`.`
-        );
+        const upd = await checkCliUpdate(result.cliPath);
+        cli.update(result);
+        cli.setUpdateInfo(upd);
+        if (upd.updateAvailable) {
+          const act = await vscode.window.showWarningMessage(
+            upd.message ??
+              `Grok CLI update available: ${upd.currentVersion} → ${upd.latestVersion}`,
+            'Update now',
+            'Later'
+          );
+          if (act === 'Update now') {
+            await vscode.commands.executeCommand('grokBuild.updateCli');
+          }
+        } else {
+          void vscode.window.showInformationMessage(
+            `Grok CLI ready: ${result.version ?? upd.currentVersion ?? 'OK'} (${result.cliPath}). ${upd.message ?? ''} Hybrid: grok agent stdio.`
+          );
+        }
         return;
       }
       const install = getInstallInstructions();
@@ -300,6 +330,40 @@ export function registerCommands(
         void vscode.window.showInformationMessage('Install command copied.');
       } else if (action === 'Open docs') {
         await vscode.env.openExternal(vscode.Uri.parse(install.docsUrl));
+      }
+    }),
+
+    vscode.commands.registerCommand('grokBuild.updateCli', async () => {
+      const cli = getCliStatus();
+      const path = cli.detection?.cliPath;
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Updating Grok CLI…',
+          cancellable: false,
+        },
+        async () => runCliUpdate(path ?? undefined)
+      );
+      if (result.ok) {
+        const again = await detectGrokCli(path ?? undefined);
+        cli.update(again);
+        const upd = await checkCliUpdate(path ?? undefined);
+        cli.setUpdateInfo(upd);
+        void vscode.window.showInformationMessage(
+          result.output ||
+            `Grok CLI updated${again.version ? `: ${again.version}` : ''}.`
+        );
+      } else {
+        const act = await vscode.window.showErrorMessage(
+          `CLI update failed: ${result.output || 'unknown error'}`,
+          'Open terminal hint'
+        );
+        if (act === 'Open terminal hint') {
+          await vscode.env.clipboard.writeText('grok update');
+          void vscode.window.showInformationMessage(
+            'Command copied: grok update — paste in a terminal.'
+          );
+        }
       }
     }),
 
