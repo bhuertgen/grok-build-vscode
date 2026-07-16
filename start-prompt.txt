@@ -1,0 +1,75 @@
+Du bist jetzt ein extrem kompetenter Full-Stack-Entwickler, der sowohl Grok Build von innen kennt (du hast Zugriff auf den kompletten Open-Source-Code unter httpsgithub.comxai-orggrok-build) als auch Experte für hochwertige VS Code Extensions ist.
+
+Aufgabe
+Entwickle von Grund auf eine produktionsreife, native VS Code Extension namens Grok Build for VS Code, die die volle Power von Grok Build direkt in Visual Studio Code bringt — und zwar so nah wie möglich am Originalverhalten, aber mit den Vorteilen einer echten IDE-Integration.
+
+Wichtige Prinzipien
+- Bleib dem Originalverhalten von Grok Build so treu wie möglich (Agent-Loop, Tool-Nutzung, Plan-Mode vs Execute-Mode, Safety, Context-Handling, Sub-AgentsMCP wo sinnvoll).
+- Nutze wo möglich den offiziellen Grok Build CLI über das Agent Client Protocol (ACP)  `grok agent stdio` (wie es die Community-Extension auch macht). Das stellt sicher, dass die eigentliche Agent-Intelligenz und Tool-Logik immer beim offiziellen Rust-Code bleibt.
+- Ergänze native VS Code Stärken (besseres Context-Picking, native Diff-Views, Keybindings, Commands, Multi-Session-Management, etc.).
+- Der Code muss sauber, gut dokumentiert, modular und erweiterbar sein.
+- Immer den Quellcode aktuell halten und bei jeder größeren Änderung erklären, was du gemacht hast.
+
+Erforderliche Kern-Features (muss implementiert werden)
+
+1. Moderne Sidebar + Multi-Session Support
+   - Schöne Chat-UI im Side Panel (Webview)
+   - Mehrere gleichzeitige Agent-Sessions (jede in einem eigenen TabPanel)
+   - Möglichkeit, Sessions in separate Editor Groups oder sogar Auxiliary Windows zu verschieben
+   - Session-History + Resume-Funktion (persistent)
+
+2. Agent-Modi
+   - Plan Mode (nur lesen + Vorschläge, keine Writes ohne Bestätigung)
+   - Execute Mode (volles agentisches Arbeiten)
+   - Umschaltbar per Command  UI
+
+3. Sicheres Edit-System
+   - Native VS Code Diff-Preview für vorgeschlagene Änderungen
+   - Apply, Apply All, Reject, Apply Always Logik
+   - Gute visuelle Darstellung von Tool-Calls (File Edits, Terminal Commands, etc.)
+
+4. Exzellentes Context-Management
+   - Automatisches Hinzufügen der aktiven Datei  Selection
+   - `@file`, `@symbol`, `@git` Context Picker (ähnlich wie ContinueCursor)
+   - Workspace-weites Verständnis (ohne immer alles hochzuladen)
+   - Unterstützung für große Codebases
+
+5. Agentische Fähigkeiten
+   - Voller Tool-Zugriff (File System, Terminal, Search, etc.) über den Grok Build CLI
+   - Unterstützung für lange laufende Tasks
+   - Möglichkeit für Sub-Agents  parallele Aufgaben
+   - Voice Input (optional, aber nice-to-have)
+
+6. Weitere wichtige Features
+   - Command Palette Integration (z. B. Grok Build New Session, Grok Build Toggle Plan Mode)
+   - Context Menu Einträge (rechtsklick auf DateiOrdner → Ask Grok Build)
+   - Keybindings (z. B. Alt+G für Context hinzufügen)
+   - Kosten-  Token-Anzeige
+   - Model-Auswahl (grok-code-fast-1, grok-4 etc.)
+   - Bild-Upload  Vision Support
+
+Technische Anforderungen
+- TypeScript + moderne VS Code Extension APIs
+- Webview für die Chat-UI (sauber, performant, Theme-aware)
+- Kommunikation mit dem Grok Build CLI über ACPJSON-RPC wo möglich
+- Gute Error-Handling und Logging
+- package.json mit sinnvollen Activation Events und Contributions
+- saubere Ordnerstruktur (`src`, `webview`, `media` etc.)
+
+Arbeitsweise
+Arbeite iterativ und qualitativ hochwertig
+1. Zuerst Architektur + Ordnerstruktur entwerfen und erklären.
+2. Dann schrittweise die wichtigsten Dateien implementieren (package.json, extension.ts, Webview-Kommunikation, Session-Management, Tool-Handling).
+3. Bei jedem größeren Schritt den aktuellen Code zeigen und erklären, was du ergänztverbessert hast.
+4. Am Ende eine vollständige, lauffähige Version mit guter README liefern.
+
+Ziel-Output am Ende
+- Komplette Ordnerstruktur mit allen relevanten Dateien
+- Vollständige `README.md` mit
+  - Installationsanleitung (lokal + als .vsix)
+  - Wie man die Extension entwickelt und testet (`npm run watch` + F5)
+  - Wie man sie mit dem offiziellen Grok Build CLI verbindet
+  - Bekannte Einschränkungen + Roadmap
+- Optional Vorschlag für einen GitHub-Repo-Namen und Struktur
+
+Starte jetzt mit der Architektur und der Ordnerstruktur. Danach implementieren wir Datei für Datei.

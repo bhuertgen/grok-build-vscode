@@ -1,0 +1,47 @@
+Wichtige Architektur-Entscheidung – bitte jetzt anpassen:
+
+Wir gehen bewusst den hybriden Weg (Option 1):
+
+**Kern-Architektur:**
+- Die Extension ist **kein** vollständiger Nachbau der Agent-Logik.
+- Stattdessen nutzen wir den **installierten Grok Build CLI** als Backend über das **Agent Client Protocol (ACP)** / `grok agent stdio` (JSON-RPC).
+- Die Extension übernimmt die **native VS Code Experience** (UI, Context-Handling, Multi-Session-Management, Diff-Views, Integration in den Editor).
+- Der eigentliche Agent (Planung, Tool-Ausführung, Reasoning, Safety etc.) bleibt beim offiziellen Rust-Code von Grok Build.
+
+Das hat folgende Vorteile:
+- Wir bekommen exakt das gleiche Verhalten wie das originale Grok Build.
+- Wir müssen die komplexe Agent-Logik nicht selbst nachbauen.
+- Die Extension wird trotzdem sehr "native" und angenehm in VS Code anfühlen.
+
+**Bitte passe deine bisherige Planung jetzt entsprechend an:**
+
+1. **Architektur anpassen**
+   - Die Extension kommuniziert primär mit dem `grok` Binary über ACP.
+   - Baue ein sauberes Session-Management, das mehrere gleichzeitige `grok agent` Prozesse starten und steuern kann.
+   - Jede Session läuft in einem eigenen Webview-Panel (Sidebar + optional separate Editor Group oder Auxiliary Window).
+
+2. **Graceful Handling des CLI**
+   - Beim ersten Start prüfen, ob `grok` installiert ist.
+   - Falls nicht: Automatisch Installationsanleitung anbieten (oder sogar den Install-Befehl ausführen, wo möglich).
+   - Guter Fallback / klare Fehlermeldungen, falls der CLI nicht gefunden wird.
+
+3. **VS Code Native Stärken maximal ausnutzen**
+   - Sehr gutes Context-Picking (aktive Datei, Selection, Workspace Symbols, Git Changes etc.)
+   - Native Diff-Editor für vorgeschlagene Änderungen (besser als reine Webview-Diffs)
+   - Command Palette, Keybindings, Context Menus
+   - Möglichkeit, Agent-Sessions in separaten Fenstern/Editor Groups laufen zu lassen
+
+4. **Was du jetzt tun sollst:**
+   - Überprüfe, was du bisher schon geplant oder implementiert hast.
+   - Passe die Architektur und die Ordnerstruktur entsprechend der neuen Entscheidung an (CLI + ACP als Backend).
+   - Zeige mir die **aktualisierte Architektur** + **angepasste Ordnerstruktur**.
+   - Danach gehen wir Datei für Datei weiter (beginnend mit `package.json` und dem Extension Entry Point).
+
+Zusätzliche Anforderungen, die weiterhin gelten:
+- Schöne, moderne Chat-UI (Webview)
+- Multi-Session Support mit guter Übersicht
+- Plan Mode / Execute Mode Umschaltung
+- Sicheres Apply-System mit Diff-Preview
+- Gute Dokumentation und sauberer Code
+
+Starte jetzt mit der angepassten Architektur.

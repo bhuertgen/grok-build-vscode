@@ -1,0 +1,509 @@
+{
+  "name": "grok-build-vscode",
+  "displayName": "Grok Build for VS Code",
+  "description": "Hybrid ACP client for xAI Grok Build: native VS Code UI over the official CLI (grok agent stdio). Multi-session, plan/execute, diffs, context.",
+  "version": "0.1.0",
+  "publisher": "grok-build",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "grok",
+    "grok-build",
+    "xai",
+    "ai",
+    "agent",
+    "acp",
+    "coding-agent"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "media/icon.png",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "grok-build",
+          "title": "Grok Build",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "grok-build": [
+        {
+          "type": "webview",
+          "id": "grokBuild.chatView",
+          "name": "Grok Build",
+          "icon": "media/icon.svg",
+          "contextualTitle": "Grok Build"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "grokBuild.newSession",
+        "title": "New Session",
+        "category": "Grok Build",
+        "icon": "$(add)"
+      },
+      {
+        "command": "grokBuild.openChat",
+        "title": "Open Chat",
+        "category": "Grok Build",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "grokBuild.openInEditor",
+        "title": "Open in Editor (middle)",
+        "category": "Grok Build",
+        "icon": "$(window)"
+      },
+      {
+        "command": "grokBuild.openBeside",
+        "title": "Open Beside Editor (split)",
+        "category": "Grok Build",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "grokBuild.openInSidebar",
+        "title": "Open in Sidebar",
+        "category": "Grok Build",
+        "icon": "$(layout-sidebar-left)"
+      },
+      {
+        "command": "grokBuild.togglePlanMode",
+        "title": "Toggle Plan Mode",
+        "category": "Grok Build",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "grokBuild.setExecuteMode",
+        "title": "Set Execute Mode",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.setPlanMode",
+        "title": "Set Plan Mode",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.addContext",
+        "title": "Add Context to Chat",
+        "category": "Grok Build",
+        "icon": "$(mention)"
+      },
+      {
+        "command": "grokBuild.addFileContext",
+        "title": "Ask Grok Build about File",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.addFolderContext",
+        "title": "Ask Grok Build about Folder",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.addSelectionContext",
+        "title": "Ask Grok Build about Selection",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.cancel",
+        "title": "Cancel Current Turn",
+        "category": "Grok Build",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "grokBuild.applyEdit",
+        "title": "Apply Edit",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.rejectEdit",
+        "title": "Reject Edit",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.applyAllEdits",
+        "title": "Apply All Pending Edits",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.showDiff",
+        "title": "Show Diff for Pending Edit",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.selectModel",
+        "title": "Select Model",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.selectPermissionMode",
+        "title": "Select Permission Mode",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.resumeSession",
+        "title": "Resume Session",
+        "category": "Grok Build",
+        "icon": "$(history)"
+      },
+      {
+        "command": "grokBuild.clearHistory",
+        "title": "Clear Session History",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.checkCli",
+        "title": "Check Grok CLI Status",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.setupCli",
+        "title": "Setup CLI…",
+        "category": "Grok Build"
+      },
+      {
+        "command": "grokBuild.focusInput",
+        "title": "Focus Chat Input",
+        "category": "Grok Build"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "grokBuild.newSession",
+          "when": "view == grokBuild.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "grokBuild.openInEditor",
+          "when": "view == grokBuild.chatView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "grokBuild.openBeside",
+          "when": "view == grokBuild.chatView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "grokBuild.togglePlanMode",
+          "when": "view == grokBuild.chatView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "grokBuild.resumeSession",
+          "when": "view == grokBuild.chatView",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "grokBuild.addSelectionContext",
+          "when": "editorHasSelection",
+          "group": "grokBuild@1"
+        },
+        {
+          "command": "grokBuild.addFileContext",
+          "group": "grokBuild@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "grokBuild.addFileContext",
+          "when": "!explorerResourceIsFolder",
+          "group": "grokBuild@1"
+        },
+        {
+          "command": "grokBuild.addFolderContext",
+          "when": "explorerResourceIsFolder",
+          "group": "grokBuild@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "grokBuild.applyEdit",
+          "when": "false"
+        },
+        {
+          "command": "grokBuild.rejectEdit",
+          "when": "false"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "grokBuild.addContext",
+        "key": "alt+g",
+        "mac": "alt+g"
+      },
+      {
+        "command": "grokBuild.newSession",
+        "key": "ctrl+shift+g n",
+        "mac": "cmd+shift+g n"
+      },
+      {
+        "command": "grokBuild.togglePlanMode",
+        "key": "ctrl+shift+g p",
+        "mac": "cmd+shift+g p"
+      },
+      {
+        "command": "grokBuild.openChat",
+        "key": "ctrl+shift+g c",
+        "mac": "cmd+shift+g c"
+      },
+      {
+        "command": "grokBuild.cancel",
+        "key": "ctrl+shift+g escape",
+        "mac": "cmd+shift+g escape",
+        "when": "grokBuild.isBusy"
+      },
+      {
+        "command": "grokBuild.focusInput",
+        "key": "ctrl+shift+g i",
+        "mac": "cmd+shift+g i"
+      }
+    ],
+    "configuration": {
+      "title": "Grok Build",
+      "properties": {
+        "grokBuild.cliPath": {
+          "type": "string",
+          "default": "grok",
+          "description": "Path to the Grok Build CLI executable (default: grok on PATH)."
+        },
+        "grokBuild.cliArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "agent",
+            "stdio"
+          ],
+          "description": "Arguments passed to the Grok CLI to start the ACP agent."
+        },
+        "grokBuild.openLocation": {
+          "type": "string",
+          "enum": [
+            "editor",
+            "sidebar"
+          ],
+          "default": "editor",
+          "enumDescriptions": [
+            "Open Grok as a tab in the middle editor area (Explorer stays on the left)",
+            "Open Grok in the left activity-bar sidebar (replaces Explorer while open)"
+          ],
+          "description": "Where to show the Grok Build chat. Prefer “editor” for Files + Chat side by side."
+        },
+        "grokBuild.defaultMode": {
+          "type": "string",
+          "enum": [
+            "plan",
+            "execute"
+          ],
+          "default": "execute",
+          "description": "Default agent mode for new sessions."
+        },
+        "grokBuild.defaultModel": {
+          "type": "string",
+          "default": "",
+          "description": "CLI -m / --model. Empty = CLI default (e.g. grok-4.5). Use Model button or /model to change."
+        },
+        "grokBuild.reasoningEffort": {
+          "type": "string",
+          "default": "",
+          "description": "CLI --reasoning-effort (alias --effort). Empty = agent default. Values depend on the model."
+        },
+        "grokBuild.cliPermissionMode": {
+          "type": "string",
+          "enum": [
+            "",
+            "default",
+            "acceptEdits",
+            "auto",
+            "dontAsk",
+            "bypassPermissions",
+            "plan"
+          ],
+          "default": "",
+          "description": "CLI --permission-mode (agent tool policy). Empty = CLI default. Separate from UI permission prompts below."
+        },
+        "grokBuild.alwaysApprove": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --always-approve: auto-approve all tool executions in the agent process."
+        },
+        "grokBuild.maxTurns": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "CLI --max-turns. Null/0 = unlimited (agent default)."
+        },
+        "grokBuild.noSubagents": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --no-subagents: disable subagent spawning."
+        },
+        "grokBuild.noPlan": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --no-plan: disable plan mode in the agent."
+        },
+        "grokBuild.noMemory": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --no-memory: disable cross-session memory."
+        },
+        "grokBuild.experimentalMemory": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --experimental-memory: enable cross-session memory."
+        },
+        "grokBuild.disableWebSearch": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --disable-web-search: disable web search and fetch tools."
+        },
+        "grokBuild.sandbox": {
+          "type": "string",
+          "default": "",
+          "description": "CLI --sandbox <PROFILE> (also env GROK_SANDBOX)."
+        },
+        "grokBuild.tools": {
+          "type": "string",
+          "default": "",
+          "description": "CLI --tools: comma-separated built-in tools allow-list."
+        },
+        "grokBuild.disallowedTools": {
+          "type": "string",
+          "default": "",
+          "description": "CLI --disallowed-tools: comma-separated tools to remove."
+        },
+        "grokBuild.rules": {
+          "type": "string",
+          "default": "",
+          "description": "CLI --rules: extra rules appended to the system prompt."
+        },
+        "grokBuild.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "CLI --debug: enable agent debug logging."
+        },
+        "grokBuild.extraCliArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Advanced: extra args inserted after `agent` (e.g. [\"--agent-profile\", \"C:\\\\path\\\\profile\"]). Prefer dedicated settings when available."
+        },
+        "grokBuild.autoIncludeActiveFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically include the active editor file as context when sending a prompt."
+        },
+        "grokBuild.autoIncludeSelection": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically include the current selection as context when sending a prompt."
+        },
+        "grokBuild.permissionMode": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "allow-once",
+            "allow-session",
+            "allow-always"
+          ],
+          "default": "ask",
+          "description": "Extension UI: how to answer ACP session/request_permission dialogs (not the same as CLI --permission-mode)."
+        },
+        "grokBuild.showDiffBeforeApply": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open a native VS Code diff preview before applying file writes from the agent."
+        },
+        "grokBuild.maxContextFileBytes": {
+          "type": "number",
+          "default": 200000,
+          "description": "Maximum bytes of a single file to embed as context."
+        },
+        "grokBuild.sessionHistoryLimit": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of sessions to keep in local history."
+        },
+        "grokBuild.enableTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow the agent to run terminal commands via ACP terminal/* methods."
+        },
+        "grokBuild.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "default": "info",
+          "description": "Extension log level (Output channel: Grok Build)."
+        }
+      }
+    },
+    "colors": [
+      {
+        "id": "grokBuild.userMessageBackground",
+        "description": "Background for user messages in Grok Build chat.",
+        "defaults": {
+          "dark": "#2a2d3a",
+          "light": "#e8eaf0",
+          "highContrast": "#000000"
+        }
+      },
+      {
+        "id": "grokBuild.agentMessageBackground",
+        "description": "Background for agent messages in Grok Build chat.",
+        "defaults": {
+          "dark": "#1a1d27",
+          "light": "#f5f6fa",
+          "highContrast": "#000000"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "compile": "tsc -p ./ --noEmit",
+    "package": "vsce package --no-dependencies",
+    "lint": "tsc -p ./ --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xai-org/grok-build-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/xai-org/grok-build-vscode/issues"
+  },
+  "homepage": "https://github.com/xai-org/grok-build-vscode#readme"
+}
