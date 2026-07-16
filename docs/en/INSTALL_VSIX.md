@@ -25,7 +25,7 @@ You get a **`.vsix` file** (an install package) and install it **manually** in t
 
 1. Open in a browser:  
    **https://github.com/bhuertgen/grok-build-vscode/releases**
-2. Open the **latest** release (e.g. **v0.2.1**).
+2. Open the **latest** release (e.g. **v0.2.2**).
 3. Scroll to **Assets**.
 4. Click **`grok-build-vscode-x.y.z.vsix`** (not “Source code”).
 5. Save it somewhere easy, e.g.  
@@ -33,7 +33,7 @@ You get a **`.vsix` file** (an install package) and install it **manually** in t
 
 | Correct | Wrong |
 |---------|--------|
-| `grok-build-vscode-0.2.1.vsix` | Source code (zip) |
+| `grok-build-vscode-0.2.2.vsix` | Source code (zip) |
 | | Source code (tar.gz) |
 | | Cloning the repo only (that is not an install) |
 
@@ -70,7 +70,7 @@ This is the **most reliable** path. You search for the command by name — you d
    | **German** | **Erweiterungen: Von VSIX installieren…** |
 
 6. The OS **file open** dialog appears.
-7. Navigate to the downloaded file, e.g. `Downloads` → `grok-build-vscode-0.2.1.vsix`.
+7. Navigate to the downloaded file, e.g. `Downloads` → `grok-build-vscode-0.2.2.vsix`.
 8. Select the file → **Open** / **Install**.
 9. Wait for a toast such as “Completed installing …”.
 10. If VS Code offers **Reload**, click it.  
@@ -142,13 +142,13 @@ After clicking … you should see something like:
 ### Path C — Terminal
 
 ```bash
-code --install-extension path/to/grok-build-vscode-0.2.1.vsix
+code --install-extension path/to/grok-build-vscode-0.2.2.vsix
 ```
 
 Windows PowerShell example:
 
 ```powershell
-code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-0.2.1.vsix"
+code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-0.2.2.vsix"
 ```
 
 If `code` is not recognized:
@@ -161,7 +161,7 @@ If `code` is not recognized:
 **Cursor:**
 
 ```powershell
-cursor --install-extension C:\Users\You\Downloads\grok-build-vscode-0.2.1.vsix
+cursor --install-extension C:\Users\You\Downloads\grok-build-vscode-0.2.2.vsix
 ```
 
 ---

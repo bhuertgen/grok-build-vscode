@@ -43,7 +43,7 @@ Steht **nicht** in den Marketplace-Suchtreffern — nur im `…`-Menü oder übe
 npm install
 npm run build
 npm run package
-code --install-extension grok-build-vscode-0.2.1.vsix
+code --install-extension grok-build-vscode-0.2.2.vsix
 ```
 
 ### Erster Chat
