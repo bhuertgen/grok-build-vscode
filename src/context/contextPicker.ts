@@ -174,7 +174,7 @@ export class ContextPicker {
     if (files.length === 0) {
       if (!vscode.workspace.workspaceFolders?.length) {
         void vscode.window.showWarningMessage(
-          'Kein Workspace-Ordner geöffnet — @-Dateien brauchen einen Projektordner.'
+          'No workspace folder open — @ files need a project folder.'
         );
         return undefined;
       }
@@ -199,8 +199,8 @@ export class ContextPicker {
       })),
       {
         placeHolder: query
-          ? `Dateien filtern: ${query}`
-          : 'Datei als Kontext hinzufügen (@)',
+          ? `Filter files: ${query}`
+          : 'Add file as context (@)',
         matchOnDescription: true,
       }
     );

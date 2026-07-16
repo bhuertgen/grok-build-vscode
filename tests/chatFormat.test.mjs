@@ -70,7 +70,7 @@ describe('buildHistorySeedTranscript', () => {
     ]);
     assert.match(t, /User:\nHallo/);
     assert.match(t, /Grok:\nHi/);
-    assert.match(t, /Wiederhergestellter Chatverlauf/);
+    assert.match(t, /Restored chat history/);
   });
 });
 

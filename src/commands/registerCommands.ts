@@ -266,21 +266,21 @@ export function registerCommands(
 
     vscode.commands.registerCommand('grokBuild.clearHistory', async () => {
       const choice = await vscode.window.showWarningMessage(
-        'Grok Build Chat-History löschen?',
+        'Clear Grok Build chat history?',
         { modal: true },
-        'Nur dieses Projekt',
-        'Alles löschen'
+        'This project only',
+        'Clear all'
       );
-      if (choice === 'Nur dieses Projekt') {
+      if (choice === 'This project only') {
         const n = await sessions.store.clearForCwd(getWorkspaceCwd());
         void vscode.window.showInformationMessage(
           n === 0
-            ? 'Keine History für dieses Projekt.'
-            : `${n} Chat(s) für dieses Projekt gelöscht.`
+            ? 'No history for this project.'
+            : `Deleted ${n} chat(s) for this project.`
         );
-      } else if (choice === 'Alles löschen') {
+      } else if (choice === 'Clear all') {
         await sessions.store.clearAll();
-        void vscode.window.showInformationMessage('Gesamte Session-History gelöscht.');
+        void vscode.window.showInformationMessage('All session history cleared.');
       }
     }),
 

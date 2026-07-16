@@ -253,11 +253,11 @@
       els.memoryBanner.classList.remove('hidden');
       els.memoryBanner.classList.add('ok');
       if (els.memoryBannerTitle) {
-        els.memoryBannerTitle.textContent = 'Session fortgesetzt';
+        els.memoryBannerTitle.textContent = 'Session resumed';
       }
       if (els.memoryBannerDetail) {
         els.memoryBannerDetail.textContent =
-          'CLI-Resume ok — der Agent kennt den bisherigen Verlauf.';
+          'CLI resume OK — the agent has the previous conversation.';
       }
       els.btnSeedHistory?.classList.add('hidden');
       return;
@@ -267,11 +267,11 @@
       els.memoryBanner.classList.remove('hidden');
       els.memoryBanner.classList.add('ok');
       if (els.memoryBannerTitle) {
-        els.memoryBannerTitle.textContent = 'Verlauf im Kontext';
+        els.memoryBannerTitle.textContent = 'History in context';
       }
       if (els.memoryBannerDetail) {
         els.memoryBannerDetail.textContent =
-          'Lokaler Chat wurde in den Agent-Kontext geladen (mit der letzten / nächsten Nachricht).';
+          'Local chat was loaded into agent context (with the last/next message).';
       }
       els.btnSeedHistory?.classList.add('hidden');
       return;
@@ -282,17 +282,17 @@
       els.memoryBanner.classList.add('warn');
       if (els.memoryBannerTitle) {
         els.memoryBannerTitle.textContent = seedPending
-          ? 'Kontext wird geladen'
-          : 'Nur UI-Verlauf';
+          ? 'Loading context'
+          : 'UI history only';
       }
       if (els.memoryBannerDetail) {
         els.memoryBannerDetail.textContent = seedPending
-          ? 'Mit der nächsten Nachricht erhält der Agent den bisherigen Chat als Hintergrund.'
-          : 'Verlauf ist sichtbar, der Agent startet aber neu und erinnert sich nicht. Optional in den Kontext laden.';
+          ? 'With the next message, the agent receives prior chat as background.'
+          : 'History is visible, but the agent starts cold. Optionally load it into context.';
       }
       if (els.btnSeedHistory) {
         els.btnSeedHistory.classList.toggle('hidden', seedPending);
-        els.btnSeedHistory.textContent = 'Verlauf in Kontext laden';
+        els.btnSeedHistory.textContent = 'Load history into context';
       }
       return;
     }
@@ -1382,13 +1382,13 @@
 
     const title = document.createElement('div');
     title.className = 'picker-title';
-    title.textContent = atQuery ? `@${atQuery}` : '@ Datei im Projekt';
+    title.textContent = atQuery ? `@${atQuery}` : '@ file in project';
     els.slashMenu.appendChild(title);
 
     if (loading && atFiles.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'slash-empty';
-      empty.textContent = 'Suche Dateien…';
+      empty.textContent = 'Searching files…';
       els.slashMenu.appendChild(empty);
       return;
     }
@@ -1397,15 +1397,15 @@
       const empty = document.createElement('div');
       empty.className = 'slash-empty';
       empty.textContent = atQuery
-        ? 'Keine Datei gefunden — Dateien im Workspace anlegen'
-        : 'Keine Dateien im Workspace (leerer Ordner?)';
+        ? 'No file found — add files to the workspace'
+        : 'No files in workspace (empty folder?)';
       els.slashMenu.appendChild(empty);
       // Fallback row: open VS Code QuickPick / dialog
       const browse = document.createElement('button');
       browse.type = 'button';
       browse.className = 'slash-item';
       browse.innerHTML =
-        '<span class="slash-name">Durchsuchen…</span><span class="slash-desc">VS Code Dateiauswahl</span>';
+        '<span class="slash-name">Browse…</span><span class="slash-desc">VS Code file picker</span>';
       browse.addEventListener('mousedown', (e) => {
         e.preventDefault();
         post('openAtFilePicker', { query: atQuery });
@@ -1914,40 +1914,40 @@
       {
         id: 'slash',
         section: 'Session',
-        title: 'Slash-Befehle…',
-        desc: 'Lokale und Agent-Commands (/help, /plan, …)',
+        title: 'Slash commands…',
+        desc: 'Local and agent commands (/help, /plan, …)',
         icon: '/',
         run: () => openSlashMenuForced(),
       },
       {
         id: 'new',
         section: 'Session',
-        title: 'Neuer Chat',
-        desc: 'Neue Session in diesem Projekt',
+        title: 'New chat',
+        desc: 'New session in this project',
         icon: '+',
         run: () => post('newSession', {}),
       },
       {
         id: 'history',
         section: 'Session',
-        title: 'Chat-History…',
-        desc: 'Frühere Chats in diesem Projekt',
+        title: 'Chat history…',
+        desc: 'Earlier chats in this project',
         icon: '↺',
         run: () => post('resumeSession', {}),
       },
       {
         id: 'model',
-        section: 'Modell & Modus',
-        title: 'Modell wählen…',
-        desc: 'Grok-Modell für diese Session',
+        section: 'Model & mode',
+        title: 'Select model…',
+        desc: 'Grok model for this session',
         meta: String(model).replace(/^grok-/, ''),
         icon: '◇',
         run: () => openBottomPicker('model'),
       },
       {
         id: 'perm',
-        section: 'Modell & Modus',
-        title: 'Permission-Modus…',
+        section: 'Model & mode',
+        title: 'Permission mode…',
         desc: 'Ask / Once / Session / Always',
         meta: String(perm),
         icon: '🛡',
@@ -1955,9 +1955,9 @@
       },
       {
         id: 'mode',
-        section: 'Modell & Modus',
-        title: 'Plan / Execute umschalten',
-        desc: 'Aktueller Modus',
+        section: 'Model & mode',
+        title: 'Toggle Plan / Execute',
+        desc: 'Current mode',
         meta: modeLabel,
         icon: '⚙',
         run: () => {
@@ -1968,42 +1968,42 @@
       },
       {
         id: 'context',
-        section: 'Kontext',
-        title: 'Kontext hinzufügen…',
-        desc: 'Datei, Symbol, Git, Ordner',
+        section: 'Context',
+        title: 'Add context…',
+        desc: 'File, symbol, git, folder',
         icon: '@',
         run: () => openBottomPicker('context'),
       },
       {
         id: 'active',
-        section: 'Kontext',
-        title: 'Aktive Datei / Auswahl',
-        desc: 'Aktueller Editor als Kontext',
+        section: 'Context',
+        title: 'Active file / selection',
+        desc: 'Current editor as context',
         icon: '📄',
         run: () => post('openContextKind', { kind: 'active' }),
       },
       {
         id: 'setup',
         section: 'System',
-        title: 'CLI Setup…',
-        desc: 'Grok CLI finden / installieren',
+        title: 'CLI setup…',
+        desc: 'Find / install Grok CLI',
         icon: '⌘',
         run: () => post('setupCli', {}),
       },
       {
         id: 'check',
         section: 'System',
-        title: 'CLI-Status prüfen',
-        desc: 'Version und Erreichbarkeit',
+        title: 'Check CLI status',
+        desc: 'Version and reachability',
         icon: '✓',
         run: () => post('checkCli', {}),
       },
       {
         id: 'update',
         section: 'System',
-        title: 'CLI aktualisieren…',
+        title: 'Update CLI…',
         desc: state.cli?.updateAvailable
-          ? state.cli.updateMessage || 'Update verfügbar'
+          ? state.cli.updateMessage || 'Update available'
           : 'grok update (check + install)',
         meta: state.cli?.updateLatest || state.cli?.version || undefined,
         icon: '↓',
@@ -2057,7 +2057,7 @@
     if (actionsFiltered.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'actions-empty';
-      empty.textContent = 'Keine Aktionen gefunden';
+      empty.textContent = 'No actions found';
       els.actionsList.appendChild(empty);
       return;
     }

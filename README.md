@@ -8,7 +8,8 @@
 
 > **Not affiliated with xAI.** Planning, tools, MCP, sub-agents, and safety stay in the official Rust CLI.
 
-**Full user guide (settings, examples, commands):** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+**Full user guide (settings, examples, commands):** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)  
+**Docs language:** English (repository standard). Multi-language would mean separate files under e.g. `docs/de/` — not maintained in parallel unless requested.
 
 ## Features
 

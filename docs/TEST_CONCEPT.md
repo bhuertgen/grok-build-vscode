@@ -1,6 +1,8 @@
-# Testkonzept — Grok Build for VS Code
+# Test concept — Grok Build for VS Code
 
-Ziel: **selbstständig** (Mensch oder Agent) Usability, Funktionalität und Security prüfen — ohne das Produktions-Repo `grok-build-vscode` als Arbeitsfläche zu nutzen.
+**Language:** English overview below; detailed German sections may still appear in older parts of this file. Prefer [USER_GUIDE.md](./USER_GUIDE.md) for product docs.
+
+Goal: independently verify usability, functionality, and security — without using the extension repo itself as the agent workspace.
 
 **Architektur-Annahme:** Extension = dünner ACP-Client; Agent-Intelligenz = offizielles `grok agent stdio`. Tests decken **beide Schichten** ab, wo die UX hängt (Permissions, Writes, Resume, Context).
 

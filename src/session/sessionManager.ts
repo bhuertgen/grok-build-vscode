@@ -479,7 +479,7 @@ export class SessionManager extends EventEmitter {
           state.seedHistoryOnNextPrompt = false;
           this.pushSystem(
             state,
-            '**Session fortgesetzt (Resume)** — der Agent kennt den bisherigen Verlauf.'
+            '**Session resumed** — the agent has the previous conversation.'
           );
         } catch (err) {
           this.log.warn('Agent resume failed, creating new agent session', err);
@@ -492,8 +492,8 @@ export class SessionManager extends EventEmitter {
             state.agentContext = 'local-only';
             this.pushSystem(
               state,
-              '**Lokaler Verlauf geladen** — der Agent startet neu und kennt den Chat noch nicht. ' +
-                'Mit „Verlauf in Kontext laden“ übergibst du den Text an den Agenten (mit der nächsten Nachricht).'
+              '**Local history loaded** — the agent starts cold and does not know the chat yet. ' +
+                'Use “Load history into context” to pass the transcript on the next message.'
             );
             void this.promptSeedHistory(state);
           } else {
@@ -510,8 +510,8 @@ export class SessionManager extends EventEmitter {
           state.agentContext = 'local-only';
           this.pushSystem(
             state,
-            '**Lokaler Verlauf geladen** — keine Agent-Session zum Fortsetzen gefunden. ' +
-              'Der Agent startet kalt. Optional: Verlauf in den Kontext laden.'
+            '**Local history loaded** — no agent session to resume. ' +
+              'The agent starts cold. Optionally load history into context.'
           );
           void this.promptSeedHistory(state);
         } else {
@@ -536,17 +536,17 @@ export class SessionManager extends EventEmitter {
    */
   private async promptSeedHistory(state: SessionState): Promise<void> {
     const action = await vscode.window.showInformationMessage(
-      'Chat-Verlauf ist in der UI sichtbar, aber der Agent startet ohne Erinnerung. Verlauf in den Agent-Kontext laden?',
-      'Verlauf in Kontext laden',
-      'Ohne Kontext fortfahren'
+      'Chat history is visible in the UI, but the agent starts without memory. Load history into agent context?',
+      'Load history into context',
+      'Continue without context'
     );
-    if (action === 'Verlauf in Kontext laden') {
+    if (action === 'Load history into context') {
       this.enableHistorySeed(state.localId);
-    } else if (action === 'Ohne Kontext fortfahren') {
+    } else if (action === 'Continue without context') {
       state.seedHistoryOnNextPrompt = false;
       this.pushSystem(
         state,
-        'Ohne Kontext fortfahren — der Agent kennt frühere Nachrichten nicht, bis du sie erneut nennst.'
+        'Continuing without context — the agent will not know earlier messages until you restate them.'
       );
       this.emitChange(state.localId);
     }
@@ -562,8 +562,8 @@ export class SessionManager extends EventEmitter {
       this.pushSystem(
         state,
         state.agentContext === 'resumed'
-          ? 'Agent-Session ist bereits fortgesetzt — extra Kontext ist nicht nötig.'
-          : 'Verlauf wurde bereits in den Kontext geladen.'
+          ? 'Agent session already resumed — extra context is not needed.'
+          : 'History was already loaded into context.'
       );
       this.emitChange(localId);
       return;
@@ -574,7 +574,7 @@ export class SessionManager extends EventEmitter {
         String(m.content || '').trim()
     );
     if (usable.length === 0) {
-      this.pushSystem(state, 'Kein Chat-Text zum Einlesen vorhanden.');
+      this.pushSystem(state, 'No chat text available to load.');
       this.emitChange(localId);
       return;
     }
@@ -583,8 +583,8 @@ export class SessionManager extends EventEmitter {
     state.contextNoticeDismissed = false;
     this.pushSystem(
       state,
-      '**Verlauf wird mit der nächsten Nachricht in den Agent-Kontext geladen.** ' +
-        'Schreib einfach weiter — der Agent erhält die bisherigen User/Grok-Nachrichten als Hintergrund.'
+      '**History will load into agent context with the next message.** ' +
+        'Keep chatting — prior user/Grok messages are sent as background.'
     );
     this.emitChange(localId);
   }
@@ -596,7 +596,7 @@ export class SessionManager extends EventEmitter {
     }
     if (state.seedHistoryOnNextPrompt) {
       state.seedHistoryOnNextPrompt = false;
-      this.pushSystem(state, 'Kontext-Laden abgebrochen.');
+      this.pushSystem(state, 'Context load cancelled.');
     }
     state.contextNoticeDismissed = true;
     this.emitChange(localId);
@@ -754,7 +754,7 @@ export class SessionManager extends EventEmitter {
         state.agentContext = 'seeded';
         this.pushSystem(
           state,
-          '**Verlauf in Agent-Kontext geladen** — der Agent erhält die bisherigen Nachrichten als Hintergrund zu deiner Anfrage.'
+          '**History loaded into agent context** — prior messages are attached as background for your request.'
         );
       } else {
         state.seedHistoryOnNextPrompt = false;
@@ -1106,9 +1106,9 @@ export class SessionManager extends EventEmitter {
       const label = formatModelLabel(id);
       this.pushSystem(
         state,
-        `**Aktives Session-Modell: ${label}**\n` +
-          `Agent neu gestartet mit \`grok agent --no-leader -m ${id} stdio\`.\n` +
-          `Hinweis: Bei „Welches Modell bist du?“ gilt diese ID — nicht eine freie Umschreibung des Modells.`
+        `**Active session model: ${label}**\n` +
+          `Agent restarted with \`grok agent --no-leader -m ${id} stdio\`.\n` +
+          `When asked which model you are, use this id — not a free-form product nickname.`
       );
       this.schedulePersist(state);
     } catch (err) {

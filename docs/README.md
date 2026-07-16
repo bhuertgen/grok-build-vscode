@@ -1,11 +1,22 @@
-# Dokumentation — Grok Build for VS Code
+# Documentation — Grok Build for VS Code
 
-| Dokument | Zielgruppe | Inhalt |
-|----------|------------|--------|
-| **[USER_GUIDE.md](./USER_GUIDE.md)** | Nutzer | Bedienung, Beispiele, **alle Settings**, Commands, Troubleshooting |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Entwickler | Hybrid-ACP, Prozesse, Ordnerstruktur |
-| **[MULTI_AGENT.md](./MULTI_AGENT.md)** | Nutzer / Dev | Sub-Agents, UI-Monitoring, Roadmap |
-| **[TEST_CONCEPT.md](./TEST_CONCEPT.md)** | QA / Dev | Usability, Funktionalität, Security-Tests |
-| **[SCROLL_TEST_PROMPT.md](./SCROLL_TEST_PROMPT.md)** | QA | Scroll-Regression-Prompts |
+**Language:** English (repository standard).
 
-Haupt-README im Repo-Root: [../README.md](../README.md).
+| Document | Audience | Contents |
+|----------|----------|----------|
+| **[USER_GUIDE.md](./USER_GUIDE.md)** | Users | Usage, examples, **all settings**, commands, troubleshooting |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Developers | Hybrid ACP design, processes, folder layout |
+| **[MULTI_AGENT.md](./MULTI_AGENT.md)** | Users / devs | Sub-agents, UI monitoring, roadmap |
+| **[TEST_CONCEPT.md](./TEST_CONCEPT.md)** | QA / devs | Usability, function, security test matrix |
+| **[SCROLL_TEST_PROMPT.md](./SCROLL_TEST_PROMPT.md)** | QA | Scroll regression prompts |
+
+Root readme: [../README.md](../README.md).
+
+### Multi-language?
+
+GitHub does not provide built-in i18n for docs. Common patterns:
+
+1. **English only** (this repo) — simplest for public open source.  
+2. Optional later: `docs/de/USER_GUIDE.md` as a translation (not maintained in lockstep unless you choose to).
+
+UI and docs target **English** so international users and GitHub discovery stay consistent.

@@ -75,11 +75,11 @@
 
     <div class="memory-banner hidden" id="memoryBanner">
       <div class="cli-banner-text">
-        <strong id="memoryBannerTitle">Agent-Kontext</strong>
+        <strong id="memoryBannerTitle">Agent context</strong>
         <span id="memoryBannerDetail"></span>
       </div>
       <div class="memory-banner-actions">
-        <button type="button" class="text-btn primary-btn hidden" id="btnSeedHistory">Verlauf in Kontext laden</button>
+        <button type="button" class="text-btn primary-btn hidden" id="btnSeedHistory">Load history into context</button>
         <button type="button" class="text-btn" id="btnDismissMemory">OK</button>
       </div>
     </div>
@@ -114,43 +114,43 @@
 
     <footer class="composer">
       <!-- + insert menu (context / media) -->
-      <div class="attach-menu hidden" id="attachMenu" role="menu" aria-label="Einfügen">
-        <div class="menu-section-label">Einfügen</div>
+      <div class="attach-menu hidden" id="attachMenu" role="menu" aria-label="Insert">
+        <div class="menu-section-label">Insert</div>
         <button type="button" class="attach-item" id="btnContext" data-action="context">
           <span class="attach-icon">@</span>
           <span class="attach-label">
-            <span class="attach-title">Kontext / Datei</span>
-            <span class="attach-desc">@file, Symbol, Git, Ordner</span>
+            <span class="attach-title">Context / file</span>
+            <span class="attach-desc">@file, symbol, git, folder</span>
           </span>
         </button>
         <button type="button" class="attach-item" id="btnImage" data-action="image">
           <span class="attach-icon">🖼</span>
           <span class="attach-label">
-            <span class="attach-title">Bild</span>
-            <span class="attach-desc">Bild als Anhang</span>
+            <span class="attach-title">Image</span>
+            <span class="attach-desc">Attach image</span>
           </span>
         </button>
         <button type="button" class="attach-item" id="btnActiveFile" data-action="active">
           <span class="attach-icon">📄</span>
           <span class="attach-label">
-            <span class="attach-title">Aktive Datei</span>
-            <span class="attach-desc">Offener Editor / Auswahl</span>
+            <span class="attach-title">Active file</span>
+            <span class="attach-desc">Current editor / selection</span>
           </span>
         </button>
         <input type="file" id="imageInput" accept="image/*" multiple hidden />
       </div>
 
       <!-- / actions menu (Claude-style parameters) -->
-      <div class="actions-menu hidden" id="actionsMenu" role="menu" aria-label="Aktionen">
+      <div class="actions-menu hidden" id="actionsMenu" role="menu" aria-label="Actions">
         <input
           type="search"
           class="actions-filter"
           id="actionsFilter"
-          placeholder="Aktionen filtern…"
+          placeholder="Filter actions…"
           autocomplete="off"
         />
         <div class="actions-list" id="actionsList"></div>
-        <div class="actions-footer">Esc schließen · ↑↓ wählen · Enter</div>
+        <div class="actions-footer">Esc close · ↑↓ select · Enter</div>
       </div>
 
       <div class="composer-wrap">
@@ -158,8 +158,8 @@
         <div class="slash-menu hidden" id="bottomPicker" role="listbox" aria-label="Picker"></div>
         <div class="composer-shell">
           <div class="composer-left">
-            <button type="button" class="icon-btn plus-btn" id="btnPlus" title="Einfügen (+)">+</button>
-            <button type="button" class="icon-btn slash-btn" id="btnSlash" title="Aktionen (/)">/</button>
+            <button type="button" class="icon-btn plus-btn" id="btnPlus" title="Insert (+)">+</button>
+            <button type="button" class="icon-btn slash-btn" id="btnSlash" title="Actions (/)">/</button>
           </div>
           <textarea id="input" rows="1" placeholder="Message Grok…"></textarea>
           <div class="composer-actions">
@@ -169,7 +169,7 @@
         </div>
       </div>
       <div class="composer-hint">
-        <span><kbd>+</kbd> einfügen · <kbd>/</kbd> Aktionen · <kbd>@</kbd> Datei · <kbd>Enter</kbd> senden</span>
+        <span><kbd>+</kbd> insert · <kbd>/</kbd> actions · <kbd>@</kbd> file · <kbd>Enter</kbd> send</span>
       </div>
       <div class="pending-edits hidden" id="pendingEdits"></div>
     </footer>

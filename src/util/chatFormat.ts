@@ -76,7 +76,7 @@ export function buildHistorySeedTranscript(
   maxChars = 14_000
 ): string {
   const lines: string[] = [
-    '[Wiederhergestellter Chatverlauf aus der VS-Code-UI — bitte als bisherigen Kontext dieses Projekts behandeln. Antworte nicht erneut auf alte Nachrichten, sondern fahre mit der aktuellen Nutzeranfrage fort.]',
+    '[Restored chat history from the VS Code UI — treat as prior project context. Do not re-answer old messages; continue from the current user request.]',
     '',
   ];
   let added = 0;
@@ -90,7 +90,7 @@ export function buildHistorySeedTranscript(
     }
     const who = m.role === 'user' ? 'User' : 'Grok';
     const clipped =
-      body.length > 2_500 ? body.slice(0, 2_500) + '\n…[gekürzt]' : body;
+      body.length > 2_500 ? body.slice(0, 2_500) + '\n…[truncated]' : body;
     lines.push(`${who}:\n${clipped}`, '');
     added++;
   }
@@ -101,7 +101,7 @@ export function buildHistorySeedTranscript(
   if (text.length > maxChars) {
     text =
       text.slice(0, maxChars) +
-      '\n\n…[älterer Verlauf gekürzt wegen Kontextlimit]';
+      '\n\n…[older history truncated due to context limit]';
   }
   return text;
 }

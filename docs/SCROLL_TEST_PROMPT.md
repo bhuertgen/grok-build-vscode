@@ -1,24 +1,26 @@
-# Scroll-Test Prompt (VS Code / Grok Build)
+# Scroll test prompts (VS Code / Grok Build)
 
-Ziel: **Sticky-Bottom**, **kein Wackeln**, **Scroll-up bleibt stehen** während Streaming.
+**Language:** English (prompts may use any language for LLM stress).
 
-## Vorbereitung
+Goal: **sticky bottom**, **no jitter**, **scroll-up stays put** during streaming.
 
-1. Extension-Host **F5** (aktueller Build).
-2. Leeren oder Sandbox-Ordner öffnen (trusted).
-3. Grok-Chat in der **Mitte**, Mode **Execute**.
-4. Optional: DevTools im Webview (Command: *Developer: Open Webview Developer Tools*) → beobachten, ob `scrollTop` springt.
+## Setup
 
-## Pass-Kriterien (alle müssen greifen)
+1. Extension Host **F5** (current build).
+2. Open an empty or sandbox folder (trusted).
+3. Grok chat in the **middle**, mode **Execute**.
+4. Optional: Webview DevTools → watch whether `scrollTop` jumps.
 
-| ID | Erwartung |
-|----|-----------|
-| S1 | Während der Antwort bleibt die Ansicht am **Ende** (neuester Text sichtbar). |
-| S2 | **Kein** sichtbares Hoch-Runter-Wackeln (kein Jump to top + back). |
-| S3 | Manuell **hochscrollen** → bleibt dort, auch wenn weiter gestreamt wird. |
-| S4 | Wieder **nach unten** scrollen (oder ans Ende) → folgt dem Stream wieder. |
-| S5 | Nach **Send** einer neuen Frage → sofort wieder am Ende. |
-| S6 | Tool-Zeilen (Bash/Read) mitten im Stream → kein Verlust der Bottom-Pin. |
+## Pass criteria (all required)
+
+| ID | Expectation |
+|----|-------------|
+| S1 | During the answer, the view stays at the **bottom** (latest text visible). |
+| S2 | **No** visible up/down jitter (no jump to top then back). |
+| S3 | Manual **scroll up** stays there while streaming continues. |
+| S4 | Scroll **to bottom** again → follows the live stream. |
+| S5 | After **Send** on a new turn → jumps to bottom immediately. |
+| S6 | Tool rows mid-stream → bottom pin still holds. |
 
 ---
 
