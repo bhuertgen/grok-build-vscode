@@ -71,10 +71,18 @@ src/
     config.ts
     logger.ts
     fileWriter.ts              # shared apply path for diffs
+    chatFormat.ts / cwd.ts     # pure helpers (unit-tested)
+    modelCatalog.ts            # ~/.grok/models_cache.json
+    extensionUpdate.ts         # GitHub Releases check
+    agentArgs.ts               # pure CLI argv builder
+  cli/
+    updateCheck.ts             # grok update --check --json
 webview/                       # theme-aware chat UI
 media/
-docs/ARCHITECTURE.md
+docs/                          # USER_GUIDE, ARCHITECTURE, tests…
 ```
+
+End-user documentation: [USER_GUIDE.md](./USER_GUIDE.md).
 
 ## Graceful CLI handling
 
