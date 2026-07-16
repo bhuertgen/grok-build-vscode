@@ -82,7 +82,7 @@ media/
 docs/                          # USER_GUIDE, ARCHITECTURE, tests…
 ```
 
-End-user documentation: [USER_GUIDE.md](./USER_GUIDE.md).
+End-user documentation: [USER_GUIDE.md](./USER_GUIDE.md) · Deutsch: [../de/ARCHITECTURE.md](../de/ARCHITECTURE.md).
 
 ## Graceful CLI handling
 

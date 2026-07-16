@@ -5,7 +5,7 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 
 > **Not affiliated with xAI.** Agent logic, safety, and tools live in the **Grok Build CLI** (`grok agent stdio`). This extension is the native VS Code ACP client.
 
-**Documentation language:** English (repository standard). UI strings are English.
+**Language:** English · Deutsch: [../de/USER_GUIDE.md](../de/USER_GUIDE.md)
 
 ---
 

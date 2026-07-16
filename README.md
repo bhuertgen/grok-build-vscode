@@ -8,8 +8,9 @@
 
 > **Not affiliated with xAI.** Planning, tools, MCP, sub-agents, and safety stay in the official Rust CLI.
 
-**Full user guide (settings, examples, commands):** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)  
-**Docs language:** English (repository standard). Multi-language would mean separate files under e.g. `docs/de/` — not maintained in parallel unless requested.
+**User guide:** [English](docs/en/USER_GUIDE.md) · [Deutsch](docs/de/USER_GUIDE.md)  
+**Docs index:** [docs/README.md](docs/README.md) (`docs/en/` + `docs/de/`)  
+**UI language:** English.
 
 ## Features
 
@@ -81,7 +82,7 @@ Summarize installation in 3 bullets.
 Create docs/notes.md with a short project intro. Stay inside this workspace.
 ```
 
-More examples and **every setting**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
+More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.md) ([DE](docs/de/USER_GUIDE.md)).
 
 ## Important settings
 
@@ -98,17 +99,18 @@ More examples and **every setting**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 | `grokBuild.logLevel` | `info` | Output channel **Grok Build** |
 
 **Complete parameter reference** (CLI flags, UI permissions, context, updates):  
-→ [docs/USER_GUIDE.md §6](docs/USER_GUIDE.md#6-alle-settings-grokbuild)
+→ [docs/en/USER_GUIDE.md §6](docs/en/USER_GUIDE.md#6-all-settings-grokbuild) · [DE overview](docs/de/USER_GUIDE.md#6-settings-grokbuild)
 
 ## Documentation index
 
-| Doc | Contents |
-|-----|----------|
-| [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | **User manual**: UI, examples, all settings, troubleshooting |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Hybrid design, ACP surface, folder layout |
-| [docs/MULTI_AGENT.md](docs/MULTI_AGENT.md) | Sub-agent monitoring |
-| [docs/TEST_CONCEPT.md](docs/TEST_CONCEPT.md) | QA matrix (usability / function / security) |
-| [docs/SCROLL_TEST_PROMPT.md](docs/SCROLL_TEST_PROMPT.md) | Scroll regression prompts |
+| | English | Deutsch |
+|--|---------|---------|
+| User guide | [en/USER_GUIDE](docs/en/USER_GUIDE.md) | [de/USER_GUIDE](docs/de/USER_GUIDE.md) |
+| Architecture | [en/ARCHITECTURE](docs/en/ARCHITECTURE.md) | [de/ARCHITECTURE](docs/de/ARCHITECTURE.md) |
+| Multi-agent | [en/MULTI_AGENT](docs/en/MULTI_AGENT.md) | [de/MULTI_AGENT](docs/de/MULTI_AGENT.md) |
+| Tests | [en/TEST_CONCEPT](docs/en/TEST_CONCEPT.md) | [de/TEST_CONCEPT](docs/de/TEST_CONCEPT.md) |
+| Scroll tests | [en/SCROLL_TEST](docs/en/SCROLL_TEST_PROMPT.md) | [de/SCROLL_TEST](docs/de/SCROLL_TEST_PROMPT.md) |
+| Index | [docs/README](docs/README.md) | same |
 
 ## Architecture (hybrid)
 

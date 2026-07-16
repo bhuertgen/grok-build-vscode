@@ -1,22 +1,29 @@
 # Documentation — Grok Build for VS Code
 
-**Language:** English (repository standard).
+This repository documents the product in **two languages** under separate folders.
 
-| Document | Audience | Contents |
-|----------|----------|----------|
-| **[USER_GUIDE.md](./USER_GUIDE.md)** | Users | Usage, examples, **all settings**, commands, troubleshooting |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Developers | Hybrid ACP design, processes, folder layout |
-| **[MULTI_AGENT.md](./MULTI_AGENT.md)** | Users / devs | Sub-agents, UI monitoring, roadmap |
-| **[TEST_CONCEPT.md](./TEST_CONCEPT.md)** | QA / devs | Usability, function, security test matrix |
-| **[SCROLL_TEST_PROMPT.md](./SCROLL_TEST_PROMPT.md)** | QA | Scroll regression prompts |
+| Language | Folder | Start here |
+|----------|--------|------------|
+| **English** (primary for GitHub discovery) | [en/](./en/) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) |
+| **Deutsch** | [de/](./de/) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) |
+
+```
+docs/
+  README.md          ← you are here
+  en/                ← English (complete)
+  de/                ← German (user-facing + short tech guides)
+```
+
+### What lives where
+
+| Topic | English | German |
+|-------|---------|--------|
+| User guide (full settings tables) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) (overview + link to EN for full tables) |
+| Architecture | [en/ARCHITECTURE.md](./en/ARCHITECTURE.md) | [de/ARCHITECTURE.md](./de/ARCHITECTURE.md) |
+| Multi-agent | [en/MULTI_AGENT.md](./en/MULTI_AGENT.md) | [de/MULTI_AGENT.md](./de/MULTI_AGENT.md) |
+| Test concept | [en/TEST_CONCEPT.md](./en/TEST_CONCEPT.md) | [de/TEST_CONCEPT.md](./de/TEST_CONCEPT.md) |
+| Scroll tests | [en/SCROLL_TEST_PROMPT.md](./en/SCROLL_TEST_PROMPT.md) | [de/SCROLL_TEST_PROMPT.md](./de/SCROLL_TEST_PROMPT.md) |
 
 Root readme: [../README.md](../README.md).
 
-### Multi-language?
-
-GitHub does not provide built-in i18n for docs. Common patterns:
-
-1. **English only** (this repo) — simplest for public open source.  
-2. Optional later: `docs/de/USER_GUIDE.md` as a translation (not maintained in lockstep unless you choose to).
-
-UI and docs target **English** so international users and GitHub discovery stay consistent.
+**UI language** of the extension is **English**. Docs: EN + DE folders as above.

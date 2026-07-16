@@ -1,6 +1,6 @@
 # Test concept — Grok Build for VS Code
 
-**Language:** English overview below; detailed German sections may still appear in older parts of this file. Prefer [USER_GUIDE.md](./USER_GUIDE.md) for product docs.
+**Language:** English overview below; detailed German sections may still appear in older parts of this file. Prefer [USER_GUIDE.md](./USER_GUIDE.md) · German: [../de/TEST_CONCEPT.md](../de/TEST_CONCEPT.md) for product docs.
 
 Goal: independently verify usability, functionality, and security — without using the extension repo itself as the agent workspace.
 
