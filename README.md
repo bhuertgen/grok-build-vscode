@@ -38,9 +38,24 @@
 
 ### From GitHub Release (recommended)
 
-1. [Releases](https://github.com/bhuertgen/grok-build-vscode/releases)  
-2. Download the latest `.vsix`  
-3. Extensions → `…` → **Install from VSIX…**
+**Detailed click path (EN/DE):**  
+[docs/en/INSTALL_VSIX.md](docs/en/INSTALL_VSIX.md) · [docs/de/INSTALL_VSIX.md](docs/de/INSTALL_VSIX.md)
+
+1. Open [Releases](https://github.com/bhuertgen/grok-build-vscode/releases) and download **`grok-build-vscode-….vsix`** (not “Source code”).  
+2. In VS Code press **`Ctrl+Shift+X`** (Mac: **`Cmd+Shift+X`**) to open **Extensions**.  
+3. At the **top** of that view, next to the search box, click the **`…`** (three dots).  
+4. Choose **Install from VSIX…**  
+   - German VS Code: **Von VSIX installieren…**  
+5. Select the downloaded `.vsix` → Install → **Reload** if asked.
+
+**If you cannot find `…`:** press **`Ctrl+Shift+P`** → type `Install from VSIX` → run  
+**Extensions: Install from VSIX…** (DE: **Erweiterungen: Von VSIX installieren…**).
+
+**Terminal alternative:**
+
+```bash
+code --install-extension path/to/grok-build-vscode-0.2.1.vsix
+```
 
 ### Build locally
 

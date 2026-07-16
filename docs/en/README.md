@@ -2,6 +2,7 @@
 
 | Document | Audience | Contents |
 |----------|----------|----------|
+| [INSTALL_VSIX.md](./INSTALL_VSIX.md) | Users | **Step-by-step: Install from VSIX** |
 | [USER_GUIDE.md](./USER_GUIDE.md) | Users | Usage, examples, all settings, commands |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Developers | Hybrid ACP design |
 | [MULTI_AGENT.md](./MULTI_AGENT.md) | Users / devs | Sub-agent monitoring |

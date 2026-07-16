@@ -18,6 +18,7 @@ docs/
 
 | Topic | English | German |
 |-------|---------|--------|
+| **Install from VSIX (step-by-step)** | [en/INSTALL_VSIX.md](./en/INSTALL_VSIX.md) | [de/INSTALL_VSIX.md](./de/INSTALL_VSIX.md) |
 | User guide (full settings tables) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) (overview + link to EN for full tables) |
 | Architecture | [en/ARCHITECTURE.md](./en/ARCHITECTURE.md) | [de/ARCHITECTURE.md](./de/ARCHITECTURE.md) |
 | Multi-agent | [en/MULTI_AGENT.md](./en/MULTI_AGENT.md) | [de/MULTI_AGENT.md](./de/MULTI_AGENT.md) |

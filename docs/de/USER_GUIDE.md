@@ -22,9 +22,16 @@ Architektur: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-Agent: [MULTI_AGENT.m
 
 ### Extension installieren
 
-**A) Release (empfohlen)**  
-1. [GitHub Releases](https://github.com/bhuertgen/grok-build-vscode/releases) → `.vsix` laden  
-2. VS Code → Extensions → `…` → **Install from VSIX…**
+**A) Release (empfohlen)** — ausführlich mit Klickweg: **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+
+1. [GitHub Releases](https://github.com/bhuertgen/grok-build-vscode/releases) → Datei **`….vsix`** laden (nicht „Source code“).  
+2. In VS Code: **`Strg+Umschalt+X`** → Ansicht **Erweiterungen**.  
+3. **Oben** neben dem Suchfeld auf **`…`** (drei Punkte) klicken.  
+4. **Von VSIX installieren…** wählen (Englisch: *Install from VSIX…*).  
+5. `.vsix`-Datei auswählen → Installieren → ggf. **Neu laden**.
+
+**Alternative, wenn du die `…` nicht siehst:**  
+**`Strg+Umschalt+P`** → tippen `VSIX` → **Erweiterungen: Von VSIX installieren…**
 
 **B) Aus dem Repo**
 
