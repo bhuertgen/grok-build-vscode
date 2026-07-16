@@ -117,6 +117,67 @@
   /** @type {Array<{ value: string, label: string, description?: string, selected?: boolean }>} */
   let bottomPickerItems = [];
 
+  /**
+   * Chat scroll controller (sticky bottom with hysteresis).
+   * Full DOM rebuilds thrash layout; without a sticky flag + rAF the view
+   * jitters or fails to follow streaming text.
+   */
+  let stickToBottom = true;
+  let scrollRaf = 0;
+  /** Distance from bottom (px) to consider "pinned" / "unpinned" */
+  const STICK_PIN_PX = 40;
+  const STICK_UNPIN_PX = 140;
+
+  function distanceFromBottom() {
+    const el = els.messages;
+    if (!el) {
+      return 0;
+    }
+    return el.scrollHeight - el.scrollTop - el.clientHeight;
+  }
+
+  function updateStickFromUserScroll() {
+    const dist = distanceFromBottom();
+    // Hysteresis: easy to re-pin, harder to unpin mid-stream
+    if (dist <= STICK_PIN_PX) {
+      stickToBottom = true;
+    } else if (dist > STICK_UNPIN_PX) {
+      stickToBottom = false;
+    }
+  }
+
+  function pinToBottom() {
+    stickToBottom = true;
+  }
+
+  /**
+   * Apply scroll after layout. Double rAF waits for browser reflow after
+   * innerHTML rebuild so we don't set scrollTop against stale heights.
+   */
+  function scheduleScrollAfterRender(ctx) {
+    if (scrollRaf) {
+      cancelAnimationFrame(scrollRaf);
+    }
+    const apply = () => {
+      scrollRaf = 0;
+      const el = els.messages;
+      if (!el) {
+        return;
+      }
+      if (ctx.forcePin || stickToBottom) {
+        el.scrollTop = el.scrollHeight;
+        stickToBottom = true;
+        return;
+      }
+      // Keep reading position when user scrolled up (content usually grows at bottom)
+      el.scrollTop = Math.max(0, ctx.prevScroll);
+    };
+    // First frame: DOM committed; second: layout metrics final
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = requestAnimationFrame(apply);
+    });
+  }
+
   // ─── Post → extension ─────────────────────────────────────────────────────
 
   function post(type, payload) {
@@ -776,10 +837,13 @@
 
   function renderMessages() {
     const s = activeSession();
-    const prevScroll = els.messages.scrollTop;
-    const prevHeight = els.messages.scrollHeight;
-    const nearBottom =
-      prevHeight - prevScroll - els.messages.clientHeight < 100;
+    const prevScroll = els.messages ? els.messages.scrollTop : 0;
+    // Snapshot stickiness before wipe (wipe can reset scrollTop → false unpin)
+    const forcePin = stickToBottom;
+    if (els.messages && !forcePin) {
+      // Refresh stick flag from pre-wipe position
+      updateStickFromUserScroll();
+    }
 
     els.messages.innerHTML = '';
 
@@ -957,17 +1021,10 @@
       els.messages.appendChild(div);
     }
 
-    // Auto-scroll: stick to bottom on first paint / when already near bottom
-    const firstPaint = prevHeight < 40;
-    if (nearBottom || firstPaint) {
-      els.messages.scrollTop = els.messages.scrollHeight;
-    } else {
-      // Keep relative position when content above grows slightly
-      const delta = els.messages.scrollHeight - prevHeight;
-      if (delta !== 0) {
-        els.messages.scrollTop = prevScroll;
-      }
-    }
+    scheduleScrollAfterRender({
+      forcePin: forcePin || stickToBottom,
+      prevScroll,
+    });
   }
 
   function renderChips() {
@@ -1752,6 +1809,7 @@
     }
     hideSlashMenu();
     toolsExpanded = false;
+    pinToBottom(); // new turn always follows the stream
     post('sendPrompt', {
       localId: s.localId,
       text: text || '(image)',
@@ -1768,6 +1826,21 @@
     els.input.style.height = Math.min(els.input.scrollHeight, 160) + 'px';
   }
 
+  // User scroll intent for stick-to-bottom
+  if (els.messages) {
+    els.messages.addEventListener(
+      'scroll',
+      () => {
+        // Ignore programmatic scroll while we are forcing pin this frame
+        if (scrollRaf) {
+          return;
+        }
+        updateStickFromUserScroll();
+      },
+      { passive: true }
+    );
+  }
+
   els.btnSend.addEventListener('click', send);
   els.btnStop.addEventListener('click', () => {
     const s = activeSession();
@@ -1775,7 +1848,10 @@
       post('cancel', { localId: s.localId });
     }
   });
-  els.btnNew.addEventListener('click', () => post('newSession', {}));
+  els.btnNew.addEventListener('click', () => {
+    pinToBottom();
+    post('newSession', {});
+  });
   els.btnHistory.addEventListener('click', () => post('resumeSession', {}));
   els.btnMode.addEventListener('click', () => {
     const s = activeSession();
@@ -2411,6 +2487,12 @@
           toolsExpanded = false;
           expandedTools.clear();
           expandedThoughts.clear();
+          pinToBottom(); // new/switched session → follow latest
+        }
+        // While session is streaming, keep pin if user hasn't scrolled away
+        const active = state.sessions.find((x) => x.localId === state.activeId);
+        if (active?.busy && stickToBottom) {
+          pinToBottom();
         }
         render();
         if (slashOpen) {

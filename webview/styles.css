@@ -528,7 +528,9 @@ body.vscode-light .brand-logo {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  scroll-behavior: auto; /* avoid smooth thrashing on tool updates */
+  /* Never use smooth here — fights programmatic stick-to-bottom during stream */
+  scroll-behavior: auto;
+  overflow-anchor: none; /* prevent browser scroll anchoring vs our sticky logic */
 }
 
 .empty-state {

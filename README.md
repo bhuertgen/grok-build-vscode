@@ -34,13 +34,19 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
 ## Install (end users)
 
-### From VSIX
+### From GitHub Release (recommended)
+
+1. Open [Releases](https://github.com/bhuertgen/grok-build-vscode/releases)
+2. Download the latest `.vsix`
+3. VS Code → Extensions → `…` → **Install from VSIX…**
+
+Or from a clone:
 
 ```bash
 npm install
 npm run build
-npx vsce package --no-dependencies
-code --install-extension grok-build-vscode-0.1.0.vsix
+npm run package
+code --install-extension grok-build-vscode-0.2.0.vsix
 ```
 
 ### From source (Extension Development Host)
@@ -55,14 +61,22 @@ Press **F5** in VS Code (launch config *Run Extension*).
 ## Automated checks
 
 ```bash
-npm test                 # unit tests (chat format, @-mention, cwd)
+npm test                 # unit tests (chat format, @-mention, cwd, models)
 npm run test:integration # VS Code Extension Host (downloads VS Code once)
 npm run test:all         # unit + integration
 npm run smoke            # typecheck + build + security markers + unit tests
 npm run check            # alias for smoke
 ```
 
-Manual UX / security scenarios: [docs/TEST_CONCEPT.md](docs/TEST_CONCEPT.md).
+Manual UX / security scenarios: [docs/TEST_CONCEPT.md](docs/TEST_CONCEPT.md).  
+Scroll regression prompts: [docs/SCROLL_TEST_PROMPT.md](docs/SCROLL_TEST_PROMPT.md).
+
+## Security notes
+
+- No API keys or secrets ship in this repository.
+- Optional setting `grokBuild.githubToken` is for **your** machine only (private release checks); leave empty and use VS Code GitHub sign-in when possible.
+- Chat history is stored in VS Code `globalState` on the user’s machine, not in this repo.
+- The official Grok CLI handles auth (`grok` login); this extension does not embed credentials.
 
 ## Connect to Grok Build CLI
 

@@ -9,3 +9,7 @@ dist-test/
 out/
 *.tsbuildinfo
 errors/
+
+# Internal bootstrap prompts (not for public consumers)
+start-prompt.txt
+erweiterung1-prompt.txt
