@@ -10,6 +10,10 @@ import { getLogger } from '../util/logger';
 import { detectGrokCli, getInstallInstructions } from '../cli/detect';
 import { checkCliUpdate, runCliUpdate } from '../cli/updateCheck';
 import { getCliStatus } from '../cli/cliStatus';
+import {
+  linesFromEditorSelection,
+  mentionFromSelection,
+} from '../util/fileRangeMention';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -183,6 +187,44 @@ export function registerCommands(
         }
       }
     ),
+
+    vscode.commands.registerCommand('grokBuild.insertSelectionRange', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.uri.scheme !== 'file') {
+        void vscode.window.showWarningMessage(
+          'No file editor. Open a file and select lines first.'
+        );
+        return;
+      }
+      const sel = editor.selection;
+      const selections = editor.selections ?? [sel];
+      const rel = vscode.workspace.asRelativePath(editor.document.uri, false);
+      const lines = linesFromEditorSelection(sel);
+      const built = mentionFromSelection({
+        relativePath: rel.replace(/\\/g, '/'),
+        startLine: lines?.startLine ?? sel.start.line + 1,
+        endLine: lines?.endLine ?? sel.end.line + 1,
+        selectionCount: selections.length,
+        empty: !lines,
+      });
+      if (!built.ok) {
+        void vscode.window.showWarningMessage(built.message);
+        return;
+      }
+      const s = await ensureSession();
+      const item = collector.fromSelection(editor);
+      item.label = `${built.mention.replace(/^@/, '')}`;
+      item.detail = `L${built.startLine}-L${built.endLine}`;
+      item.startLine = built.startLine;
+      item.endLine = built.endLine;
+      sessions.addContext(s.localId, item);
+      await openGrokUi();
+      const hint = `${built.mention} `;
+      EditorChatPanel.current?.insertText(hint);
+      chatView.insertText(hint);
+      EditorChatPanel.current?.pushState();
+      chatView.pushState();
+    }),
 
     vscode.commands.registerCommand('grokBuild.addSelectionContext', async () => {
       const editor = vscode.window.activeTextEditor;

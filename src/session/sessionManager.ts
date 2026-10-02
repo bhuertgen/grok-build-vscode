@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpClient } from '../acp/client';
@@ -38,6 +39,11 @@ import {
   type StoredSession,
 } from './sessionStore';
 import { ContextCollector } from '../context/contextCollector';
+import {
+  parseFileRangeMentions,
+  rangeContextBlock,
+  sliceLines,
+} from '../util/fileRangeMention';
 
 /**
  * How much conversation memory the live CLI agent has.
@@ -121,6 +127,9 @@ export interface ContextItem {
   path?: string;
   detail?: string;
   text?: string;
+  /** 1-based inclusive line range for @file#start-end mentions */
+  startLine?: number;
+  endLine?: number;
   mimeType?: string;
   data?: string;
 }
@@ -744,6 +753,8 @@ export class SessionManager extends EventEmitter {
       throw new Error(state.lastError ?? 'Agent process is not connected');
     }
 
+    await this.attachMentionedRanges(state, text);
+
     const blocks: ContentBlock[] = [];
     // Inject restored local transcript so a cold agent can continue the chat
     if (state.seedHistoryOnNextPrompt) {
@@ -802,6 +813,8 @@ export class SessionManager extends EventEmitter {
         label: c.label,
         path: c.path,
         relativePath,
+        startLine: c.startLine,
+        endLine: c.endLine,
       };
     });
     const displayText = formatUserMessageWithAttachments(text, attached);
@@ -1044,6 +1057,62 @@ export class SessionManager extends EventEmitter {
     );
     if (picked) {
       await this.applyModel(state.localId, picked.value);
+    }
+  }
+
+  /**
+   * Live session override for a non-model ACP config option
+   * (`session/set_config_option`). Confirmed by the returned options
+   * and later `config_option_update`. Does not rewrite settings.json
+   * (that stays the default for new processes, e.g. reasoningEffort).
+   */
+  async applyConfigOption(
+    localId: string,
+    configId: string,
+    value: string | boolean
+  ): Promise<void> {
+    const state = this.sessions.get(localId) ?? this.getActive();
+    if (!state) {
+      void vscode.window.showWarningMessage('No active Grok session.');
+      return;
+    }
+    const opt = state.configOptions?.find((o) => o.id === configId);
+    const label = opt?.name || configId;
+    if (!state.agentSessionId || state.status !== 'ready') {
+      this.pushSystem(
+        state,
+        `Cannot change **${label}** — session is not ready.`
+      );
+      this.emitChange(state.localId);
+      return;
+    }
+    const client = this.clients.get(state.localId);
+    if (!client?.isConnected) {
+      this.pushSystem(state, `Cannot change **${label}** — agent is not connected.`);
+      this.emitChange(state.localId);
+      return;
+    }
+    try {
+      const res = await client.setConfigOption(
+        state.agentSessionId,
+        configId,
+        value
+      );
+      if (res?.configOptions) {
+        state.configOptions = normalizeConfigOptions(res.configOptions);
+      } else if (opt) {
+        opt.currentValue = value;
+      }
+      const shown =
+        typeof value === 'boolean' ? (value ? 'on' : 'off') : String(value);
+      this.pushSystem(state, `**${label}** → ${shown}`);
+      this.schedulePersist(state);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.log.warn('set_config_option failed', configId, message);
+      this.pushSystem(state, `Could not set **${label}**: ${message}`);
+    } finally {
+      this.emitChange(state.localId);
     }
   }
 
@@ -1760,6 +1829,62 @@ export class SessionManager extends EventEmitter {
       });
     } else {
       this.resolvePermission(permId, { outcome: { outcome: 'cancelled' } });
+    }
+  }
+
+
+  /**
+   * Resolve `@path#start-end` tokens in the composer into context items
+   * (resource body + mention already present in the prompt text).
+   */
+  private async attachMentionedRanges(
+    state: SessionState,
+    text: string
+  ): Promise<void> {
+    const mentions = parseFileRangeMentions(text);
+    if (!mentions.length) {
+      return;
+    }
+    const root = state.cwd || '';
+    for (const m of mentions) {
+      const abs = path.isAbsolute(m.path)
+        ? m.path
+        : path.join(root, m.path);
+      const already = state.contextItems.some(
+        (c) =>
+          c.path === abs &&
+          c.startLine === m.startLine &&
+          c.endLine === m.endLine
+      );
+      if (already) {
+        continue;
+      }
+      const full = await this.contextCollector.readFileLimited(abs);
+      if (full == null) {
+        this.log.debug('Range mention file not readable', m.path);
+        continue;
+      }
+      const sliced = sliceLines(full, m.startLine, m.endLine);
+      if (sliced == null) {
+        this.pushSystem(
+          state,
+          `Range ${m.raw} is outside the file — skipped.`
+        );
+        continue;
+      }
+      const truncated = full.includes('/* …truncated… */');
+      const base = path.basename(m.path);
+      state.contextItems.push({
+        id: newMsgId('range'),
+        kind: 'selection',
+        label: `${base}#${m.startLine}-${m.endLine}`,
+        path: abs,
+        detail: `L${m.startLine}-L${m.endLine}`,
+        text: rangeContextBlock(m.raw, sliced, truncated),
+        mimeType: 'text/plain',
+        startLine: m.startLine,
+        endLine: m.endLine,
+      });
     }
   }
 

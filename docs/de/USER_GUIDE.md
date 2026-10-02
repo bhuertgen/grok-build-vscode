@@ -138,6 +138,25 @@ Noch keine Dateien schreiben.
 
 ---
 
+## 4.1 Session-Config (Effort)
+
+Bietet der Agent `configOptions` (select/boolean), erscheint im Chat-Header neben **Model** ein Chip. Effort heißt **Effort**. Model bleibt eigener Chip.
+
+- Select → Dropdown, Boolean → Klick toggelt.
+- Änderung gilt für die **laufende Session** (`session/set_config_option`), Bestätigung über Antwort / `config_option_update`.
+- Unbekannte Typen werden ausgeblendet.
+- `grokBuild.reasoningEffort` bleibt Default für neue Sessions (CLI `--reasoning-effort`) und wird vom Chip nicht überschrieben.
+- Keine Extra-Optionen vom Agent → kein Chip.
+
+## 4.2 `@file#start-end`
+
+1. Zeilen im Editor markieren.
+2. `Alt+K` (oder **+ → Selection range**) fügt `@rel/pfad#12-34` in den Composer ein und hängt den Bereich als Kontext an.
+3. Chip-Klick springt zur Stelle.
+4. Beim Senden wird die Mention geparst; der Zeilenausschnitt geht als Resource-Block plus Mention-Text an `session/prompt`.
+5. Leere Selection oder Multi-Cursor: Warnung, nichts eingefügt.
+6. `Alt+G` bleibt der Kontext-Picker.
+
 ## 5. Befehle & Tastatur
 
 | Shortcut | Command |
@@ -148,6 +167,7 @@ Noch keine Dateien schreiben.
 | `Ctrl+Shift+G I` | Focus Input |
 | `Ctrl+Shift+G Escape` | Cancel (busy) |
 | `Alt+G` | Add Context |
+| `Alt+K` | Selection als `@datei#start-end` einfügen (Editor-Fokus; ersetzt `Alt+G` nicht) |
 
 Command Palette: nach **Grok Build** suchen (alle Commands dort).
 

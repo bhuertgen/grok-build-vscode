@@ -213,6 +213,26 @@ body.vscode-light .brand-logo {
   color: #fbbf24;
 }
 
+.config-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chip-btn.config-on {
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.chip.chip-link {
+  cursor: pointer;
+}
+
+.chip.chip-link:hover {
+  border-color: var(--fg);
+}
+
 .mode-btn {
   padding: 3px 10px;
   font-size: 11px;
