@@ -53,6 +53,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.pushState();
     });
     sessions.on('permissionResolved', () => this.pushState());
+    sessions.on('elicitationRequest', (payload: unknown) => {
+      void this.view?.webview.postMessage({
+        type: 'elicitationRequest',
+        ...(payload as object),
+      });
+      this.pushState();
+    });
+    sessions.on('elicitationResolved', () => this.pushState());
     edits.on('queued', () => this.pushState());
     edits.on('applied', () => this.pushState());
     edits.on('rejected', () => this.pushState());
@@ -566,6 +574,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           kind: string;
         }>;
         this.sessions.respondPermissionFromUi(permId, decision, options as never);
+        this.pushState();
+        break;
+      }
+
+      case 'elicitationResponse': {
+        const elicitId = String(msg.id ?? '');
+        const decision = String(msg.decision ?? 'cancel') as
+          | 'accept'
+          | 'decline'
+          | 'cancel';
+        const content = (msg.content ?? undefined) as
+          | Record<string, string | number | boolean | string[]>
+          | undefined;
+        const meta = {
+          mode: typeof msg.mode === 'string' ? msg.mode : undefined,
+          requestedSchema:
+            msg.requestedSchema && typeof msg.requestedSchema === 'object'
+              ? (msg.requestedSchema as import('../acp/types').ElicitationSchema)
+              : undefined,
+        };
+        this.sessions.respondElicitationFromUi(elicitId, decision, content, meta);
         this.pushState();
         break;
       }

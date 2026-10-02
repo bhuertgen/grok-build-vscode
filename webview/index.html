@@ -108,6 +108,21 @@
       </div>
     </div>
 
+    <div class="elicit-card hidden" id="elicitCard" role="dialog" aria-modal="true" aria-labelledby="elicitCardTitle">
+      <div class="elicit-card-header">
+        <div class="perm-card-title" id="elicitCardTitle">Agent request</div>
+        <button type="button" class="icon-btn elicit-close" id="elicitCancelX" title="Cancel (Esc)" aria-label="Cancel elicitation">×</button>
+      </div>
+      <div class="perm-card-detail" id="elicitCardMessage"></div>
+      <div id="elicitCardBody" class="elicit-card-body"></div>
+      <div class="elicit-error hidden" id="elicitError" role="alert"></div>
+      <div class="perm-card-actions">
+        <button type="button" class="text-btn" id="elicitDecline">Decline</button>
+        <button type="button" class="text-btn" id="elicitCancel">Cancel</button>
+        <button type="button" class="text-btn primary-btn" id="elicitAccept">Accept</button>
+      </div>
+    </div>
+
     <main class="messages" id="messages"></main>
 
     <div class="context-chips" id="contextChips"></div>

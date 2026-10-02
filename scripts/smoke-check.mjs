@@ -142,6 +142,17 @@ if (srcBlob.includes('request_permission') || srcBlob.includes('session/request_
   fail('permission handling referenced');
 }
 
+if (srcBlob.includes('elicitation/create') && srcBlob.includes('elicitation/complete')) {
+  ok('elicitation/create + complete referenced');
+} else {
+  fail('elicitation/create + complete referenced');
+}
+if (read('webview/main.js').includes('elicitationRequest') && read('webview/index.html').includes('elicitCard')) {
+  ok('webview elicitation card present');
+} else {
+  fail('webview elicitation card present');
+}
+
 // ── 5. Secret scan (soft) ──────────────────────────────────────────────────
 console.log('\n5) Secret scan (heuristic)');
 const secretRe =
@@ -204,6 +215,7 @@ if (bundle.status !== 0) {
       'tests/cwd.test.mjs',
       'tests/agentArgs.test.mjs',
       'tests/modelCatalog.test.mjs',
+      'tests/elicitation.test.mjs',
     ],
     {
       encoding: 'utf8',

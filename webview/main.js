@@ -32,6 +32,15 @@
     agentsPanel: document.getElementById('agentsPanel'),
     agentsList: document.getElementById('agentsList'),
     permCard: document.getElementById('permCard'),
+    elicitCard: document.getElementById('elicitCard'),
+    elicitCardTitle: document.getElementById('elicitCardTitle'),
+    elicitCardMessage: document.getElementById('elicitCardMessage'),
+    elicitCardBody: document.getElementById('elicitCardBody'),
+    elicitError: document.getElementById('elicitError'),
+    elicitAccept: document.getElementById('elicitAccept'),
+    elicitDecline: document.getElementById('elicitDecline'),
+    elicitCancel: document.getElementById('elicitCancel'),
+    elicitCancelX: document.getElementById('elicitCancelX'),
     permCardTitle: document.getElementById('permCardTitle'),
     permCardDetail: document.getElementById('permCardDetail'),
     permAllow: document.getElementById('permAllow'),
@@ -88,6 +97,7 @@
 
   /** @type {null | { id: string, toolCall: any, options: any[] }} */
   let activePermission = null;
+  let activeElicitation = null;
 
   /** Preserve expand state across re-renders (Claude-style collapsible tools) */
   const expandedTools = new Set();
@@ -200,6 +210,7 @@
     renderPlan();
     renderAgents();
     renderPermissionCard();
+    renderElicitationCard();
     renderMessages();
     renderChips();
     renderPendingEdits();
@@ -353,6 +364,199 @@
     }
     if (els.permCardDetail) {
       els.permCardDetail.textContent = `${t.kind || 'tool'} · ${t.status || 'pending'} — Allow so Grok can continue.`;
+    }
+  }
+
+
+  function renderElicitationCard() {
+    if (!els.elicitCard) {
+      return;
+    }
+    if (!activeElicitation) {
+      els.elicitCard.classList.add('hidden');
+      if (els.elicitCardBody) {
+        els.elicitCardBody.innerHTML = '';
+      }
+      if (els.elicitError) {
+        els.elicitError.classList.add('hidden');
+        els.elicitError.textContent = '';
+      }
+      return;
+    }
+    els.elicitCard.classList.remove('hidden');
+    const e = activeElicitation;
+    if (els.elicitCardTitle) {
+      els.elicitCardTitle.textContent =
+        e.mode === 'url' ? 'Open URL (consent)' : 'Agent needs input';
+    }
+    if (els.elicitCardMessage) {
+      els.elicitCardMessage.textContent = e.message || '';
+    }
+    if (!els.elicitCardBody) {
+      return;
+    }
+    // Rebuild body only when id changes
+    if (els.elicitCardBody.dataset.elicitId !== e.id) {
+      els.elicitCardBody.dataset.elicitId = e.id;
+      els.elicitCardBody.innerHTML = '';
+      if (e.mode === 'url') {
+        const host = document.createElement('div');
+        host.className = 'elicit-url-host';
+        host.textContent = e.urlHost || '';
+        els.elicitCardBody.appendChild(host);
+        const box = document.createElement('div');
+        box.className = 'elicit-url-box';
+        box.textContent = e.url || '';
+        els.elicitCardBody.appendChild(box);
+        const note = document.createElement('div');
+        note.className = 'hint';
+        note.textContent =
+          'Accept opens this URL in your browser. Decline or Cancel keeps chat usable.';
+        els.elicitCardBody.appendChild(note);
+        if (e.suspiciousUrl) {
+          const w = document.createElement('div');
+          w.className = 'elicit-warn';
+          w.textContent = 'Warning: unusual URL (non-https or punycode host). Review carefully.';
+          els.elicitCardBody.appendChild(w);
+        }
+        if (els.elicitAccept) {
+          els.elicitAccept.textContent = 'Open URL';
+        }
+      } else {
+        if (els.elicitAccept) {
+          els.elicitAccept.textContent = 'Submit';
+        }
+        buildElicitForm(els.elicitCardBody, e.requestedSchema, e.defaults || {});
+        // Focus first field without trapping forever
+        const first = els.elicitCardBody.querySelector('input, select, textarea');
+        if (first) {
+          setTimeout(() => first.focus(), 30);
+        }
+      }
+    }
+  }
+
+  function buildElicitForm(container, schema, defaults) {
+    const props = (schema && schema.properties) || {};
+    const required = new Set((schema && schema.required) || []);
+    for (const [key, prop] of Object.entries(props)) {
+      const field = document.createElement('div');
+      field.className = 'elicit-field';
+      const label = document.createElement('label');
+      label.htmlFor = `elicit-field-${key}`;
+      label.textContent = (prop && prop.title) || key;
+      if (required.has(key)) {
+        label.textContent += ' *';
+      }
+      if (prop && prop.description) {
+        const hint = document.createElement('span');
+        hint.className = 'hint';
+        hint.textContent = ' — ' + prop.description;
+        label.appendChild(hint);
+      }
+      field.appendChild(label);
+
+      const type = (prop && prop.type) || 'string';
+      const def = defaults[key];
+      let input;
+      if (type === 'boolean') {
+        input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = def === true;
+      } else if (type === 'integer' || type === 'number') {
+        input = document.createElement('input');
+        input.type = 'number';
+        input.step = type === 'integer' ? '1' : 'any';
+        if (prop && prop.minimum != null) input.min = String(prop.minimum);
+        if (prop && prop.maximum != null) input.max = String(prop.maximum);
+        if (def != null) input.value = String(def);
+      } else if (type === 'array') {
+        // multi-select as comma-separated for simplicity + a11y
+        input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'comma-separated values';
+        if (Array.isArray(def)) input.value = def.join(', ');
+      } else if (prop && (prop.enum || prop.oneOf)) {
+        input = document.createElement('select');
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '— choose —';
+        input.appendChild(empty);
+        const opts = prop.enum
+          ? prop.enum.map((v) => ({ value: v, title: v }))
+          : (prop.oneOf || []).map((o) => ({
+              value: o.const,
+              title: o.title || o.const,
+            }));
+        for (const o of opts) {
+          const opt = document.createElement('option');
+          opt.value = o.value;
+          opt.textContent = o.title;
+          if (def === o.value) opt.selected = true;
+          input.appendChild(opt);
+        }
+      } else {
+        input = document.createElement('input');
+        const fmt = prop && prop.format;
+        input.type =
+          fmt === 'email' ? 'email' : fmt === 'uri' ? 'url' : fmt === 'date' ? 'date' : 'text';
+        if (def != null) input.value = String(def);
+      }
+      input.id = `elicit-field-${key}`;
+      input.dataset.elicitKey = key;
+      input.dataset.elicitType = type;
+      field.appendChild(input);
+      container.appendChild(field);
+    }
+  }
+
+  function collectElicitFormValues() {
+    const out = {};
+    if (!els.elicitCardBody) {
+      return out;
+    }
+    for (const el of els.elicitCardBody.querySelectorAll('[data-elicit-key]')) {
+      const key = el.dataset.elicitKey;
+      const type = el.dataset.elicitType || 'string';
+      if (el.type === 'checkbox') {
+        out[key] = !!el.checked;
+      } else if (type === 'integer') {
+        out[key] = el.value === '' ? '' : parseInt(el.value, 10);
+      } else if (type === 'number') {
+        out[key] = el.value === '' ? '' : Number(el.value);
+      } else if (type === 'array') {
+        out[key] = String(el.value || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      } else {
+        out[key] = el.value;
+      }
+    }
+    return out;
+  }
+
+  function sendElicitation(decision) {
+    if (!activeElicitation) {
+      return;
+    }
+    const e = activeElicitation;
+    const content = e.mode === 'form' ? collectElicitFormValues() : undefined;
+    post('elicitationResponse', {
+      id: e.id,
+      decision,
+      mode: e.mode,
+      content,
+      requestedSchema: e.requestedSchema,
+    });
+    // Optimistic clear — host may keep open on validation error via new request
+    if (decision !== 'accept' || e.mode === 'url') {
+      activeElicitation = null;
+      renderElicitationCard();
+    } else {
+      // form accept: clear; invalid forms are re-shown only if agent re-requests
+      activeElicitation = null;
+      renderElicitationCard();
     }
   }
 
@@ -2239,10 +2443,22 @@
     });
     activePermission = null;
     renderPermissionCard();
+    renderElicitationCard();
   }
   els.permAllow?.addEventListener('click', () => sendPermission('allow'));
   els.permAllowAlways?.addEventListener('click', () => sendPermission('allow_always'));
   els.permReject?.addEventListener('click', () => sendPermission('reject'));
+
+  els.elicitAccept?.addEventListener('click', () => sendElicitation('accept'));
+  els.elicitDecline?.addEventListener('click', () => sendElicitation('decline'));
+  els.elicitCancel?.addEventListener('click', () => sendElicitation('cancel'));
+  els.elicitCancelX?.addEventListener('click', () => sendElicitation('cancel'));
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && activeElicitation) {
+      ev.preventDefault();
+      sendElicitation('cancel');
+    }
+  });
 
   document.addEventListener('mousedown', (e) => {
     if (
@@ -2533,6 +2749,23 @@
           openBottomPicker('context');
         }
         break;
+      case 'elicitationRequest':
+        activeElicitation = {
+          id: msg.id,
+          mode: msg.mode,
+          message: msg.message,
+          requestedSchema: msg.requestedSchema,
+          defaults: msg.defaults,
+          url: msg.url,
+          urlHost: msg.urlHost,
+          suspiciousUrl: !!msg.suspiciousUrl,
+          elicitationId: msg.elicitationId,
+        };
+        if (els.elicitCardBody) {
+          delete els.elicitCardBody.dataset.elicitId;
+        }
+        renderElicitationCard();
+        break;
       case 'permissionRequest':
         activePermission = {
           id: msg.id,
@@ -2540,6 +2773,7 @@
           options: msg.options || [],
         };
         renderPermissionCard();
+    renderElicitationCard();
         break;
       case 'focusInput':
         els.input.focus();
