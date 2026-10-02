@@ -155,19 +155,20 @@ Bietet der Agent `configOptions` (select/boolean), erscheint im Chat-Header nebe
 3. Chip-Klick springt zur Stelle.
 4. Beim Senden wird die Mention geparst; der Zeilenausschnitt geht als Resource-Block plus Mention-Text an `session/prompt`.
 5. Leere Selection oder Multi-Cursor: Warnung, nichts eingefügt.
-6. `Alt+G` bleibt der Kontext-Picker.
+6. `Ctrl+Shift+G A` (Mac: `Cmd+Shift+G A`) öffnet den Kontext-Picker. Dateien gehen auch per `@` im Prompt.
 
 ## 5. Befehle & Tastatur
 
 | Shortcut | Command |
 |----------|---------|
-| `Ctrl+Shift+G C` | Open Chat |
-| `Ctrl+Shift+G N` | New Session |
-| `Ctrl+Shift+G P` | Toggle Plan Mode |
-| `Ctrl+Shift+G I` | Focus Input |
-| `Ctrl+Shift+G Escape` | Cancel (busy) |
-| `Alt+G` | Add Context |
-| `Alt+K` | Selection als `@datei#start-end` einfügen (Editor-Fokus; ersetzt `Alt+G` nicht) |
+| `Ctrl+Shift+G C` (`Cmd+Shift+G C`) | Open Chat |
+| `Ctrl+Shift+G N` (`Cmd+Shift+G N`) | New Session |
+| `Ctrl+Shift+G P` (`Cmd+Shift+G P`) | Toggle Plan Mode |
+| `Ctrl+Esc` (`Cmd+Esc`) | Chat-Eingabe fokussieren (Fokus-Wechsel wie bei Claude) |
+| `Ctrl+Shift+G I` (`Cmd+Shift+G I`) | Chat-Eingabe fokussieren (gleicher Befehl) |
+| `Ctrl+Shift+G Escape` (`Cmd+Shift+G Escape`) | Cancel (busy) |
+| `Ctrl+Shift+G A` (`Cmd+Shift+G A`) | Add Context (Quick Pick) |
+| `Alt+K` (`Option+K`) | Selection als `@datei#start-end` einfügen (Editor-Fokus) |
 
 Command Palette: nach **Grok Build** suchen (alle Commands dort).
 

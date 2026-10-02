@@ -266,8 +266,8 @@
     "keybindings": [
       {
         "command": "grokBuild.addContext",
-        "key": "alt+g",
-        "mac": "alt+g"
+        "key": "ctrl+shift+g a",
+        "mac": "cmd+shift+g a"
       },
       {
         "command": "grokBuild.insertSelectionRange",
@@ -300,6 +300,11 @@
         "command": "grokBuild.focusInput",
         "key": "ctrl+shift+g i",
         "mac": "cmd+shift+g i"
+      },
+      {
+        "command": "grokBuild.focusInput",
+        "key": "ctrl+esc",
+        "mac": "cmd+esc"
       }
     ],
     "configuration": {

@@ -204,7 +204,7 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 3. Click the chip to jump back to the range.
 4. On send, the mention is parsed and the line slice is sent as a resource block plus the mention text.
 5. Empty selection or multi-cursor: a warning, nothing inserted.
-6. `Alt+G` is unchanged (context picker).
+6. `Ctrl+Shift+G A` (`Cmd+Shift+G A` on Mac) opens the context picker. You can also add a file by typing `@` in the prompt.
 
 ## 5. Commands (Command Palette: “Grok Build”)
 
@@ -231,12 +231,13 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 | Shortcut | Command |
 |----------|---------|
 | `Ctrl+Shift+G C` (`Cmd+Shift+G C`) | Open Chat |
-| `Ctrl+Shift+G N` | New Session |
-| `Ctrl+Shift+G P` | Toggle Plan Mode |
-| `Ctrl+Shift+G I` | Focus Input |
-| `Ctrl+Shift+G Escape` | Cancel (when busy) |
-| `Alt+G` | Add Context |
-| `Alt+K` | Insert `@file#start-end` for the current selection (editor focused; does not replace `Alt+G`) |
+| `Ctrl+Shift+G N` (`Cmd+Shift+G N`) | New Session |
+| `Ctrl+Shift+G P` (`Cmd+Shift+G P`) | Toggle Plan Mode |
+| `Ctrl+Esc` (`Cmd+Esc`) | Focus chat input (toggle focus with the editor, Claude-style) |
+| `Ctrl+Shift+G I` (`Cmd+Shift+G I`) | Focus chat input (same command) |
+| `Ctrl+Shift+G Escape` (`Cmd+Shift+G Escape`) | Cancel (when busy) |
+| `Ctrl+Shift+G A` (`Cmd+Shift+G A`) | Add Context (Quick Pick) |
+| `Alt+K` (`Option+K`) | Insert `@file#start-end` for the current selection (editor focused) |
 
 ---
 
