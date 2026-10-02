@@ -123,6 +123,12 @@ export interface ClientCapabilities {
       boolean?: Record<string, unknown>;
     };
   };
+  /** ACP elicitation/create support (form + url modes). */
+  elicitation?: {
+    form?: Record<string, unknown> | null;
+    url?: Record<string, unknown> | null;
+    _meta?: Record<string, unknown>;
+  };
   _meta?: Record<string, unknown>;
 }
 
@@ -559,4 +565,89 @@ export interface PendingEdit {
   toolCallId?: string;
   sessionId: string;
   status: 'pending' | 'applied' | 'rejected';
+}
+
+// ─── Elicitation (agent → client) ───────────────────────────────────────────
+
+export type ElicitationId = string;
+
+export interface ElicitationCapabilities {
+  form?: Record<string, unknown> | null;
+  url?: Record<string, unknown> | null;
+  _meta?: Record<string, unknown>;
+}
+
+/** Flat JSON Schema subset for form-mode elicitation. */
+export interface ElicitationSchema {
+  type?: 'object' | string;
+  title?: string;
+  description?: string;
+  properties?: Record<string, ElicitationPropertySchema>;
+  required?: string[];
+  _meta?: Record<string, unknown>;
+}
+
+export type ElicitationPropertySchema = {
+  type?: string;
+  title?: string;
+  description?: string;
+  default?: unknown;
+  enum?: string[];
+  oneOf?: Array<{ const: string; title?: string; description?: string }>;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  format?: string;
+  minimum?: number;
+  maximum?: number;
+  minItems?: number;
+  maxItems?: number;
+  items?: unknown;
+  [key: string]: unknown;
+};
+
+export type ElicitationContentValue =
+  | string
+  | number
+  | boolean
+  | string[];
+
+export interface CreateElicitationRequestBase {
+  message: string;
+  sessionId?: SessionId;
+  toolCallId?: ToolCallId;
+  requestId?: number | string;
+  _meta?: Record<string, unknown>;
+}
+
+export interface CreateElicitationFormRequest extends CreateElicitationRequestBase {
+  mode: 'form';
+  requestedSchema: ElicitationSchema;
+}
+
+export interface CreateElicitationUrlRequest extends CreateElicitationRequestBase {
+  mode: 'url';
+  elicitationId: ElicitationId;
+  url: string;
+}
+
+/** Forward-compat: unknown mode payloads are preserved by the handler. */
+export interface CreateElicitationOtherRequest extends CreateElicitationRequestBase {
+  mode: string;
+  [key: string]: unknown;
+}
+
+export type CreateElicitationRequest =
+  | CreateElicitationFormRequest
+  | CreateElicitationUrlRequest
+  | CreateElicitationOtherRequest;
+
+export type CreateElicitationResponse =
+  | { action: 'accept'; content?: Record<string, ElicitationContentValue> | null }
+  | { action: 'decline' }
+  | { action: 'cancel' };
+
+export interface CompleteElicitationNotification {
+  elicitationId: ElicitationId;
+  _meta?: Record<string, unknown>;
 }

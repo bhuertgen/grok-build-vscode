@@ -1564,3 +1564,88 @@ body.vscode-light .empty-state .empty-logo {
   color: var(--btn-fg);
   border-color: transparent;
 }
+
+/* ACP elicitation card */
+.elicit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  background: rgba(167, 139, 250, 0.1);
+  flex-shrink: 0;
+  max-height: 45vh;
+  overflow: auto;
+}
+.elicit-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.elicit-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.elicit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.elicit-field label {
+  color: var(--fg);
+  font-weight: 600;
+}
+.elicit-field .hint {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.elicit-field input[type="text"],
+.elicit-field input[type="number"],
+.elicit-field input[type="email"],
+.elicit-field input[type="url"],
+.elicit-field input[type="date"],
+.elicit-field select,
+.elicit-field textarea {
+  border: 1px solid var(--border);
+  background: var(--bg, transparent);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+}
+.elicit-url-box {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  word-break: break-all;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+}
+.elicit-url-host {
+  font-weight: 700;
+  color: var(--fg);
+}
+.elicit-warn {
+  color: #fbbf24;
+  font-size: 11px;
+}
+.elicit-error {
+  color: #f87171;
+  font-size: 11px;
+}
+.elicit-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.elicit-close {
+  flex-shrink: 0;
+}

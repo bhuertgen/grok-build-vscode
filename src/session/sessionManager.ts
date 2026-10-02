@@ -8,6 +8,9 @@ import type {
   ChatPlan,
   ChatToolCall,
   ContentBlock,
+  CreateElicitationRequest,
+  CreateElicitationResponse,
+  ElicitationContentValue,
   PermissionOption,
   RequestPermissionResponse,
   SessionConfigOption,
@@ -18,6 +21,18 @@ import type {
   ToolCallUpdate,
   UsageInfo,
 } from '../acp/types';
+import {
+  cancelElicitation,
+  declineElicitation,
+  acceptForm,
+  acceptUrl,
+  collectSchemaDefaults,
+  extractUrlHost,
+  isFormElicitation,
+  isSuspiciousUrl,
+  isUrlElicitation,
+  validateFormContent,
+} from '../acp/elicitation';
 import { getConfig, getWorkspaceCwd } from '../util/config';
 import {
   buildHistorySeedTranscript,
@@ -1264,8 +1279,10 @@ export class SessionManager extends EventEmitter {
     // Tear down any stale client for this id
     void this.teardownClient(localId);
 
-    const client = new AcpClient(this.editController, (sid, tool, opts) =>
-      this.handlePermission(sid, tool, opts)
+    const client = new AcpClient(
+      this.editController,
+      (sid, tool, opts) => this.handlePermission(sid, tool, opts),
+      (params) => this.handleElicitation(params)
     );
 
     client.on('sessionUpdate', (n: SessionNotification) => {
@@ -1606,6 +1623,113 @@ export class SessionManager extends EventEmitter {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
+
+  private elicitationWaiters = new Map<
+    string,
+    {
+      resolve: (r: CreateElicitationResponse) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
+
+
+  /**
+   * ACP elicitation/create — form or URL consent via webview card.
+   * Cancel/decline must always be available so chat is not permanently blocked.
+   */
+  private async handleElicitation(
+    params: CreateElicitationRequest
+  ): Promise<CreateElicitationResponse> {
+    const elicitId = `elicit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const state = params.sessionId
+      ? [...this.sessions.values()].find((s) => s.agentSessionId === params.sessionId)
+      : this.getActive();
+    const localId = state?.localId;
+
+    const payload: Record<string, unknown> = {
+      id: elicitId,
+      localId,
+      mode: params.mode,
+      message: params.message,
+      sessionId: params.sessionId,
+      toolCallId: 'toolCallId' in params ? (params as { toolCallId?: string }).toolCallId : undefined,
+    };
+
+    if (isFormElicitation(params)) {
+      payload.requestedSchema = params.requestedSchema;
+      payload.defaults = collectSchemaDefaults(params.requestedSchema);
+    } else if (isUrlElicitation(params)) {
+      payload.elicitationId = params.elicitationId;
+      payload.url = params.url;
+      payload.urlHost = extractUrlHost(params.url);
+      payload.suspiciousUrl = isSuspiciousUrl(params.url);
+    }
+
+    this.emit('elicitationRequest', payload);
+
+    return new Promise<CreateElicitationResponse>((resolve) => {
+      const timer = setTimeout(() => {
+        this.log.warn('Elicitation timed out — cancel', params.mode);
+        this.resolveElicitation(elicitId, cancelElicitation());
+      }, 120_000);
+      this.elicitationWaiters.set(elicitId, { resolve, timer });
+    });
+  }
+
+  resolveElicitation(id: string, response: CreateElicitationResponse): void {
+    const w = this.elicitationWaiters.get(id);
+    if (!w) {
+      return;
+    }
+    clearTimeout(w.timer);
+    this.elicitationWaiters.delete(id);
+    w.resolve(response);
+    this.emit('elicitationResolved', id);
+  }
+
+  /** Webview response to elicitation card */
+  respondElicitationFromUi(
+    id: string,
+    decision: 'accept' | 'decline' | 'cancel',
+    content?: Record<string, ElicitationContentValue>,
+    meta?: {
+      mode?: string;
+      requestedSchema?: import('../acp/types').ElicitationSchema;
+    }
+  ): void {
+    if (decision === 'decline') {
+      this.resolveElicitation(id, declineElicitation());
+      return;
+    }
+    if (decision === 'cancel') {
+      this.resolveElicitation(id, cancelElicitation());
+      return;
+    }
+    if (meta?.mode === 'url') {
+      this.resolveElicitation(id, acceptUrl());
+      return;
+    }
+    if (meta?.requestedSchema) {
+      const v = validateFormContent(meta.requestedSchema, content ?? {});
+      if (!v.ok) {
+        void vscode.window.showWarningMessage(
+          `Elicitation form invalid: ${v.errors[0] ?? 'check fields'}`
+        );
+        // Re-show card so chat is not stuck waiting with a hidden prompt
+        this.emit('elicitationRequest', {
+          id,
+          mode: 'form',
+          message: `Please fix: ${v.errors[0] ?? 'invalid form'}`,
+          requestedSchema: meta.requestedSchema,
+          defaults: content ?? {},
+        });
+        return;
+      }
+      this.resolveElicitation(id, acceptForm(v.content));
+      return;
+    }
+    this.resolveElicitation(id, acceptForm(content ?? {}));
+  }
 
   /**
    * ACP session/request_permission — must not hang silently.
