@@ -133,13 +133,18 @@ export function registerCommands(
 
     vscode.commands.registerCommand('grokBuild.addContext', async () => {
       const s = await ensureSession();
-      await openGrokUi();
+      // QuickPick BEFORE focusing the chat. openGrokUi() posts focusInput
+      // to the webview, which steals focus and dismisses a QuickPick opened
+      // afterwards (Alt+G opened the chat and the picker never stayed up).
+      // Pre-existing; not introduced by Alt+K. Alt+K does not open a picker.
       const item = await picker.pick();
-      if (item) {
-        sessions.addContext(s.localId, item);
-        chatView.pushState();
-        EditorChatPanel.current?.pushState();
+      if (!item) {
+        return;
       }
+      sessions.addContext(s.localId, item);
+      await openGrokUi();
+      chatView.pushState();
+      EditorChatPanel.current?.pushState();
     }),
 
     vscode.commands.registerCommand(

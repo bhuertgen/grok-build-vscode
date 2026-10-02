@@ -8,6 +8,8 @@ const {
   isModelConfigOption,
   isEffortConfigOption,
   configOptionChipLabel,
+  retainConfigOptions,
+  upsertEffortCurrent,
 } = require('../dist-test/configOptionsUi.js');
 
 describe('uiConfigControls', () => {
@@ -72,5 +74,81 @@ describe('labels', () => {
       true
     );
     assert.equal(isModelConfigOption(effort), false);
+  });
+});
+
+/** Live grok 1.0.46 session/new payload (category thought_level, not thought). */
+const initialSessionConfig = [
+  {
+    id: 'model',
+    name: 'Model',
+    category: 'model',
+    type: 'select',
+    currentValue: 'grok-4.7',
+    options: [
+      { value: 'grok-4.7', name: 'Grok 4.7' },
+      { value: 'grok-4.5', name: 'Grok 4.5' },
+    ],
+  },
+  {
+    id: 'reasoning_effort',
+    name: 'Reasoning Effort',
+    category: 'thought_level',
+    type: 'select',
+    currentValue: 'high',
+    options: [
+      { value: 'xhigh', name: 'Extra High' },
+      { value: 'high', name: 'High' },
+      { value: 'medium', name: 'Medium' },
+      { value: 'low', name: 'Low' },
+    ],
+  },
+];
+
+describe('initial configOptions before any user change', () => {
+  it('renders the Effort chip from the session/new list immediately', () => {
+    const controls = uiConfigControls(initialSessionConfig);
+    assert.equal(controls.length, 1);
+    assert.equal(controls[0].id, 'reasoning_effort');
+    assert.equal(controls[0].kind, 'select');
+    assert.equal(controls[0].currentValue, 'high');
+    assert.equal(controls[0].category, 'thought_level');
+    const effortOpt = initialSessionConfig[1];
+    assert.equal(isEffortConfigOption(effortOpt), true);
+    assert.equal(isModelConfigOption(effortOpt), false);
+    assert.equal(configOptionChipLabel(effortOpt), 'Effort');
+  });
+
+  it('keeps the initial effort chip if a later payload is empty or model-only', () => {
+    assert.equal(
+      uiConfigControls(retainConfigOptions(initialSessionConfig, undefined))[0]
+        .currentValue,
+      'high'
+    );
+    assert.equal(
+      uiConfigControls(retainConfigOptions(initialSessionConfig, null))[0].id,
+      'reasoning_effort'
+    );
+    const modelOnly = initialSessionConfig.filter((o) => o.id === 'model');
+    const merged = retainConfigOptions(initialSessionConfig, modelOnly);
+    const controls = uiConfigControls(merged);
+    assert.deepEqual(
+      controls.map((c) => c.id),
+      ['reasoning_effort']
+    );
+    assert.equal(controls[0].currentValue, 'high');
+  });
+
+  it('seeds an Effort chip from model_changed reasoning_effort alone', () => {
+    const seeded = upsertEffortCurrent(undefined, 'high');
+    const controls = uiConfigControls(seeded);
+    assert.equal(controls.length, 1);
+    assert.equal(controls[0].id, 'reasoning_effort');
+    assert.equal(controls[0].currentValue, 'high');
+    assert.ok(controls[0].options.some((o) => o.value === 'high'));
+    const updated = upsertEffortCurrent(initialSessionConfig, 'low');
+    const again = uiConfigControls(updated);
+    assert.equal(again[0].currentValue, 'low');
+    assert.equal(again[0].options.length, 4);
   });
 });

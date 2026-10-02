@@ -321,9 +321,18 @@ export class AcpClient extends EventEmitter {
   }
 
   private handleNotification(n: JsonRpcNotification): void {
-    if (n.method === 'session/update') {
+    // Standard ACP updates, plus Grok's session notification channel.
+    // `model_changed` (with reasoning_effort) arrives there at session
+    // start, often before the session/new result is applied.
+    if (
+      n.method === 'session/update' ||
+      n.method === '_x.ai/session_notification' ||
+      n.method === 'x.ai/session_notification'
+    ) {
       const params = n.params as SessionNotification;
-      this.emit('sessionUpdate', params);
+      if (params?.sessionId && params.update) {
+        this.emit('sessionUpdate', params);
+      }
       return;
     }
     this.log.debug('Unhandled notification', n.method);

@@ -55,6 +55,7 @@ export function isModelConfigOption(opt: ConfigOptionLike): boolean {
 export function isEffortConfigOption(opt: ConfigOptionLike): boolean {
   return (
     opt.category === 'thought' ||
+    opt.category === 'thought_level' ||
     /effort|reasoning/i.test(opt.id) ||
     /effort|reasoning/i.test(opt.name)
   );
@@ -132,4 +133,74 @@ export function formatConfigValue(value: string | boolean): string {
     return value ? 'on' : 'off';
   }
   return value;
+}
+
+/**
+ * Keep a previous option list when a later payload is empty, and keep an
+ * Effort option if a later list only restates the model (or drops effort).
+ * Used so the chip from the first session/new (or model_changed) payload
+ * is not wiped before the header paints.
+ */
+export function retainConfigOptions<T extends ConfigOptionLike>(
+  previous: T[] | undefined | null,
+  incoming: T[] | undefined | null
+): T[] | undefined {
+  const prev = previous?.length ? previous : undefined;
+  if (!incoming?.length) {
+    return prev;
+  }
+  const incomingHasEffort = incoming.some((o) => isEffortConfigOption(o));
+  if (!incomingHasEffort && prev) {
+    const effort = prev.filter((o) => isEffortConfigOption(o));
+    if (effort.length) {
+      return [...incoming, ...effort];
+    }
+  }
+  return incoming;
+}
+
+/**
+ * Seed or update the effort option from a current value advertised at
+ * session start (`model_changed.reasoning_effort` or configOptions).
+ * Includes the known Grok choices so the chip is operable immediately;
+ * a later full configOptions list replaces this.
+ */
+export function upsertEffortCurrent(
+  options: ConfigOptionLike[] | undefined | null,
+  effort: string
+): ConfigOptionLike[] {
+  const value = effort.trim();
+  const list = options?.length ? options.map((o) => ({ ...o })) : [];
+  const known = [
+    { value: 'xhigh', name: 'Extra High' },
+    { value: 'high', name: 'High' },
+    { value: 'medium', name: 'Medium' },
+    { value: 'low', name: 'Low' },
+  ];
+  const choices = known.some((c) => c.value === value)
+    ? known
+    : [{ value, name: value }, ...known];
+  const idx = list.findIndex((o) => isEffortConfigOption(o));
+  if (idx >= 0) {
+    const cur = list[idx];
+    const opts = cur.options?.length ? cur.options : choices;
+    list[idx] = {
+      ...cur,
+      currentValue: value,
+      type: cur.type || 'select',
+      options: opts.some((c) => c.value === value)
+        ? opts
+        : [...opts, { value, name: value }],
+    };
+    return list;
+  }
+  list.push({
+    id: 'reasoning_effort',
+    name: 'Reasoning Effort',
+    category: 'thought_level',
+    type: 'select',
+    currentValue: value,
+    options: choices,
+  });
+  return list;
 }
