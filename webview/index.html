@@ -35,12 +35,15 @@
       </div>
     </header>
 
-    <div class="cli-banner hidden" id="cliBanner">
+    <div class="cli-banner hidden" id="cliBanner" role="status" aria-live="polite">
       <div class="cli-banner-text">
-        <strong>Grok CLI required</strong>
+        <strong id="cliBannerTitle">Grok CLI required</strong>
         <span id="cliBannerDetail">Uses official <code>grok agent stdio</code> (ACP).</span>
       </div>
-      <button type="button" class="text-btn primary-btn" id="btnSetupCli">Setup CLI…</button>
+      <div class="memory-banner-actions">
+        <button type="button" class="text-btn primary-btn" id="btnSetupCli">Setup CLI…</button>
+        <button type="button" class="text-btn hidden" id="btnDismissCompat">Dismiss</button>
+      </div>
     </div>
 
     <div class="update-banner hidden" id="updateBanner">

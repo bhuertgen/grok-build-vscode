@@ -1,6 +1,12 @@
 import { EventEmitter } from 'node:events';
 import type { CliDetectionResult } from './detect';
 import type { CliUpdateInfo } from './updateCheck';
+import {
+  assessCliCompat,
+  shouldShowCompatBanner,
+  type CliCompatAssessment,
+  type CliCompatLevel,
+} from './compat';
 import type { ExtensionUpdateInfo } from '../util/extensionUpdate';
 
 /**
@@ -15,6 +21,8 @@ export class CliStatus extends EventEmitter {
   /** User dismissed the update banner for this version pair */
   private _updateDismissedKey: string | null = null;
   private _extUpdateDismissedKey: string | null = null;
+  private _compat: CliCompatAssessment | null = null;
+  private _compatDismissedLevel: CliCompatLevel | null = null;
 
   get ready(): boolean {
     return this._ready;
@@ -30,6 +38,10 @@ export class CliStatus extends EventEmitter {
 
   get updateInfo(): CliUpdateInfo | null {
     return this._update;
+  }
+
+  get compat(): CliCompatAssessment | null {
+    return this._compat;
   }
 
   get snapshot() {
@@ -54,6 +66,11 @@ export class CliStatus extends EventEmitter {
       !!this._extUpdate?.updateAvailable &&
       extKey != null &&
       extKey !== this._extUpdateDismissedKey;
+
+    const showCompat =
+      !!this._compat &&
+      shouldShowCompatBanner(this._compat.level) &&
+      this._compat.level !== this._compatDismissedLevel;
 
     return {
       ready: this._ready,
@@ -80,6 +97,13 @@ export class CliStatus extends EventEmitter {
       extensionVsixUrl: showExtUpdate
         ? this._extUpdate?.vsixUrl ?? null
         : null,
+      compatLevel: this._compat?.level ?? null,
+      compatMessage: showCompat ? this._compat?.message ?? null : null,
+      compatVersion: this._compat?.version ?? null,
+      compatHardMin: this._compat?.hardMin ?? null,
+      compatSoftMin: this._compat?.softMin ?? null,
+      compatUsable: this._compat?.usable ?? null,
+      showCompatBanner: showCompat,
     };
   }
 
@@ -88,11 +112,17 @@ export class CliStatus extends EventEmitter {
     this.emit('changed', this.snapshot);
   }
 
-  /** Apply CLI detection result (ready / path / version). */
+  /** Apply CLI detection result (ready / path / version + compat floors). */
   setDetection(detection: CliDetectionResult): void {
     this._checking = false;
-    this._ready = detection.ok;
     this._detection = detection;
+    this._compat = assessCliCompat({
+      detected: detection.ok,
+      rawVersion: detection.version,
+      error: detection.error,
+    });
+    // Hard floor / missing → not ready even if binary spawned
+    this._ready = detection.ok && this._compat.usable;
     this.emit('changed', this.snapshot);
   }
 
@@ -118,6 +148,13 @@ export class CliStatus extends EventEmitter {
       this._update.latestVersion
     ) {
       this._updateDismissedKey = `${this._update.currentVersion}→${this._update.latestVersion}`;
+    }
+    this.emit('changed', this.snapshot);
+  }
+
+  dismissCompatBanner(): void {
+    if (this._compat && shouldShowCompatBanner(this._compat.level)) {
+      this._compatDismissedLevel = this._compat.level;
     }
     this.emit('changed', this.snapshot);
   }

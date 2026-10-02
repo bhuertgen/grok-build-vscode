@@ -204,6 +204,7 @@ if (bundle.status !== 0) {
       'tests/cwd.test.mjs',
       'tests/agentArgs.test.mjs',
       'tests/modelCatalog.test.mjs',
+      'tests/compat.test.mjs',
     ],
     {
       encoding: 'utf8',
@@ -219,6 +220,36 @@ if (bundle.status !== 0) {
     fail('node --test', `exit ${t.status}`);
   } else {
     ok('node --test suite');
+  }
+}
+
+// ── 8. CLI compat contract (static + optional live probe) ──────────────────
+console.log('\n8) CLI compat');
+if (srcBlob.includes('CLI_HARD_MIN') && srcBlob.includes('assessCliCompat')) {
+  ok('compat floors + assessCliCompat present');
+} else {
+  fail('compat floors + assessCliCompat present');
+}
+if (srcBlob.includes("compatLevel") || read('webview/main.js').includes('compatLevel')) {
+  ok('webview/status expose compatLevel');
+} else {
+  fail('webview/status expose compatLevel');
+}
+
+// Live grok --version is optional on CI/dev boxes without the CLI.
+{
+  const live = spawnSync('grok', ['--version'], {
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+    timeout: 8000,
+  });
+  if (live.error && live.error.code === 'ENOENT') {
+    warn('live grok CLI', 'not on PATH — unit tests mock version detection; install for live smoke');
+  } else if (live.status === 0 || (live.stdout || live.stderr || '').trim()) {
+    const raw = ((live.stdout || '') + (live.stderr || '')).trim();
+    ok(`live grok --version → ${raw.slice(0, 80)}`);
+  } else {
+    warn('live grok CLI', `exit ${live.status}: ${(live.stderr || live.stdout || '').slice(0, 200)}`);
   }
 }
 
