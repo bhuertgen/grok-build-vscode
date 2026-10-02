@@ -124,6 +124,8 @@
    */
   let stickToBottom = true;
   let scrollRaf = 0;
+  /** True while renderMessages wipes/rebuilds DOM — ignore scroll events */
+  let rebuildGuard = false;
   /** Distance from bottom (px) to consider "pinned" / "unpinned" */
   const STICK_PIN_PX = 40;
   const STICK_UNPIN_PX = 140;
@@ -164,7 +166,9 @@
       if (!el) {
         return;
       }
-      if (ctx.forcePin || stickToBottom) {
+      // Honor only the pre-wipe snapshot (ctx.forcePin). Do not re-read
+      // stickToBottom here — wipe scroll events can falsely re-pin.
+      if (ctx.forcePin) {
         el.scrollTop = el.scrollHeight;
         stickToBottom = true;
         return;
@@ -838,13 +842,16 @@
   function renderMessages() {
     const s = activeSession();
     const prevScroll = els.messages ? els.messages.scrollTop : 0;
-    // Snapshot stickiness before wipe (wipe can reset scrollTop → false unpin)
-    const forcePin = stickToBottom;
+    // Snapshot stickiness before wipe (wipe can reset scrollTop → false unpin
+    // OR fire a scroll event that falsely re-pins when scrollTop→0).
+    let forcePin = stickToBottom;
     if (els.messages && !forcePin) {
       // Refresh stick flag from pre-wipe position
       updateStickFromUserScroll();
+      forcePin = stickToBottom;
     }
 
+    rebuildGuard = true;
     els.messages.innerHTML = '';
 
     if (!s || (s.messages.length === 0 && !(s.toolCalls || []).length)) {
@@ -901,6 +908,7 @@
         }
         els.messages.appendChild(panel);
       }
+      rebuildGuard = false;
       return;
     }
 
@@ -1021,8 +1029,17 @@
       els.messages.appendChild(div);
     }
 
+    // Sync pin immediately so paint does not flash scrollTop=0 (yoyo/jitter)
+    // before the double-rAF settle. Still schedule rAF for final layout height.
+    if (forcePin && els.messages) {
+      els.messages.scrollTop = els.messages.scrollHeight;
+    } else if (els.messages) {
+      els.messages.scrollTop = Math.max(0, prevScroll);
+    }
+    rebuildGuard = false;
+
     scheduleScrollAfterRender({
-      forcePin: forcePin || stickToBottom,
+      forcePin,
       prevScroll,
     });
   }
@@ -1831,8 +1848,8 @@
     els.messages.addEventListener(
       'scroll',
       () => {
-        // Ignore programmatic scroll while we are forcing pin this frame
-        if (scrollRaf) {
+        // Ignore wipe rebuild + programmatic pin this frame
+        if (scrollRaf || rebuildGuard) {
           return;
         }
         updateStickFromUserScroll();
