@@ -215,6 +215,7 @@ Do not write files yet.
 | `Ctrl+Shift+G P` | Toggle Plan Mode |
 | `Ctrl+Shift+G I` | Focus Input |
 | `Ctrl+Shift+G Escape` | Cancel (when busy) |
+| `Escape` | Cancel current turn when busy (chat focused; closes menus first) |
 | `Alt+G` | Add Context |
 
 ---
@@ -223,14 +224,26 @@ Do not write files yet.
 
 Open Settings (`Ctrl+,`) and search **Grok Build**.
 
+### Recommended (QA / first-run)
+
+| Setting | Value | Why we set / recommend it |
+|---------|-------|---------------------------|
+| **Workspace Trust** | Trust the folder | Without trust, writes and tools stay blocked |
+| `openLocation` | `editor` | Files + chat side by side; Explorer stays left (`Open Beside` is best for coding) |
+| `defaultMode` | `execute` | Agent can run tools after permissions; use Plan toggle when you only want a plan |
+| `autoAllowInExecuteMode` | `true` | Execute does not stall on a hidden permission dialog |
+| `permissionMode` | `ask` | Still prompt when Plan or auto-allow is off |
+
+Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-recommended-settings-after-install).
+
 ### 6.1 Startup & layout
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `cliPath` | `grok` | Path to the CLI |
 | `cliArgs` | `["agent","stdio"]` | Base args for ACP |
-| `openLocation` | `editor` | `editor` = middle; `sidebar` = activity bar |
-| `defaultMode` | `execute` | `plan` \| `execute` |
+| `openLocation` | `editor` | `editor` = middle (recommended for Files + Chat); `sidebar` = activity bar |
+| `defaultMode` | `execute` | `plan` \| `execute` — prefer execute for agent work, Plan for review-only |
 | `logLevel` | `info` | `error` \| `warn` \| `info` \| `debug` |
 
 ### 6.2 Model & CLI agent flags
@@ -270,7 +283,7 @@ Open Settings (`Ctrl+,`) and search **Grok Build**.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `permissionMode` | `ask` | How the UI answers `session/request_permission` |
-| `autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute |
+| `autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (recommended so Execute is not blocked on a hidden dialog) |
 | `showDiffBeforeApply` | `false` | Toast “Show Diff” after write (write does **not** block the agent) |
 | `autoIncludeActiveFile` | `true` | Attach active editor file as context |
 | `autoIncludeSelection` | `true` | Attach current selection |

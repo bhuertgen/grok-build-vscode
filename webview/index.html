@@ -21,18 +21,20 @@
 <body>
   <div id="app">
     <header class="topbar">
-      <div class="brand" title="Grok Build">
-        <img class="brand-logo" id="brandLogo" src="{{logoUri}}" alt="Grok" width="16" height="16" />
-        <span class="brand-name">Grok Build</span>
+      <div class="topbar-main">
+        <div class="brand" title="Grok Build">
+          <img class="brand-logo" id="brandLogo" src="{{logoUri}}" alt="Grok" width="16" height="16" />
+          <span class="brand-name">Grok Build</span>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="chip-btn" id="chipModel" title="Change model">Model</button>
+          <button type="button" class="chip-btn" id="chipPerm" title="Permission mode">Perm</button>
+          <button type="button" class="mode-btn execute" id="btnMode" title="Toggle plan/execute">Execute</button>
+          <button type="button" class="icon-btn" id="btnNew" title="New session">+</button>
+          <button type="button" class="icon-btn" id="btnHistory" title="Resume session">↺</button>
+        </div>
       </div>
-      <div class="session-tabs" id="sessionTabs"></div>
-      <div class="topbar-actions">
-        <button type="button" class="chip-btn" id="chipModel" title="Change model">Model</button>
-        <button type="button" class="chip-btn" id="chipPerm" title="Permission mode">Perm</button>
-        <button type="button" class="mode-btn execute" id="btnMode" title="Toggle plan/execute">Execute</button>
-        <button type="button" class="icon-btn" id="btnNew" title="New session">+</button>
-        <button type="button" class="icon-btn" id="btnHistory" title="Resume session">↺</button>
-      </div>
+      <div class="session-tabs" id="sessionTabs" role="tablist" aria-label="Sessions"></div>
     </header>
 
     <div class="cli-banner hidden" id="cliBanner">
