@@ -124,6 +124,17 @@
    */
   let stickToBottom = true;
   let scrollRaf = 0;
+  /** True while renderMessages wipes/rebuilds DOM — ignore scroll events */
+  let rebuildGuard = false;
+  /**
+   * Structural signature of the last render. When only streaming text grows,
+   * signature stays equal → incremental body patch (no full wipe).
+   * Tradeoff: markdown is still re-parsed for the streaming bubble; we avoid
+   * destroying the rest of the transcript DOM (height drift / flicker).
+   * Structural changes (new msg/tool, streaming flag flip, expand, session)
+   * still full-rebuild with rebuildGuard + forcePin safety.
+   */
+  let lastMessagesSig = '';
   /** Distance from bottom (px) to consider "pinned" / "unpinned" */
   const STICK_PIN_PX = 40;
   const STICK_UNPIN_PX = 140;
@@ -152,7 +163,7 @@
 
   /**
    * Apply scroll after layout. Double rAF waits for browser reflow after
-   * innerHTML rebuild so we don't set scrollTop against stale heights.
+   * DOM updates so we don't set scrollTop against stale heights.
    */
   function scheduleScrollAfterRender(ctx) {
     if (scrollRaf) {
@@ -164,7 +175,9 @@
       if (!el) {
         return;
       }
-      if (ctx.forcePin || stickToBottom) {
+      // Honor only the pre-wipe snapshot (ctx.forcePin). Do not re-read
+      // stickToBottom here — wipe scroll events can falsely re-pin.
+      if (ctx.forcePin) {
         el.scrollTop = el.scrollHeight;
         stickToBottom = true;
         return;
@@ -799,6 +812,7 @@
     const isOpen = expandedThoughts.has(m.id);
     wrap.className =
       'thought-row' + (isOpen ? ' open' : '') + (m.streaming ? ' running' : '');
+    wrap.dataset.msgId = m.id;
 
     const head = document.createElement('button');
     head.type = 'button';
@@ -835,19 +849,150 @@
     return wrap;
   }
 
+
+  /** Mirror renderMessages skip rules so structure sig matches DOM children. */
+  function shouldSkipMsg(m) {
+    if (!m) {
+      return true;
+    }
+    if (m.role === 'thought') {
+      return false;
+    }
+    const cleaned = sanitizeMessageContent(m.content || '');
+    if (
+      (m.role === 'agent' || m.role === 'system') &&
+      !cleaned.trim() &&
+      !m.streaming &&
+      !(m.images && m.images.length)
+    ) {
+      return true;
+    }
+    const html = formatMarkdown(
+      m.role === 'user' ? m.content || '' : cleaned
+    );
+    if (!html.trim() && !(m.images && m.images.length) && !m.streaming) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Stable structure key (ids/roles/flags) — excludes message text content. */
+  function timelineStructureSig(sessionId, timeline) {
+    const parts = [String(sessionId || '')];
+    for (const item of timeline) {
+      if (item.type === 'tool-group') {
+        const ids = (item.tools || []).map((t) => t.id).join(',');
+        parts.push('tg:' + ids + ':' + (toolsExpanded ? '1' : '0'));
+      } else if (item.type === 'tool' && item.t) {
+        parts.push(
+          't:' +
+            item.t.id +
+            ':' +
+            (item.t.status || '') +
+            ':' +
+            (expandedTools.has(item.t.id) ? '1' : '0')
+        );
+      } else if (item.m) {
+        const m = item.m;
+        parts.push(
+          'm:' +
+            m.id +
+            ':' +
+            m.role +
+            ':' +
+            (m.streaming ? '1' : '0') +
+            ':' +
+            (m.role === 'thought' && expandedThoughts.has(m.id) ? '1' : '0')
+        );
+      }
+    }
+    return parts.join('|');
+  }
+
+  /** True when DOM children align 1:1 with timeline structure (safe to patch). */
+  function canIncrementalPatch(timeline) {
+    const root = els.messages;
+    if (!root || root.querySelector('.empty-state')) {
+      return false;
+    }
+    const children = root.children;
+    if (children.length !== timeline.length) {
+      return false;
+    }
+    for (let i = 0; i < timeline.length; i++) {
+      const item = timeline[i];
+      const el = children[i];
+      if (item.type === 'tool-group') {
+        if (!el.classList.contains('tool-group')) {
+          return false;
+        }
+      } else if (item.type === 'tool' && item.t) {
+        if (el.dataset.toolId !== item.t.id) {
+          return false;
+        }
+      } else if (item.m?.role === 'thought') {
+        if (!el.classList.contains('thought-row') || el.dataset.msgId !== item.m.id) {
+          return false;
+        }
+      } else if (item.m) {
+        if (el.dataset.msgId !== item.m.id) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Update streaming bubbles in place — no transcript wipe. */
+  function patchStreamingContent(timeline) {
+    const children = els.messages.children;
+    for (let i = 0; i < timeline.length; i++) {
+      const item = timeline[i];
+      const m = item.m;
+      if (!m || !m.streaming) {
+        continue;
+      }
+      const el = children[i];
+      if (!el) {
+        continue;
+      }
+      if (m.role === 'agent' || m.role === 'system' || m.role === 'user') {
+        const body = el.querySelector('.body');
+        if (!body) {
+          continue;
+        }
+        const cleaned =
+          m.role === 'user'
+            ? m.content || ''
+            : sanitizeMessageContent(m.content || '');
+        body.innerHTML = formatMarkdown(cleaned);
+        body.classList.add('streaming-cursor');
+      } else if (m.role === 'thought') {
+        const body = el.querySelector('.thought-row-body');
+        if (body) {
+          body.textContent = m.content || '';
+        }
+      }
+    }
+  }
+
   function renderMessages() {
     const s = activeSession();
     const prevScroll = els.messages ? els.messages.scrollTop : 0;
-    // Snapshot stickiness before wipe (wipe can reset scrollTop → false unpin)
-    const forcePin = stickToBottom;
+    // Snapshot stickiness before any DOM change (wipe can reset scrollTop →
+    // false unpin OR fire a scroll event that falsely re-pins).
+    let forcePin = stickToBottom;
     if (els.messages && !forcePin) {
-      // Refresh stick flag from pre-wipe position
       updateStickFromUserScroll();
+      forcePin = stickToBottom;
     }
 
-    els.messages.innerHTML = '';
-
     if (!s || (s.messages.length === 0 && !(s.toolCalls || []).length)) {
+      lastMessagesSig = '';
+      rebuildGuard = true;
+      els.messages.innerHTML = '';
       const empty = document.createElement('div');
       empty.className = 'empty-state';
       const cli = state.cli || {};
@@ -901,10 +1046,41 @@
         }
         els.messages.appendChild(panel);
       }
+      rebuildGuard = false;
       return;
     }
 
-    const timeline = buildTimeline(s);
+    const timeline = buildTimeline(s).filter((item) => {
+      if (item.type === 'tool' || item.type === 'tool-group') {
+        return true;
+      }
+      return !shouldSkipMsg(item.m);
+    });
+    const sig = timelineStructureSig(s.localId, timeline);
+
+    // Hot path: streaming text delta with unchanged structure — patch bodies only.
+    if (
+      sig &&
+      sig === lastMessagesSig &&
+      canIncrementalPatch(timeline)
+    ) {
+      patchStreamingContent(timeline);
+      if (forcePin && els.messages) {
+        els.messages.scrollTop = els.messages.scrollHeight;
+      } else if (els.messages) {
+        els.messages.scrollTop = Math.max(0, prevScroll);
+      }
+      scheduleScrollAfterRender({
+        forcePin,
+        prevScroll,
+      });
+      return;
+    }
+
+    // Structural change → full wipe (guarded). Keep rebuildGuard/forcePin safety.
+    rebuildGuard = true;
+    els.messages.innerHTML = '';
+
     for (const item of timeline) {
       if (item.type === 'tool-group' && item.tools?.length) {
         els.messages.appendChild(renderToolGroup(item.tools));
@@ -924,14 +1100,6 @@
       }
 
       const cleaned = sanitizeMessageContent(m.content || '');
-      if (
-        (m.role === 'agent' || m.role === 'system') &&
-        !cleaned.trim() &&
-        !m.streaming &&
-        !(m.images && m.images.length)
-      ) {
-        continue;
-      }
 
       const div = document.createElement('div');
       div.className = `msg ${m.role}`;
@@ -983,10 +1151,6 @@
       const html = formatMarkdown(
         m.role === 'user' ? m.content || '' : cleaned
       );
-      // Skip bubbles that would only render empty / pure-rule HTML
-      if (!html.trim() && !(m.images && m.images.length) && !m.streaming) {
-        continue;
-      }
       body.innerHTML = html;
       div.appendChild(body);
 
@@ -1021,11 +1185,23 @@
       els.messages.appendChild(div);
     }
 
+    lastMessagesSig = sig;
+
+    // Sync pin immediately so paint does not flash scrollTop=0 (yoyo/jitter)
+    // before the double-rAF settle. Still schedule rAF for final layout height.
+    if (forcePin && els.messages) {
+      els.messages.scrollTop = els.messages.scrollHeight;
+    } else if (els.messages) {
+      els.messages.scrollTop = Math.max(0, prevScroll);
+    }
+    rebuildGuard = false;
+
     scheduleScrollAfterRender({
-      forcePin: forcePin || stickToBottom,
+      forcePin,
       prevScroll,
     });
   }
+
 
   function renderChips() {
     const s = activeSession();
@@ -1831,8 +2007,8 @@
     els.messages.addEventListener(
       'scroll',
       () => {
-        // Ignore programmatic scroll while we are forcing pin this frame
-        if (scrollRaf) {
+        // Ignore wipe rebuild + programmatic pin this frame
+        if (scrollRaf || rebuildGuard) {
           return;
         }
         updateStickFromUserScroll();

@@ -51,3 +51,10 @@ SCROLL-TEST B — Tools und Text gemischt.
 4. Ans Ende → folgt wieder  
 
 Weitere Prompts (D, E, Notizvorlage): [englische Version](../en/SCROLL_TEST_PROMPT.md).
+
+
+## Tech-Hintergrund (kurz)
+
+- Sticky-Flag mit Hysterese; Streaming-Text-Deltas per **inkrementellem DOM-Patch** (kein Full-Wipe bei gleicher Struktur).
+- Full-Rebuild nur bei Strukturwechsel; `rebuildGuard` + Pre-Wipe-`forcePin`.
+- Details: [englische Version](../en/SCROLL_TEST_PROMPT.md).

@@ -525,7 +525,7 @@
     "package": "vsce package --no-dependencies",
     "lint": "tsc -p ./ --noEmit",
     "test:bundle": "node scripts/build-test-bundle.mjs",
-    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/scrollStick.test.mjs",
     "test:integration:bundle": "node scripts/build-integration-tests.mjs",
     "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
     "test": "npm run test:unit",
