@@ -118,6 +118,38 @@ try {
   fail('dist/webview/main.js parses', String(e.message || e));
 }
 
+
+// ── 3b. Scroll stick regression markers ────────────────────────────────────
+console.log('\n3b) Scroll stick markers');
+if (exists('tests/scrollStick.test.mjs')) {
+  ok('exists tests/scrollStick.test.mjs');
+} else {
+  fail('exists tests/scrollStick.test.mjs');
+}
+{
+  const pkgJson = JSON.parse(read('package.json'));
+  const unitScript = String(pkgJson.scripts?.['test:unit'] || '');
+  if (unitScript.includes('tests/scrollStick.test.mjs')) {
+    ok('test:unit includes scrollStick.test.mjs');
+  } else {
+    fail('test:unit includes scrollStick.test.mjs');
+  }
+}
+const wvMain = read('webview/main.js');
+for (const m of [
+  'rebuildGuard',
+  'lastMessagesSig',
+  'patchStreamingContent',
+  'canIncrementalPatch',
+  'timelineStructureSig',
+]) {
+  if (wvMain.includes(m)) {
+    ok(`webview has ${m}`);
+  } else {
+    fail(`webview has ${m}`);
+  }
+}
+
 // ── 4. CSP & security markers ──────────────────────────────────────────────
 console.log('\n4) Security markers');
 const html = read('webview/index.html');
@@ -204,6 +236,7 @@ if (bundle.status !== 0) {
       'tests/cwd.test.mjs',
       'tests/agentArgs.test.mjs',
       'tests/modelCatalog.test.mjs',
+      'tests/scrollStick.test.mjs',
     ],
     {
       encoding: 'utf8',

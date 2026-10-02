@@ -83,6 +83,20 @@ function createScrollModel(initial = {}) {
     return { stickToBottom, scrollTop, forcePin };
   }
 
+  /** Incremental path: no wipe — only grow scrollHeight, preserve scrollTop */
+  function renderMessagesIncremental(newScrollHeight) {
+    const prevScroll = scrollTop;
+    const forcePin = stickToBottom;
+    scrollHeight = newScrollHeight;
+    if (forcePin) {
+      scrollTop = scrollHeight - clientHeight;
+      stickToBottom = true;
+    } else {
+      scrollTop = prevScroll;
+    }
+    return { stickToBottom, scrollTop, forcePin, wiped: false };
+  }
+
   return {
     get stickToBottom() {
       return stickToBottom;
@@ -96,6 +110,7 @@ function createScrollModel(initial = {}) {
     },
     renderMessagesBuggy,
     renderMessagesFixed,
+    renderMessagesIncremental,
   };
 }
 
@@ -162,5 +177,36 @@ describe('renderMessages wipe race (S2/S3)', () => {
     const r = m.renderMessagesFixed(2000);
     assert.equal(r.stickToBottom, true);
     assert.equal(m.scrollTop, 1600);
+  });
+});
+
+
+describe('incremental streaming patch (no wipe)', () => {
+  it('incremental: pinned stream follows bottom without wipe (S1/S2)', () => {
+    const m = createScrollModel({
+      stickToBottom: true,
+      scrollTop: 600,
+      scrollHeight: 1000,
+      clientHeight: 400,
+    });
+    const r = m.renderMessagesIncremental(2000);
+    assert.equal(r.wiped, false);
+    assert.equal(r.stickToBottom, true);
+    assert.equal(m.scrollTop, 1600);
+  });
+
+  it('incremental: mid-scroll stays put while content grows (S3)', () => {
+    const m = createScrollModel({
+      stickToBottom: true,
+      scrollTop: 600,
+      scrollHeight: 1000,
+      clientHeight: 400,
+    });
+    m.userScrollTo(80);
+    assert.equal(m.stickToBottom, false);
+    const r = m.renderMessagesIncremental(2500);
+    assert.equal(r.wiped, false);
+    assert.equal(r.stickToBottom, false);
+    assert.equal(m.scrollTop, 80);
   });
 });

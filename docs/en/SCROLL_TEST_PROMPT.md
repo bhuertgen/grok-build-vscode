@@ -111,6 +111,7 @@ Notiz:
 ## Tech-Hintergrund (für Entwickler)
 
 - Sticky-Flag `stickToBottom` mit Hysterese (pin ≤40px, unpin >140px).
-- Nach DOM-Rebuild: **double `requestAnimationFrame`** vor `scrollTop = scrollHeight`.
+- Streaming-Text-Deltas: **inkrementelles DOM-Patch** (kein Full-Wipe), solange Timeline-Struktur gleich bleibt; Full-Rebuild nur bei Strukturwechsel (neue Msg/Tool, Expand, Session).
+- Nach DOM-Rebuild: **double `requestAnimationFrame`** vor `scrollTop = scrollHeight`; `rebuildGuard` ignoriert Wipe-Scroll-Events.
 - `overflow-anchor: none` am `.messages`-Container.
 - Send / Session-Wechsel → erzwungenes Pin.
