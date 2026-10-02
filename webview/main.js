@@ -39,7 +39,9 @@
     permReject: document.getElementById('permReject'),
     pendingEdits: document.getElementById('pendingEdits'),
     cliBanner: document.getElementById('cliBanner'),
+    cliBannerTitle: document.getElementById('cliBannerTitle'),
     cliBannerDetail: document.getElementById('cliBannerDetail'),
+    btnDismissCompat: document.getElementById('btnDismissCompat'),
     btnSetupCli: document.getElementById('btnSetupCli'),
     updateBanner: document.getElementById('updateBanner'),
     updateBannerDetail: document.getElementById('updateBannerDetail'),
@@ -361,25 +363,61 @@
     if (!els.cliBanner) {
       return;
     }
+    els.cliBanner.classList.remove('too-old', 'soft-warn', 'unknown');
+    const setTitle = (t) => {
+      if (els.cliBannerTitle) {
+        els.cliBannerTitle.textContent = t;
+      }
+    };
     if (cli.checking) {
       els.cliBanner.classList.remove('hidden');
+      setTitle('Grok CLI');
       if (els.cliBannerDetail) {
         els.cliBannerDetail.textContent = 'Checking for Grok CLI…';
       }
       els.btnSetupCli?.classList.add('hidden');
+      els.btnDismissCompat?.classList.add('hidden');
       return;
     }
-    if (!cli.ready) {
-      els.cliBanner.classList.remove('hidden');
+
+    const level = cli.compatLevel || (!cli.ready ? 'missing' : null);
+    const show = !!cli.showCompatBanner || level === 'missing' || level === 'too_old';
+    if (!show || !level || level === 'ok') {
+      els.cliBanner.classList.add('hidden');
+      return;
+    }
+
+    els.cliBanner.classList.remove('hidden');
+    if (level === 'too_old') {
+      els.cliBanner.classList.add('too-old');
+      setTitle('Grok CLI too old');
       els.btnSetupCli?.classList.remove('hidden');
-      if (els.cliBannerDetail) {
-        els.cliBannerDetail.textContent =
-          cli.error ||
-          'Install the official CLI, then click Setup. Hybrid mode: grok agent stdio.';
-      }
+      els.btnDismissCompat?.classList.add('hidden');
+    } else if (level === 'missing') {
+      setTitle('Grok CLI required');
+      els.btnSetupCli?.classList.remove('hidden');
+      els.btnDismissCompat?.classList.add('hidden');
+    } else if (level === 'soft_warn') {
+      els.cliBanner.classList.add('soft-warn');
+      setTitle('Grok CLI update recommended');
+      els.btnSetupCli?.classList.remove('hidden');
+      els.btnDismissCompat?.classList.remove('hidden');
+    } else if (level === 'unknown') {
+      els.cliBanner.classList.add('unknown');
+      setTitle('Grok CLI version unknown');
+      els.btnSetupCli?.classList.add('hidden');
+      els.btnDismissCompat?.classList.remove('hidden');
+    } else {
+      els.cliBanner.classList.add('hidden');
       return;
     }
-    els.cliBanner.classList.add('hidden');
+
+    if (els.cliBannerDetail) {
+      els.cliBannerDetail.textContent =
+        cli.compatMessage ||
+        cli.error ||
+        'Install the official CLI, then click Setup. Hybrid mode: grok agent stdio.';
+    }
   }
 
   function renderTrustBanner() {
@@ -2182,6 +2220,7 @@
   els.btnDismissExtUpdate?.addEventListener('click', () =>
     post('dismissExtUpdate', {})
   );
+  els.btnDismissCompat?.addEventListener('click', () => post('dismissCompat', {}));
   els.btnTrust?.addEventListener('click', () => post('manageWorkspaceTrust', {}));
   els.btnSeedHistory?.addEventListener('click', () => {
     const s = activeSession();

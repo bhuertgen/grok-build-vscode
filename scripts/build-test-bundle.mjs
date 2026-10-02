@@ -14,6 +14,8 @@ await esbuild.build({
     cwd: 'src/util/cwd.ts',
     agentArgs: 'src/util/agentArgs.ts',
     modelCatalog: 'src/util/modelCatalog.ts',
+    compat: 'src/cli/compat.ts',
+    semver: 'src/cli/semver.ts',
   },
   outdir: outDir,
   bundle: true,
