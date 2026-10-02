@@ -281,6 +281,11 @@
         "when": "grokBuild.isBusy"
       },
       {
+        "command": "grokBuild.cancel",
+        "key": "escape",
+        "when": "grokBuild.isBusy && grokBuild.chatFocused && !suggestWidgetVisible && !findWidgetVisible && !quickInputVisible"
+      },
+      {
         "command": "grokBuild.focusInput",
         "key": "ctrl+shift+g i",
         "mac": "cmd+shift+g i"

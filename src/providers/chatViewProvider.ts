@@ -102,9 +102,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
+        void vscode.commands.executeCommand('setContext', 'grokBuild.chatFocused', true);
         this.pushState();
         // Activity-bar click always opens the left sidebar — redirect to middle editor
         void this.maybeRedirectSidebarToEditor();
+      } else {
+        void vscode.commands.executeCommand('setContext', 'grokBuild.chatFocused', false);
+        void vscode.commands.executeCommand('setContext', 'grokBuild.composerFocused', false);
       }
     });
 
@@ -268,8 +272,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         ) {
           await this.sessions.ensureBootstrapSession();
         }
+        void vscode.commands.executeCommand('setContext', 'grokBuild.chatFocused', true);
         this.pushState();
         break;
+
+      case 'setContext': {
+        const key = String(msg.key ?? '');
+        if (
+          key === 'grokBuild.chatFocused' ||
+          key === 'grokBuild.composerFocused'
+        ) {
+          void vscode.commands.executeCommand('setContext', key, !!msg.value);
+        }
+        break;
+      }
 
       case 'newSession':
         if (!(await this.ensureCanStartSession())) {

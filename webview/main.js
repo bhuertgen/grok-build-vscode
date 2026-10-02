@@ -401,14 +401,20 @@
 
   function renderTabs() {
     els.tabs.innerHTML = '';
+    const n = state.sessions.length;
+    // Shorter labels when crowded so tabs stay distinguishable beside chips (row 2).
+    const maxLen = n > 5 ? 10 : n > 3 ? 14 : 18;
     for (const s of state.sessions) {
       const tab = document.createElement('button');
       tab.type = 'button';
       tab.className = 'tab' + (s.localId === state.activeId ? ' active' : '');
-      tab.title = s.title;
+      tab.title = s.title || 'Chat';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', s.localId === state.activeId ? 'true' : 'false');
 
       const label = document.createElement('span');
-      label.textContent = truncate(s.title || 'Chat', 18);
+      label.className = 'tab-label';
+      label.textContent = truncate(s.title || 'Chat', maxLen);
       tab.appendChild(label);
 
       const close = document.createElement('button');
@@ -2298,7 +2304,65 @@
     });
   }
 
-  els.input.addEventListener('keydown', (e) => {
+  // Ctrl/Cmd+Shift+G chord prefix: blur composer so the second key (n/p/c/i/Esc)
+  // is not typed into the textarea (chord-leak). VS Code still receives the chord.
+  let chordPrefixUntil = 0;
+  const CHORD_SECOND = new Set(['n', 'p', 'c', 'i', 'escape']);
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      const key = (e.key || '').toLowerCase();
+      const chordMod = (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey;
+      if (chordMod && key === 'g') {
+        chordPrefixUntil = Date.now() + 2500;
+        if (document.activeElement === els.input) {
+          els.input.blur();
+        }
+        return;
+      }
+      if (chordPrefixUntil && Date.now() <= chordPrefixUntil) {
+        chordPrefixUntil = 0;
+        // Swallow printable second keys if focus somehow stayed in the composer.
+        if (
+          document.activeElement === els.input &&
+          (CHORD_SECOND.has(key) || (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+      // Document-level Escape→cancel when busy and focus is not in an overlay filter.
+      if (e.key === 'Escape' && !bottomPickerOpen && !atOpen && !slashOpen && !actionsOpen) {
+        const t = e.target;
+        if (t === els.actionsFilter) {
+          return;
+        }
+        const s = activeSession();
+        if (s?.busy) {
+          e.preventDefault();
+          post('cancel', { localId: s.localId });
+        }
+      }
+    },
+    true
+  );
+
+  els.input.addEventListener('focus', () => {
+    post('setContext', { key: 'grokBuild.composerFocused', value: true });
+  });
+  els.input.addEventListener('blur', () => {
+    post('setContext', { key: 'grokBuild.composerFocused', value: false });
+  });
+  window.addEventListener('focus', () => {
+    post('setContext', { key: 'grokBuild.chatFocused', value: true });
+  });
+  window.addEventListener('blur', () => {
+    post('setContext', { key: 'grokBuild.chatFocused', value: false });
+    post('setContext', { key: 'grokBuild.composerFocused', value: false });
+  });
+
+    els.input.addEventListener('keydown', (e) => {
     if (bottomPickerOpen) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -2379,6 +2443,16 @@
       if (e.key === 'Escape') {
         e.preventDefault();
         hideSlashMenu();
+        return;
+      }
+    }
+
+    // Escape cancels a busy turn when no overlay menu is open (Stop / Cancel haptic).
+    if (e.key === 'Escape') {
+      const s = activeSession();
+      if (s?.busy) {
+        e.preventDefault();
+        post('cancel', { localId: s.localId });
         return;
       }
     }
@@ -2557,4 +2631,5 @@
 
   // Ready
   post('ready', {});
+  post('setContext', { key: 'grokBuild.chatFocused', value: true });
 })();

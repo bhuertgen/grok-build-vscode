@@ -147,6 +147,7 @@ Noch keine Dateien schreiben.
 | `Ctrl+Shift+G P` | Toggle Plan Mode |
 | `Ctrl+Shift+G I` | Focus Input |
 | `Ctrl+Shift+G Escape` | Cancel (busy) |
+| `Escape` | Cancel bei Busy (Chat fokussiert; schließt zuerst Menüs) |
 | `Alt+G` | Add Context |
 
 Command Palette: nach **Grok Build** suchen (alle Commands dort).
@@ -158,16 +159,28 @@ Command Palette: nach **Grok Build** suchen (alle Commands dort).
 Vollständige Tabelle und JSON-Beispiele: **englische** Version  
 → [../en/USER_GUIDE.md#6-all-settings-grokbuild](../en/USER_GUIDE.md#6-all-settings-grokbuild)
 
+### Empfohlen (QA / Erststart)
+
+| Setting | Wert | Warum |
+|---------|------|-------|
+| **Workspace Trust** | Ordner vertrauen | Sonst bleiben Writes/Tools blockiert |
+| `openLocation` | `editor` | Dateien + Chat nebeneinander; Explorer bleibt links |
+| `defaultMode` | `execute` | Agent tool-fähig; Plan-Toggle für reine Pläne |
+| `autoAllowInExecuteMode` | `true` | Execute hängt nicht an unsichtbarem Permission-Dialog |
+| `permissionMode` | `ask` | In Plan / ohne Auto-Allow weiter nachfragen |
+
+Auch in [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-empfohlene-settings-nach-der-installation).
+
 Kurzüberblick:
 
 | Setting | Default | Rolle |
 |---------|---------|--------|
 | `cliPath` | `grok` | CLI-Pfad |
-| `openLocation` | `editor` | Chat Mitte / Sidebar |
+| `openLocation` | `editor` | Chat Mitte (empfohlen) / Sidebar |
 | `defaultMode` | `execute` | plan \| execute |
 | `defaultModel` | `""` | CLI `-m` |
 | `permissionMode` | `ask` | UI-Permissions |
-| `autoAllowInExecuteMode` | `true` | Tools in Execute freigeben |
+| `autoAllowInExecuteMode` | `true` | Tools in Execute freigeben (empfohlen) |
 | `alwaysApprove` | `false` | CLI `--always-approve` |
 | `updateRepo` | `bhuertgen/grok-build-vscode` | Extension-Updates |
 | `logLevel` | `info` | Output **Grok Build** |

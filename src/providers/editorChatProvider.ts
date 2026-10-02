@@ -162,6 +162,8 @@ export class EditorChatPanel {
 
   dispose(): void {
     EditorChatPanel.current = undefined;
+    void vscode.commands.executeCommand('setContext', 'grokBuild.chatFocused', false);
+    void vscode.commands.executeCommand('setContext', 'grokBuild.composerFocused', false);
     while (this.disposables.length) {
       this.disposables.pop()?.dispose();
     }
