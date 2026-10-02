@@ -159,16 +159,20 @@ Bietet der Agent `configOptions` (select/boolean), erscheint im Chat-Header nebe
 
 ## 5. Befehle & Tastatur
 
-| Shortcut | Command |
-|----------|---------|
-| `Ctrl+Shift+G C` (`Cmd+Shift+G C`) | Open Chat |
-| `Ctrl+Shift+G N` (`Cmd+Shift+G N`) | New Session |
-| `Ctrl+Shift+G P` (`Cmd+Shift+G P`) | Toggle Plan Mode |
-| `Ctrl+Esc` (`Cmd+Esc`) | Chat-Eingabe fokussieren (Fokus-Wechsel wie bei Claude) |
-| `Ctrl+Shift+G I` (`Cmd+Shift+G I`) | Chat-Eingabe fokussieren (gleicher Befehl) |
-| `Ctrl+Shift+G Escape` (`Cmd+Shift+G Escape`) | Cancel (busy) |
-| `Ctrl+Shift+G A` (`Cmd+Shift+G A`) | Add Context (Quick Pick) |
-| `Alt+K` (`Option+K`) | Selection als `@datei#start-end` einfügen (Editor-Fokus) |
+Alle Einträge aus `contributes.keybindings`. Akkord: zuerst `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), loslassen, dann Buchstabe oder Escape. `Ctrl+Esc` / `Cmd+Esc` und `Ctrl+Shift+G I` führen beide **Focus Chat Input** aus: Grok-UI öffnen (falls nötig) und den Composer fokussieren. Der Fokus geht dabei nicht zurück in den Editor. `Alt+G` ist nicht gebunden (unter Windows/Linux öffnet es das Menü Go).
+
+| Aktion | Windows / Linux | Mac | Wann |
+|--------|-----------------|-----|------|
+| Add Context (Quick Pick) | `Ctrl+Shift+G` dann `A` | `Cmd+Shift+G` dann `A` | Immer (kein `when`) |
+| `@datei#start-end` der Editor-Auswahl einfügen | `Alt+K` | `Option+K` | Texteditor fokussiert (`editorTextFocus`) |
+| New Session | `Ctrl+Shift+G` dann `N` | `Cmd+Shift+G` dann `N` | Immer (kein `when`) |
+| Toggle Plan Mode | `Ctrl+Shift+G` dann `P` | `Cmd+Shift+G` dann `P` | Immer (kein `when`) |
+| Open Chat | `Ctrl+Shift+G` dann `C` | `Cmd+Shift+G` dann `C` | Immer (kein `when`) |
+| Laufenden Turn abbrechen | `Ctrl+Shift+G` dann `Escape` | `Cmd+Shift+G` dann `Escape` | Ein Turn läuft (`grokBuild.isBusy`) |
+| Chat-Eingabe fokussieren | `Ctrl+Shift+G` dann `I` | `Cmd+Shift+G` dann `I` | Immer (kein `when`) |
+| Chat-Eingabe fokussieren | `Ctrl+Esc` | `Cmd+Esc` | Immer (kein `when`) |
+
+Tasten im Composer (`Enter` sendet, `@`, `/`, Pfeile) sind keine Extension-Keybindings. Siehe §3 der englischen Anleitung.
 
 Command Palette: nach **Grok Build** suchen (alle Commands dort).
 

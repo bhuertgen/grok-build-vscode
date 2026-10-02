@@ -228,16 +228,20 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 
 ### Keybindings
 
-| Shortcut | Command |
-|----------|---------|
-| `Ctrl+Shift+G C` (`Cmd+Shift+G C`) | Open Chat |
-| `Ctrl+Shift+G N` (`Cmd+Shift+G N`) | New Session |
-| `Ctrl+Shift+G P` (`Cmd+Shift+G P`) | Toggle Plan Mode |
-| `Ctrl+Esc` (`Cmd+Esc`) | Focus chat input (toggle focus with the editor, Claude-style) |
-| `Ctrl+Shift+G I` (`Cmd+Shift+G I`) | Focus chat input (same command) |
-| `Ctrl+Shift+G Escape` (`Cmd+Shift+G Escape`) | Cancel (when busy) |
-| `Ctrl+Shift+G A` (`Cmd+Shift+G A`) | Add Context (Quick Pick) |
-| `Alt+K` (`Option+K`) | Insert `@file#start-end` for the current selection (editor focused) |
+Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Esc` / `Cmd+Esc` and `Ctrl+Shift+G I` both run **Focus Chat Input**: they open the Grok UI if needed and focus the composer. They do not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu).
+
+| Action | Windows / Linux | Mac | When |
+|--------|-----------------|-----|------|
+| Add Context (Quick Pick) | `Ctrl+Shift+G` then `A` | `Cmd+Shift+G` then `A` | Always (no `when`) |
+| Insert `@file#start-end` for the editor selection | `Alt+K` | `Option+K` | Text editor focused (`editorTextFocus`) |
+| New Session | `Ctrl+Shift+G` then `N` | `Cmd+Shift+G` then `N` | Always (no `when`) |
+| Toggle Plan Mode | `Ctrl+Shift+G` then `P` | `Cmd+Shift+G` then `P` | Always (no `when`) |
+| Open Chat | `Ctrl+Shift+G` then `C` | `Cmd+Shift+G` then `C` | Always (no `when`) |
+| Cancel current turn | `Ctrl+Shift+G` then `Escape` | `Cmd+Shift+G` then `Escape` | A turn is running (`grokBuild.isBusy`) |
+| Focus chat input | `Ctrl+Shift+G` then `I` | `Cmd+Shift+G` then `I` | Always (no `when`) |
+| Focus chat input | `Ctrl+Esc` | `Cmd+Esc` | Always (no `when`) |
+
+Composer keys (`Enter` to send, `@`, `/`, arrow keys) are not extension keybindings. See §3.
 
 ---
 
