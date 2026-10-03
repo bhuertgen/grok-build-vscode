@@ -81,11 +81,12 @@ npm run watch   # F5 → Extension Development Host
 |--------|-----|
 | Open chat | Activity Bar **Grok**, or `Ctrl+Shift+G C` (`Cmd+Shift+G C` on Mac) |
 | New session | `+` tab or `Ctrl+Shift+G N` |
-| Insert context | Composer **`+`**, or `Alt+G`, or type **`@`** |
+| Insert context | Composer **`+`**, `Ctrl+Shift+G A` (`Cmd+Shift+G A`), or type **`@`** |
 | Actions / model / perms | Composer **`/`** (filterable) |
 | Slash commands | Type `/` at start of input |
 | Plan mode | Mode button or `Ctrl+Shift+G P` |
 | History | `↺` or `/` → Chat-History |
+| Focus chat input | `Ctrl+Esc` (`Cmd+Esc`) or `Ctrl+Shift+G I` |
 | Cancel turn | Stop or `Ctrl+Shift+G Escape` (when busy) |
 
 ### Example prompts

@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpClient } from '../acp/client';
@@ -38,6 +39,15 @@ import {
   type StoredSession,
 } from './sessionStore';
 import { ContextCollector } from '../context/contextCollector';
+import {
+  parseFileRangeMentions,
+  rangeContextBlock,
+  sliceLines,
+} from '../util/fileRangeMention';
+import {
+  retainConfigOptions,
+  upsertEffortCurrent,
+} from '../util/configOptionsUi';
 
 /**
  * How much conversation memory the live CLI agent has.
@@ -121,6 +131,9 @@ export interface ContextItem {
   path?: string;
   detail?: string;
   text?: string;
+  /** 1-based inclusive line range for @file#start-end mentions */
+  startLine?: number;
+  endLine?: number;
   mimeType?: string;
   data?: string;
 }
@@ -318,23 +331,39 @@ export class SessionManager extends EventEmitter {
       const res = await client.newSession({ cwd: state.cwd });
       state.agentSessionId = res.sessionId;
       state.modes = res.modes ?? undefined;
-      state.configOptions = normalizeConfigOptions(res.configOptions);
-      // Reflect current model from agent config if present
+      // session/new carries current configOptions (including effort).
+      // model_changed may already have seeded them during the await —
+      // never replace that seed with an empty payload.
+      const fromNew = normalizeConfigOptions(res.configOptions);
+      state.configOptions = retainConfigOptions(state.configOptions, fromNew);
       const fromAgent = findModelConfigOption(state.configOptions);
       if (fromAgent?.currentValue && typeof fromAgent.currentValue === 'string') {
         state.model = fromAgent.currentValue;
       }
       state.status = 'ready';
+      // Paint chips before mode/model awaits so the header does not wait
+      // for a later update or a resume.
+      this.emitChange(localId);
 
       await this.applyModePreference(state, client, mode);
 
       if (preferredModel && state.configOptions?.length) {
         await this.trySetModel(state, client, preferredModel);
       }
+      state.configOptions = retainConfigOptions(
+        fromNew ?? state.configOptions,
+        state.configOptions
+      );
 
       this.schedulePersist(state);
       this.log.info(
         `Session ${localId} ready (agentSessionId=${state.agentSessionId}, processes=${this.clients.size})`
+      );
+      this.log.info(
+        'Session config at start',
+        (state.configOptions ?? [])
+          .map((o) => `${o.id}=${String(o.currentValue ?? '')}`)
+          .join(', ') || '(none)'
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -473,7 +502,7 @@ export class SessionManager extends EventEmitter {
             cwd: state.cwd,
           });
           state.modes = res.modes ?? undefined;
-          state.configOptions = normalizeConfigOptions(res.configOptions);
+          state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
           state.status = 'ready';
           state.agentContext = 'resumed';
           state.seedHistoryOnNextPrompt = false;
@@ -486,7 +515,7 @@ export class SessionManager extends EventEmitter {
           const res = await client.newSession({ cwd: state.cwd });
           state.agentSessionId = res.sessionId;
           state.modes = res.modes ?? undefined;
-          state.configOptions = normalizeConfigOptions(res.configOptions);
+          state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
           state.status = 'ready';
           if (hasLocalHistory) {
             state.agentContext = 'local-only';
@@ -504,7 +533,7 @@ export class SessionManager extends EventEmitter {
         const res = await client.newSession({ cwd: state.cwd });
         state.agentSessionId = res.sessionId;
         state.modes = res.modes ?? undefined;
-        state.configOptions = normalizeConfigOptions(res.configOptions);
+        state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
         state.status = 'ready';
         if (hasLocalHistory) {
           state.agentContext = 'local-only';
@@ -744,6 +773,8 @@ export class SessionManager extends EventEmitter {
       throw new Error(state.lastError ?? 'Agent process is not connected');
     }
 
+    await this.attachMentionedRanges(state, text);
+
     const blocks: ContentBlock[] = [];
     // Inject restored local transcript so a cold agent can continue the chat
     if (state.seedHistoryOnNextPrompt) {
@@ -802,6 +833,8 @@ export class SessionManager extends EventEmitter {
         label: c.label,
         path: c.path,
         relativePath,
+        startLine: c.startLine,
+        endLine: c.endLine,
       };
     });
     const displayText = formatUserMessageWithAttachments(text, attached);
@@ -1047,6 +1080,62 @@ export class SessionManager extends EventEmitter {
     }
   }
 
+  /**
+   * Live session override for a non-model ACP config option
+   * (`session/set_config_option`). Confirmed by the returned options
+   * and later `config_option_update`. Does not rewrite settings.json
+   * (that stays the default for new processes, e.g. reasoningEffort).
+   */
+  async applyConfigOption(
+    localId: string,
+    configId: string,
+    value: string | boolean
+  ): Promise<void> {
+    const state = this.sessions.get(localId) ?? this.getActive();
+    if (!state) {
+      void vscode.window.showWarningMessage('No active Grok session.');
+      return;
+    }
+    const opt = state.configOptions?.find((o) => o.id === configId);
+    const label = opt?.name || configId;
+    if (!state.agentSessionId || state.status !== 'ready') {
+      this.pushSystem(
+        state,
+        `Cannot change **${label}** — session is not ready.`
+      );
+      this.emitChange(state.localId);
+      return;
+    }
+    const client = this.clients.get(state.localId);
+    if (!client?.isConnected) {
+      this.pushSystem(state, `Cannot change **${label}** — agent is not connected.`);
+      this.emitChange(state.localId);
+      return;
+    }
+    try {
+      const res = await client.setConfigOption(
+        state.agentSessionId,
+        configId,
+        value
+      );
+      if (res?.configOptions) {
+        state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
+      } else if (opt) {
+        opt.currentValue = value;
+      }
+      const shown =
+        typeof value === 'boolean' ? (value ? 'on' : 'off') : String(value);
+      this.pushSystem(state, `**${label}** → ${shown}`);
+      this.schedulePersist(state);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.log.warn('set_config_option failed', configId, message);
+      this.pushSystem(state, `Could not set **${label}**: ${message}`);
+    } finally {
+      this.emitChange(state.localId);
+    }
+  }
+
   async applyModel(localId: string, modelId: string): Promise<void> {
     const state = this.sessions.get(localId) ?? this.getActive();
     if (!state) {
@@ -1087,7 +1176,7 @@ export class SessionManager extends EventEmitter {
             id
           );
           if (res?.configOptions) {
-            state.configOptions = normalizeConfigOptions(res.configOptions);
+            state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
           }
         } catch (err) {
           this.log.debug('Post-respawn set_config_option(model) skipped', err);
@@ -1220,7 +1309,7 @@ export class SessionManager extends EventEmitter {
     const res = await client.newSession({ cwd: state.cwd });
     state.agentSessionId = res.sessionId;
     state.modes = res.modes ?? undefined;
-    state.configOptions = normalizeConfigOptions(res.configOptions);
+    state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
     state.status = 'ready';
     state.lastError = undefined;
 
@@ -1234,7 +1323,7 @@ export class SessionManager extends EventEmitter {
           modelId
         );
         if (r?.configOptions) {
-          state.configOptions = normalizeConfigOptions(r.configOptions);
+          state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(r.configOptions));
         }
       } catch {
         /* model already applied via -m */
@@ -1318,18 +1407,18 @@ export class SessionManager extends EventEmitter {
             cwd: state.cwd,
           });
           state.modes = res.modes ?? undefined;
-          state.configOptions = normalizeConfigOptions(res.configOptions);
+          state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
         } catch {
           const res = await client.newSession({ cwd: state.cwd });
           state.agentSessionId = res.sessionId;
           state.modes = res.modes ?? undefined;
-          state.configOptions = normalizeConfigOptions(res.configOptions);
+          state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
         }
       } else {
         const res = await client.newSession({ cwd: state.cwd });
         state.agentSessionId = res.sessionId;
         state.modes = res.modes ?? undefined;
-        state.configOptions = normalizeConfigOptions(res.configOptions);
+        state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
       }
       state.status = 'ready';
       state.lastError = undefined;
@@ -1551,10 +1640,31 @@ export class SessionManager extends EventEmitter {
     }
 
     if (kind === 'config_option_update') {
-      state.configOptions = normalizeConfigOptions(u.configOptions);
+      // Empty/partial updates must not clear chips already painted at start.
+      state.configOptions = retainConfigOptions(
+        state.configOptions,
+        normalizeConfigOptions(u.configOptions)
+      );
       const modelOpt = findModelConfigOption(state.configOptions);
       if (modelOpt?.currentValue && typeof modelOpt.currentValue === 'string') {
         state.model = modelOpt.currentValue;
+      }
+      return;
+    }
+
+    if (kind === 'model_changed') {
+      // Advertised at session start on `_x.ai/session_notification`
+      // (often before session/new returns) with the live reasoning_effort.
+      const modelId = String(u.model_id ?? u.modelId ?? '');
+      if (modelId) {
+        state.model = modelId;
+      }
+      const effortRaw = u.reasoning_effort ?? u.reasoningEffort;
+      if (typeof effortRaw === 'string' && effortRaw.trim()) {
+        state.configOptions = upsertEffortCurrent(
+          state.configOptions,
+          effortRaw.trim()
+        ) as SessionConfigOption[];
       }
       return;
     }
@@ -1763,6 +1873,62 @@ export class SessionManager extends EventEmitter {
     }
   }
 
+
+  /**
+   * Resolve `@path#start-end` tokens in the composer into context items
+   * (resource body + mention already present in the prompt text).
+   */
+  private async attachMentionedRanges(
+    state: SessionState,
+    text: string
+  ): Promise<void> {
+    const mentions = parseFileRangeMentions(text);
+    if (!mentions.length) {
+      return;
+    }
+    const root = state.cwd || '';
+    for (const m of mentions) {
+      const abs = path.isAbsolute(m.path)
+        ? m.path
+        : path.join(root, m.path);
+      const already = state.contextItems.some(
+        (c) =>
+          c.path === abs &&
+          c.startLine === m.startLine &&
+          c.endLine === m.endLine
+      );
+      if (already) {
+        continue;
+      }
+      const full = await this.contextCollector.readFileLimited(abs);
+      if (full == null) {
+        this.log.debug('Range mention file not readable', m.path);
+        continue;
+      }
+      const sliced = sliceLines(full, m.startLine, m.endLine);
+      if (sliced == null) {
+        this.pushSystem(
+          state,
+          `Range ${m.raw} is outside the file — skipped.`
+        );
+        continue;
+      }
+      const truncated = full.includes('/* …truncated… */');
+      const base = path.basename(m.path);
+      state.contextItems.push({
+        id: newMsgId('range'),
+        kind: 'selection',
+        label: `${base}#${m.startLine}-${m.endLine}`,
+        path: abs,
+        detail: `L${m.startLine}-L${m.endLine}`,
+        text: rangeContextBlock(m.raw, sliced, truncated),
+        mimeType: 'text/plain',
+        startLine: m.startLine,
+        endLine: m.endLine,
+      });
+    }
+  }
+
   private contextItemToBlock(item: ContextItem): ContentBlock | null {
     if (item.kind === 'image' && item.data && item.mimeType) {
       return { type: 'image', data: item.data, mimeType: item.mimeType };
@@ -1840,12 +2006,7 @@ export class SessionManager extends EventEmitter {
     if (!state.configOptions || !state.agentSessionId) {
       return;
     }
-    const modelOpt = state.configOptions.find(
-      (o) =>
-        o.category === 'model' ||
-        /model/i.test(o.id) ||
-        /model/i.test(o.name)
-    );
+    const modelOpt = findModelConfigOption(state.configOptions);
     if (!modelOpt) {
       return;
     }
@@ -1855,7 +2016,10 @@ export class SessionManager extends EventEmitter {
         modelOpt.id,
         model
       );
-      state.configOptions = res.configOptions;
+      state.configOptions = retainConfigOptions(
+        state.configOptions,
+        normalizeConfigOptions(res?.configOptions)
+      );
       state.model = model;
     } catch (err) {
       this.log.debug('Could not set default model', err);

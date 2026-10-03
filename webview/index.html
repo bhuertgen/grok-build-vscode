@@ -28,6 +28,7 @@
       <div class="session-tabs" id="sessionTabs"></div>
       <div class="topbar-actions">
         <button type="button" class="chip-btn" id="chipModel" title="Change model">Model</button>
+        <span class="config-chips" id="configChips" aria-label="Session config"></span>
         <button type="button" class="chip-btn" id="chipPerm" title="Permission mode">Perm</button>
         <button type="button" class="mode-btn execute" id="btnMode" title="Toggle plan/execute">Execute</button>
         <button type="button" class="icon-btn" id="btnNew" title="New session">+</button>
@@ -137,6 +138,13 @@
             <span class="attach-desc">Current editor / selection</span>
           </span>
         </button>
+        <button type="button" class="attach-item" id="btnSelectionRange" data-action="range">
+          <span class="attach-icon">#</span>
+          <span class="attach-label">
+            <span class="attach-title">Selection range</span>
+            <span class="attach-desc">Insert @file#start-end (Alt+K)</span>
+          </span>
+        </button>
         <input type="file" id="imageInput" accept="image/*" multiple hidden />
       </div>
 
@@ -169,7 +177,7 @@
         </div>
       </div>
       <div class="composer-hint">
-        <span><kbd>+</kbd> insert · <kbd>/</kbd> actions · <kbd>@</kbd> file · <kbd>Enter</kbd> send</span>
+        <span><kbd>+</kbd> insert · <kbd>/</kbd> actions · <kbd>@</kbd> file · <kbd>Alt+K</kbd> range · <kbd>Enter</kbd> send</span>
       </div>
       <div class="pending-edits hidden" id="pendingEdits"></div>
     </footer>

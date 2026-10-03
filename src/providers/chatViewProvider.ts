@@ -11,6 +11,7 @@ import {
   isWorkspaceTrusted,
 } from '../util/workspaceTrust';
 import type { CliStatus } from '../cli/cliStatus';
+import { uiConfigControls } from '../util/configOptionsUi';
 
 export interface ChatViewProviderOptions {
   /**
@@ -217,6 +218,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       plan: s.plan,
       usage: s.usage,
       contextItems: s.contextItems,
+      configControls: uiConfigControls(s.configOptions),
       availableCommands: s.availableCommands ?? [],
       agentContext: s.agentContext ?? 'new',
       seedHistoryOnNextPrompt: !!s.seedHistoryOnNextPrompt,
@@ -345,6 +347,49 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
         this.pushState();
         break;
+
+      case 'insertSelectionRange':
+        await vscode.commands.executeCommand('grokBuild.insertSelectionRange');
+        break;
+
+      case 'setConfigOption': {
+        const id =
+          (msg.localId as string) || this.sessions.getActive()?.localId;
+        const configId = String(msg.configId ?? '');
+        const raw = msg.value;
+        if (!id || !configId || (typeof raw !== 'string' && typeof raw !== 'boolean')) {
+          break;
+        }
+        try {
+          await this.sessions.applyConfigOption(id, configId, raw);
+        } catch (err) {
+          this.log.error('setConfigOption failed', err);
+        } finally {
+          this.pushState();
+        }
+        break;
+      }
+
+      case 'openContextRange': {
+        const fsPath = String(msg.path ?? '');
+        const startLine = Number(msg.startLine ?? 1);
+        const endLine = Number(msg.endLine ?? startLine);
+        if (!fsPath) {
+          break;
+        }
+        const uri = vscode.Uri.file(fsPath);
+        const start = Math.max(0, startLine - 1);
+        const end = Math.max(start, endLine - 1);
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc, {
+          preview: true,
+          preserveFocus: false,
+        });
+        const range = new vscode.Range(start, 0, end, 0);
+        editor.selection = new vscode.Selection(start, 0, end, 0);
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+        break;
+      }
 
       case 'applyModel': {
         const id =

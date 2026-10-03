@@ -187,6 +187,25 @@ Do not write files yet.
 
 ---
 
+## 4.1 Session config (Effort)
+
+When the CLI advertises `configOptions` (select or boolean), the chat header shows a chip next to **Model** — Effort is labeled **Effort**. Model stays on its own chip.
+
+- Select → dropdown, boolean → click toggles on/off.
+- Change applies to the **running session** (`session/set_config_option`). The header updates from the agent response / `config_option_update`.
+- Unknown option types are hidden.
+- `grokBuild.reasoningEffort` remains the process default for the next session (CLI `--reasoning-effort`). It is not rewritten by the chip.
+- If the agent advertises no extra options, no chip is shown.
+
+## 4.2 `@file#start-end`
+
+1. Select lines in the editor.
+2. `Alt+K` (or **+ → Selection range**) inserts `@rel/path#12-34` into the composer and attaches that range as context.
+3. Click the chip to jump back to the range.
+4. On send, the mention is parsed and the line slice is sent as a resource block plus the mention text.
+5. Empty selection or multi-cursor: a warning, nothing inserted.
+6. `Ctrl+Shift+G A` (`Cmd+Shift+G A` on Mac) opens the context picker. You can also add a file by typing `@` in the prompt.
+
 ## 5. Commands (Command Palette: “Grok Build”)
 
 | Command | Purpose |
@@ -200,6 +219,7 @@ Do not write files yet.
 | Toggle / Set Plan / Execute | Mode |
 | Select Model / Permission Mode | Pickers |
 | Add Context / File / Folder / Selection | Context |
+| Insert Selection as @file#range | `@path#start-end` from the editor selection |
 | Cancel Current Turn | Abort running prompt |
 | Apply / Reject / Apply All Edits | Diffs when offered |
 | Show Diff | Show diff |
@@ -208,14 +228,20 @@ Do not write files yet.
 
 ### Keybindings
 
-| Shortcut | Command |
-|----------|---------|
-| `Ctrl+Shift+G C` (`Cmd+Shift+G C`) | Open Chat |
-| `Ctrl+Shift+G N` | New Session |
-| `Ctrl+Shift+G P` | Toggle Plan Mode |
-| `Ctrl+Shift+G I` | Focus Input |
-| `Ctrl+Shift+G Escape` | Cancel (when busy) |
-| `Alt+G` | Add Context |
+Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Esc` / `Cmd+Esc` and `Ctrl+Shift+G I` both run **Focus Chat Input**: they open the Grok UI if needed and focus the composer. They do not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu).
+
+| Action | Windows / Linux | Mac | When |
+|--------|-----------------|-----|------|
+| Add Context (Quick Pick) | `Ctrl+Shift+G` then `A` | `Cmd+Shift+G` then `A` | Always (no `when`) |
+| Insert `@file#start-end` for the editor selection | `Alt+K` | `Option+K` | Text editor focused (`editorTextFocus`) |
+| New Session | `Ctrl+Shift+G` then `N` | `Cmd+Shift+G` then `N` | Always (no `when`) |
+| Toggle Plan Mode | `Ctrl+Shift+G` then `P` | `Cmd+Shift+G` then `P` | Always (no `when`) |
+| Open Chat | `Ctrl+Shift+G` then `C` | `Cmd+Shift+G` then `C` | Always (no `when`) |
+| Cancel current turn | `Ctrl+Shift+G` then `Escape` | `Cmd+Shift+G` then `Escape` | A turn is running (`grokBuild.isBusy`) |
+| Focus chat input | `Ctrl+Shift+G` then `I` | `Cmd+Shift+G` then `I` | Always (no `when`) |
+| Focus chat input | `Ctrl+Esc` | `Cmd+Esc` | Always (no `when`) |
+
+Composer keys (`Enter` to send, `@`, `/`, arrow keys) are not extension keybindings. See §3.
 
 ---
 
@@ -238,7 +264,7 @@ Open Settings (`Ctrl+,`) and search **Grok Build**.
 | Setting | Default | CLI / effect |
 |---------|---------|----------------|
 | `defaultModel` | `""` | `-m` / `--model` (empty = CLI default) |
-| `reasoningEffort` | `""` | `--reasoning-effort` |
+| `reasoningEffort` | `""` | `--reasoning-effort` (default for **new** sessions). If the agent advertises an Effort / config option, the chat header chip overrides it **for the live session** via ACP `session/set_config_option` without rewriting this setting. |
 | `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`) |
 | `alwaysApprove` | `false` | `--always-approve` |
 | `maxTurns` | `null` | `--max-turns` |

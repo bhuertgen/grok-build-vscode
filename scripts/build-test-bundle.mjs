@@ -14,6 +14,8 @@ await esbuild.build({
     cwd: 'src/util/cwd.ts',
     agentArgs: 'src/util/agentArgs.ts',
     modelCatalog: 'src/util/modelCatalog.ts',
+    configOptionsUi: 'src/util/configOptionsUi.ts',
+    fileRangeMention: 'src/util/fileRangeMention.ts',
   },
   outdir: outDir,
   bundle: true,
