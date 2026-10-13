@@ -257,6 +257,17 @@ body.vscode-light .brand-logo {
   flex-shrink: 0;
 }
 
+.cli-banner.too-old {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.cli-banner.soft-warn,
+.cli-banner.unknown {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.1);
+}
+
 .trust-banner {
   border-color: rgba(248, 113, 113, 0.45);
   background: rgba(248, 113, 113, 0.1);

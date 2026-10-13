@@ -536,6 +536,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.pushState();
         break;
 
+      case 'dismissCompat':
+        this.cliStatus?.dismissCompatBanner();
+        this.pushState();
+        break;
+
       case 'dismissExtUpdate':
         this.cliStatus?.dismissExtensionUpdateBanner();
         this.pushState();

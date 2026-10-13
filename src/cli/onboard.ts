@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { detectGrokCli, getInstallInstructions, type CliDetectionResult } from './detect';
+import { assessCliCompat } from './compat';
 import { getLogger } from '../util/logger';
 
 const SKIP_KEY = 'grokBuild.cliOnboardSkipped';
@@ -22,6 +23,17 @@ export async function ensureCliReady(
   let detection = await detectGrokCli();
 
   if (detection.ok) {
+    const compat = assessCliCompat({
+      detected: true,
+      rawVersion: detection.version,
+    });
+    if (!compat.usable) {
+      log.warn('CLI incompatible', compat.message);
+      return { ready: false, detection: { ...detection, error: compat.message } };
+    }
+    if (compat.level === 'soft_warn' || compat.level === 'unknown') {
+      log.warn(compat.message);
+    }
     await context.globalState.update(LAST_OK_KEY, detection.cliPath);
     await maybePersistResolvedPath(detection.cliPath, log);
     return { ready: true, detection };
