@@ -11,8 +11,8 @@ import { detectGrokCli, getInstallInstructions } from '../cli/detect';
 import { checkCliUpdate, runCliUpdate } from '../cli/updateCheck';
 import { getCliStatus } from '../cli/cliStatus';
 import {
-  linesFromEditorSelection,
   mentionFromSelection,
+  pickSelectionRange,
 } from '../util/fileRangeMention';
 
 export function registerCommands(
@@ -24,6 +24,51 @@ export function registerCommands(
   const picker = new ContextPicker();
   const collector = new ContextCollector();
   const log = getLogger();
+
+  // Last focused file editor: a webview (chat panel / editor-tab chat) can
+  // leave activeTextEditor undefined when Alt+K / menus run.
+  let lastFileEditor: vscode.TextEditor | undefined =
+    vscode.window.activeTextEditor?.document.uri.scheme === 'file'
+      ? vscode.window.activeTextEditor
+      : undefined;
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((e) => {
+      if (e && e.document.uri.scheme === 'file') {
+        lastFileEditor = e;
+      }
+    }),
+    vscode.window.onDidChangeTextEditorSelection((e) => {
+      if (e.textEditor.document.uri.scheme === 'file') {
+        lastFileEditor = e.textEditor;
+      }
+    })
+  );
+
+  /**
+   * Editor for @file#range: explicit Uri arg (editor/context or title menu)
+   * → matching visible editor; else active file editor; else last file
+   * editor that is still visible.
+   */
+  const resolveRangeEditor = (arg?: unknown): vscode.TextEditor | undefined => {
+    const visible = vscode.window.visibleTextEditors;
+    if (arg instanceof vscode.Uri) {
+      const hit =
+        (vscode.window.activeTextEditor?.document.uri.toString() === arg.toString()
+          ? vscode.window.activeTextEditor
+          : undefined) ?? visible.find((e) => e.document.uri.toString() === arg.toString());
+      if (hit) {
+        return hit;
+      }
+    }
+    const active = vscode.window.activeTextEditor;
+    if (active && active.document.uri.scheme === 'file') {
+      return active;
+    }
+    if (lastFileEditor && visible.includes(lastFileEditor)) {
+      return lastFileEditor;
+    }
+    return visible.find((e) => e.document.uri.scheme === 'file');
+  };
 
   const ensureSession = async () => {
     let s = sessions.getActive();
@@ -193,31 +238,40 @@ export function registerCommands(
       }
     ),
 
-    vscode.commands.registerCommand('grokBuild.insertSelectionRange', async () => {
-      const editor = vscode.window.activeTextEditor;
+    vscode.commands.registerCommand('grokBuild.insertSelectionRange', async (arg?: unknown) => {
+      const editor = resolveRangeEditor(arg);
       if (!editor || editor.document.uri.scheme !== 'file') {
         void vscode.window.showWarningMessage(
           'No file editor. Open a file and select lines first.'
         );
         return;
       }
-      const sel = editor.selection;
-      const selections = editor.selections ?? [sel];
       const rel = vscode.workspace.asRelativePath(editor.document.uri, false);
-      const lines = linesFromEditorSelection(sel);
+      const picked = pickSelectionRange(editor.selections ?? [editor.selection]);
+      getLogger().info(
+        `insertSelectionRange editor=${rel} selections=${JSON.stringify(
+          (editor.selections ?? []).map((x) => [x.start.line, x.start.character, x.end.line, x.end.character])
+        )} picked=${picked.kind}`
+      );
       const built = mentionFromSelection({
         relativePath: rel.replace(/\\/g, '/'),
-        startLine: lines?.startLine ?? sel.start.line + 1,
-        endLine: lines?.endLine ?? sel.end.line + 1,
-        selectionCount: selections.length,
-        empty: !lines,
+        startLine: picked.kind === 'ok' ? picked.startLine : NaN,
+        endLine: picked.kind === 'ok' ? picked.endLine : NaN,
+        selectionCount: picked.kind === 'multi' ? picked.count : 1,
+        empty: picked.kind === 'empty',
       });
       if (!built.ok) {
         void vscode.window.showWarningMessage(built.message);
         return;
       }
+      const range = new vscode.Range(
+        built.startLine - 1,
+        0,
+        built.endLine - 1,
+        editor.document.lineAt(Math.min(built.endLine - 1, editor.document.lineCount - 1)).text.length
+      );
       const s = await ensureSession();
-      const item = collector.fromSelection(editor);
+      const item = collector.fromSelection(editor, range);
       item.label = `${built.mention.replace(/^@/, '')}`;
       item.detail = `L${built.startLine}-L${built.endLine}`;
       item.startLine = built.startLine;

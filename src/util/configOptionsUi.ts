@@ -52,13 +52,19 @@ export function isModelConfigOption(opt: ConfigOptionLike): boolean {
 }
 
 /** Effort / reasoning-effort style options get a short "Effort" label. */
+export const EFFORT_CATEGORIES: readonly string[] = ['thought_level', 'thought'];
+
+/**
+ * Category first (CLI 1.0.52 sends `thought_level`), id/name regex only as
+ * fallback when the agent sends no category.
+ */
 export function isEffortConfigOption(opt: ConfigOptionLike): boolean {
-  return (
-    opt.category === 'thought' ||
-    opt.category === 'thought_level' ||
-    /effort|reasoning/i.test(opt.id) ||
-    /effort|reasoning/i.test(opt.name)
-  );
+  if (typeof opt.category === 'string' && opt.category) {
+    if (EFFORT_CATEGORIES.includes(opt.category)) {
+      return true;
+    }
+  }
+  return /effort|reasoning/i.test(String(opt.id ?? '')) || /effort|reasoning/i.test(String(opt.name ?? ''));
 }
 
 export function configOptionChipLabel(opt: ConfigOptionLike): string {

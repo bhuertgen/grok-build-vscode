@@ -210,3 +210,92 @@ describe('incremental streaming patch (no wipe)', () => {
     assert.equal(m.scrollTop, 80);
   });
 });
+
+/**
+ * Issue #3 retest (R5): user wheels up while chunks stream. Streaming renders
+ * keep scrollRaf pending almost permanently; the old listener dropped all
+ * scroll events while scrollRaf != 0 → stick stayed true → next chunk yanked.
+ */
+function createStreamModel({ withIntentFix }) {
+  const clientHeight = 400;
+  let scrollHeight = 2000;
+  let scrollTop = scrollHeight - clientHeight;
+  let stick = true;
+  let scrollRaf = 0;
+  let intent = false;
+  let pendingCtx = null;
+  const dist = () => scrollHeight - scrollTop - clientHeight;
+  function onScroll() {
+    if (withIntentFix && intent) {
+      if (dist() > STICK_PIN_PX) { stick = false; scrollRaf = 0; pendingCtx = null; } else stick = true;
+      return;
+    }
+    if (scrollRaf) return;
+    const d = dist();
+    if (d <= STICK_PIN_PX) stick = true; else if (d > STICK_UNPIN_PX) stick = false;
+  }
+  function renderChunk(lineHeight = 20) {
+    const prevScroll = scrollTop;
+    let forcePin = stick;
+    scrollHeight += lineHeight;
+    if (forcePin) scrollTop = scrollHeight - clientHeight; else scrollTop = prevScroll;
+    scrollRaf = 1; // double rAF pending
+    pendingCtx = { forcePin, prevScroll };
+  }
+  function frame() {
+    if (!pendingCtx) { scrollRaf = 0; return; }
+    const ctx = pendingCtx; pendingCtx = null; scrollRaf = 0;
+    if (ctx.forcePin && (!withIntentFix || stick)) { scrollTop = scrollHeight - clientHeight; stick = true; }
+    else scrollTop = Math.max(0, ctx.prevScroll);
+  }
+  function wheelUp(px = 100) {
+    if (withIntentFix) { intent = true; stick = false; scrollRaf = 0; pendingCtx = null; }
+    scrollTop = Math.max(0, scrollTop - px);
+    onScroll();
+    intent = false;
+  }
+  return {
+    renderChunk, frame, wheelUp,
+    get stick() { return stick; },
+    get scrollTop() { return scrollTop; },
+    get bottomTop() { return scrollHeight - clientHeight; },
+  };
+}
+
+describe('user scroll-up during streaming chunks (Issue #3 / R5)', () => {
+  for (const steps of [3, 5]) {
+    it(`OLD: ${steps} wheel steps while scrollRaf pending → yanked`, () => {
+      const m = createStreamModel({ withIntentFix: false });
+      m.renderChunk();
+      for (let i = 0; i < steps; i++) m.wheelUp(100); // lands while rAF pending
+      m.renderChunk();
+      m.frame();
+      assert.equal(m.scrollTop, m.bottomTop);
+    });
+
+    it(`FIXED: ${steps} wheel steps while scrollRaf pending → holds position`, () => {
+      const m = createStreamModel({ withIntentFix: true });
+      m.renderChunk();
+      for (let i = 0; i < steps; i++) m.wheelUp(100);
+      const held = m.scrollTop;
+      assert.equal(m.stick, false);
+      for (let i = 0; i < 20; i++) { m.renderChunk(); m.frame(); }
+      assert.equal(m.stick, false);
+      assert.equal(m.scrollTop, held);
+    });
+  }
+
+  it('FIXED: single wheel step inside hysteresis band still unpins', () => {
+    const m = createStreamModel({ withIntentFix: true });
+    m.renderChunk();
+    m.wheelUp(60);
+    m.renderChunk(); m.frame();
+    assert.equal(m.stick, false);
+  });
+
+  it('FIXED: pinned stream without user input keeps following', () => {
+    const m = createStreamModel({ withIntentFix: true });
+    for (let i = 0; i < 10; i++) { m.renderChunk(); m.frame(); }
+    assert.equal(m.scrollTop, m.bottomTop);
+  });
+});

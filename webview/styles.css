@@ -1107,10 +1107,12 @@ body.vscode-light .empty-state .empty-logo {
   display: none !important;
 }
 
-.msg .body p:empty,
-.msg .body br + br {
+.msg .body p:empty {
   display: none;
 }
+/* No `br + br` rule: the sibling combinator ignores text nodes, so it hid
+   every <br> after the first ("1<br>2<br>3" rendered as "1" / "23").
+   Blank-line runs are already split into <p> by formatMarkdown. */
 
 /* Never leave empty agent shells that only draw chrome */
 .msg.agent:not(:has(.body:not(:empty))):not(:has(img)) {
