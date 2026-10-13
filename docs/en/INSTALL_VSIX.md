@@ -221,6 +221,33 @@ That is enough in almost all cases — even if the three dots are hard to find.
 
 ---
 
+## 7. Recommended settings after install
+
+These are the settings we use / recommend for a smooth first run (chat beside files, tools that actually run, execute UX). Each line is **why**:
+
+| Setting | Recommended | Why |
+|---------|-------------|-----|
+| **Workspace Trust** (VS Code) | Trust the folder | Writes, edits, and terminal tools stay blocked in Restricted Mode |
+| `grokBuild.openLocation` | `editor` | Chat in the middle editor area so Explorer stays on the left (use **Open Beside** for code | chat) |
+| `grokBuild.defaultMode` | `execute` | Start ready to apply tools; toggle Plan in the UI when you only want a plan |
+| `grokBuild.autoAllowInExecuteMode` | `true` | In Execute, tool permissions are not stuck on a dialog you cannot see |
+| `grokBuild.permissionMode` | `ask` | Still prompt in Plan / when auto-allow is off |
+| `grokBuild.cliPath` | `grok` (or full path) | Points at the official CLI; fix this first if the banner says CLI missing |
+
+Open Settings (`Ctrl+,`) → search **Grok Build**, or add to `settings.json`:
+
+```json
+{
+  "grokBuild.openLocation": "editor",
+  "grokBuild.defaultMode": "execute",
+  "grokBuild.autoAllowInExecuteMode": true
+}
+```
+
+Full reference: [USER_GUIDE.md §6](./USER_GUIDE.md#6-all-settings-grokbuild).
+
+---
+
 ## Next
 
 - [User guide](./USER_GUIDE.md)  

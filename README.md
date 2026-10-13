@@ -106,14 +106,16 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 | Setting | Default | Role |
 |---------|---------|------|
 | `grokBuild.cliPath` | `grok` | CLI executable |
-| `grokBuild.openLocation` | `editor` | Chat in middle (`editor`) or sidebar |
+| `grokBuild.openLocation` | `editor` | Chat in middle (`editor`, recommended) or sidebar — keeps Explorer left |
 | `grokBuild.defaultMode` | `execute` | `plan` \| `execute` |
 | `grokBuild.defaultModel` | `""` | CLI `-m` (empty = CLI default) |
 | `grokBuild.permissionMode` | `ask` | UI permission prompts |
-| `grokBuild.autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute |
+| `grokBuild.autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (avoids hidden permission stalls) |
 | `grokBuild.alwaysApprove` | `false` | CLI `--always-approve` |
 | `grokBuild.updateRepo` | `bhuertgen/grok-build-vscode` | Extension update checks |
 | `grokBuild.logLevel` | `info` | Output channel **Grok Build** |
+
+**Trust the workspace** for writes/tools. First-run recommendations: [INSTALL_VSIX §7](docs/en/INSTALL_VSIX.md#7-recommended-settings-after-install) · [DE](docs/de/INSTALL_VSIX.md#7-empfohlene-settings-nach-der-installation).
 
 **Complete parameter reference** (CLI flags, UI permissions, context, updates):  
 → [docs/en/USER_GUIDE.md §6](docs/en/USER_GUIDE.md#6-all-settings-grokbuild) · [DE overview](docs/de/USER_GUIDE.md#6-settings-grokbuild)
