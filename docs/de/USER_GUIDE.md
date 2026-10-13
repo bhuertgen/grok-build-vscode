@@ -159,15 +159,6 @@ Bietet der Agent `configOptions` (select/boolean), erscheint im Chat-Header nebe
 
 ## 5. Befehle & Tastatur
 
-| Shortcut | Command |
-|----------|---------|
-| `Ctrl+Shift+G C` | Open Chat |
-| `Ctrl+Shift+G N` | New Session |
-| `Ctrl+Shift+G P` | Toggle Plan Mode |
-| `Ctrl+Shift+G I` | Focus Input |
-| `Ctrl+Shift+G Escape` | Cancel (busy) |
-| `Escape` | Cancel bei Busy (Chat fokussiert; schließt zuerst Menüs) |
-| `Alt+G` | Add Context |
 Alle Einträge aus `contributes.keybindings`. Akkord: zuerst `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), loslassen, dann Buchstabe oder Escape. `Ctrl+Esc` / `Cmd+Esc` und `Ctrl+Shift+G I` führen beide **Focus Chat Input** aus: Grok-UI öffnen (falls nötig) und den Composer fokussieren. Der Fokus geht dabei nicht zurück in den Editor. `Alt+G` ist nicht gebunden (unter Windows/Linux öffnet es das Menü Go).
 
 | Aktion | Windows / Linux | Mac | Wann |
@@ -178,6 +169,7 @@ Alle Einträge aus `contributes.keybindings`. Akkord: zuerst `Ctrl+Shift+G` (Mac
 | Toggle Plan Mode | `Ctrl+Shift+G` dann `P` | `Cmd+Shift+G` dann `P` | Immer (kein `when`) |
 | Open Chat | `Ctrl+Shift+G` dann `C` | `Cmd+Shift+G` dann `C` | Immer (kein `when`) |
 | Laufenden Turn abbrechen | `Ctrl+Shift+G` dann `Escape` | `Cmd+Shift+G` dann `Escape` | Ein Turn läuft (`grokBuild.isBusy`) |
+| Laufenden Turn abbrechen (Webview) | `Escape` | `Escape` | Chat fokussiert und Turn läuft (schließt zuerst Menüs) |
 | Chat-Eingabe fokussieren | `Ctrl+Shift+G` dann `I` | `Cmd+Shift+G` dann `I` | Immer (kein `when`) |
 | Chat-Eingabe fokussieren | `Ctrl+Esc` | `Cmd+Esc` | Immer (kein `when`) |
 

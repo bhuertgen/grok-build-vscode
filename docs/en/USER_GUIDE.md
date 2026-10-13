@@ -228,15 +228,6 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 
 ### Keybindings
 
-| Shortcut | Command |
-|----------|---------|
-| `Ctrl+Shift+G C` (`Cmd+Shift+G C`) | Open Chat |
-| `Ctrl+Shift+G N` | New Session |
-| `Ctrl+Shift+G P` | Toggle Plan Mode |
-| `Ctrl+Shift+G I` | Focus Input |
-| `Ctrl+Shift+G Escape` | Cancel (when busy) |
-| `Escape` | Cancel current turn when busy (chat focused; closes menus first) |
-| `Alt+G` | Add Context |
 Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Esc` / `Cmd+Esc` and `Ctrl+Shift+G I` both run **Focus Chat Input**: they open the Grok UI if needed and focus the composer. They do not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu).
 
 | Action | Windows / Linux | Mac | When |
@@ -247,6 +238,7 @@ Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shif
 | Toggle Plan Mode | `Ctrl+Shift+G` then `P` | `Cmd+Shift+G` then `P` | Always (no `when`) |
 | Open Chat | `Ctrl+Shift+G` then `C` | `Cmd+Shift+G` then `C` | Always (no `when`) |
 | Cancel current turn | `Ctrl+Shift+G` then `Escape` | `Cmd+Shift+G` then `Escape` | A turn is running (`grokBuild.isBusy`) |
+| Cancel current turn (webview) | `Escape` | `Escape` | Chat focused and a turn is running (closes menus first) |
 | Focus chat input | `Ctrl+Shift+G` then `I` | `Cmd+Shift+G` then `I` | Always (no `when`) |
 | Focus chat input | `Ctrl+Esc` | `Cmd+Esc` | Always (no `when`) |
 
