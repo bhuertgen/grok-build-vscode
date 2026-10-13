@@ -1716,3 +1716,6 @@ body.vscode-light .empty-state .empty-logo {
 .elicit-close {
   flex-shrink: 0;
 }
+
+.elicit-multi { display: flex; flex-direction: column; gap: 2px; }
+.elicit-multi-option { display: flex; align-items: center; gap: 4px; font-weight: normal; }
