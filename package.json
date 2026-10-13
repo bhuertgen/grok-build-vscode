@@ -300,11 +300,6 @@
         "command": "grokBuild.focusInput",
         "key": "ctrl+shift+g i",
         "mac": "cmd+shift+g i"
-      },
-      {
-        "command": "grokBuild.focusInput",
-        "key": "ctrl+esc",
-        "mac": "cmd+esc"
       }
     ],
     "configuration": {

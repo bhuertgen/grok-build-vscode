@@ -65,6 +65,18 @@ describe('uiConfigControls', () => {
 });
 
 describe('labels', () => {
+  it('detects effort by category thought_level even with a non-matching id/name', () => {
+    const opt = { id: 'depth_knob', name: 'Thinking depth', category: 'thought_level' };
+    assert.equal(isEffortConfigOption(opt), true);
+    assert.equal(configOptionChipLabel(opt), 'Effort');
+    const legacy = { id: 'x', name: 'Y', category: 'thought' };
+    assert.equal(isEffortConfigOption(legacy), true);
+    // fallback: no category, name matches
+    assert.equal(isEffortConfigOption({ id: 'reasoning_effort', name: 'Reasoning' }), true);
+    // neither category nor name/id
+    assert.equal(isEffortConfigOption({ id: 'depth_knob', name: 'Thinking depth', category: 'other' }), false);
+  });
+
   it('flags effort and model', () => {
     const effort = { id: 'effort', name: 'Effort', category: 'thought' };
     assert.equal(isEffortConfigOption(effort), true);
