@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { AgentMode } from '../acp/types';
+import { resolveMemoryMode, type MemoryMode } from './memory';
 
 export type CliPermissionMode =
   | 'default'
@@ -29,10 +30,8 @@ export interface GrokBuildConfig {
   noSubagents: boolean;
   /** CLI --no-plan */
   noPlan: boolean;
-  /** CLI --no-memory */
-  noMemory: boolean;
-  /** CLI --experimental-memory */
-  experimentalMemory: boolean;
+  /** Effective memory mode → env GROK_MEMORY (CLI >=1.0.51: on/off only) */
+  memory: MemoryMode;
   /** CLI --disable-web-search */
   disableWebSearch: boolean;
   /** CLI --sandbox */
@@ -75,8 +74,11 @@ export function getConfig(): GrokBuildConfig {
     maxTurns: maxTurns != null && maxTurns > 0 ? maxTurns : null,
     noSubagents: c.get<boolean>('noSubagents', false),
     noPlan: c.get<boolean>('noPlan', false),
-    noMemory: c.get<boolean>('noMemory', false),
-    experimentalMemory: c.get<boolean>('experimentalMemory', false),
+    memory: resolveMemoryMode({
+      memory: c.get<string>('memory', 'default'),
+      noMemory: c.get<boolean>('noMemory', false),
+      experimentalMemory: c.get<boolean>('experimentalMemory', false),
+    }),
     disableWebSearch: c.get<boolean>('disableWebSearch', false),
     sandbox: c.get<string>('sandbox', ''),
     tools: c.get<string>('tools', ''),
