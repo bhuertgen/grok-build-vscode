@@ -178,6 +178,29 @@
   }
 
   /**
+   * Explicit user scroll intent (wheel/keys/touch/scrollbar drag).
+   * Streaming renders keep a double-rAF (scrollRaf) pending nearly all the
+   * time, so the scroll listener used to drop every user scroll event while
+   * streaming and the next render re-pinned (Issue #3 yank). Intent events are
+   * never programmatic, so they can unpin immediately.
+   */
+  let userScrollIntentUntil = 0;
+  const USER_INTENT_MS = 400;
+  function noteUserScrollIntent() {
+    userScrollIntentUntil = Date.now() + USER_INTENT_MS;
+  }
+  function userScrollIntentActive() {
+    return Date.now() < userScrollIntentUntil;
+  }
+  function unpinFromUser() {
+    stickToBottom = false;
+    if (scrollRaf) {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+    }
+  }
+
+  /**
    * Apply scroll after layout. Double rAF waits for browser reflow after
    * DOM updates so we don't set scrollTop against stale heights.
    */
@@ -193,7 +216,8 @@
       }
       // Honor only the pre-wipe snapshot (ctx.forcePin). Do not re-read
       // stickToBottom here — wipe scroll events can falsely re-pin.
-      if (ctx.forcePin) {
+      // User may have scrolled up between render and this frame.
+      if (ctx.forcePin && stickToBottom) {
         el.scrollTop = el.scrollHeight;
         stickToBottom = true;
         return;
@@ -2420,14 +2444,52 @@
     els.messages.addEventListener(
       'scroll',
       () => {
-        // Ignore wipe rebuild + programmatic pin this frame
-        if (scrollRaf || rebuildGuard) {
+        if (rebuildGuard) {
+          return;
+        }
+        if (userScrollIntentActive()) {
+          // Real user scroll: no hysteresis for leaving the bottom.
+          if (distanceFromBottom() > STICK_PIN_PX) {
+            unpinFromUser();
+          } else {
+            stickToBottom = true;
+          }
+          return;
+        }
+        // Ignore programmatic pin scroll events while a scroll apply is pending
+        if (scrollRaf) {
           return;
         }
         updateStickFromUserScroll();
       },
       { passive: true }
     );
+    els.messages.addEventListener(
+      'wheel',
+      (e) => {
+        noteUserScrollIntent();
+        if (e.deltaY < 0) {
+          unpinFromUser();
+        }
+      },
+      { passive: true }
+    );
+    els.messages.addEventListener(
+      'touchmove',
+      () => noteUserScrollIntent(),
+      { passive: true }
+    );
+    els.messages.addEventListener('pointerdown', () => noteUserScrollIntent(), {
+      passive: true,
+    });
+    els.messages.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) {
+        noteUserScrollIntent();
+        unpinFromUser();
+      } else if (['ArrowDown', 'PageDown', 'End', ' '].includes(e.key)) {
+        noteUserScrollIntent();
+      }
+    });
   }
 
   els.btnSend.addEventListener('click', send);
