@@ -71,14 +71,15 @@ export class ContextCollector {
     };
   }
 
-  fromSelection(editor: vscode.TextEditor): ContextItem {
-    const text = editor.document.getText(editor.selection);
+  fromSelection(editor: vscode.TextEditor, range?: vscode.Range): ContextItem {
+    const r = range ?? editor.selection;
+    const text = editor.document.getText(r);
     return {
       id: `sel_${Date.now()}`,
       kind: 'selection',
       label: `${path.basename(editor.document.fileName)}:selection`,
       path: editor.document.uri.fsPath,
-      detail: `L${editor.selection.start.line + 1}-L${editor.selection.end.line + 1}`,
+      detail: `L${r.start.line + 1}-L${r.end.line + 1}`,
       text,
       mimeType: mimeFromPath(editor.document.fileName),
     };

@@ -179,3 +179,52 @@ export function rangeContextBlock(
   const note = truncated ? '\n/* …truncated… */' : '';
   return `${mention}\n\`\`\`\n${body}${note}\n\`\`\``;
 }
+
+export type PickedSelection =
+  | { kind: 'ok'; index: number; startLine: number; endLine: number }
+  | { kind: 'empty' }
+  | { kind: 'multi'; count: number };
+
+/**
+ * Choose the range for `@file#range` from all editor selections.
+ * Empty cursors are ignored (a stray second caret made the primary
+ * selection empty → "No selection" although text was selected).
+ * Exactly one non-empty selection → use it. Several non-empty selections
+ * that touch/overlap on lines → merged span. Otherwise → multi.
+ */
+export function pickSelectionRange(
+  selections: readonly EditorSelectionLike[]
+): PickedSelection {
+  const ranges: { index: number; startLine: number; endLine: number }[] = [];
+  selections.forEach((s, index) => {
+    const lines = linesFromEditorSelection(normalizeSelection(s));
+    if (lines) {
+      ranges.push({ index, ...lines });
+    }
+  });
+  if (ranges.length === 0) {
+    return { kind: 'empty' };
+  }
+  if (ranges.length === 1) {
+    return { kind: 'ok', ...ranges[0] };
+  }
+  const sorted = [...ranges].sort((a, b) => a.startLine - b.startLine);
+  let lo = sorted[0].startLine;
+  let hi = sorted[0].endLine;
+  for (const r of sorted.slice(1)) {
+    if (r.startLine > hi + 1) {
+      return { kind: 'multi', count: ranges.length };
+    }
+    hi = Math.max(hi, r.endLine);
+  }
+  lo = Math.min(lo, sorted[0].startLine);
+  return { kind: 'ok', index: sorted[0].index, startLine: lo, endLine: hi };
+}
+
+/** Ensure start <= end (anchor/active may be reversed in plain objects). */
+function normalizeSelection(s: EditorSelectionLike): EditorSelectionLike {
+  const before =
+    s.start.line < s.end.line ||
+    (s.start.line === s.end.line && s.start.character <= s.end.character);
+  return before ? s : { start: s.end, end: s.start };
+}

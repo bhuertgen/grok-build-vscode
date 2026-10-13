@@ -112,3 +112,37 @@ describe('linesFromEditorSelection', () => {
     );
   });
 });
+
+describe('pickSelectionRange (QA-INT-08)', () => {
+  const { pickSelectionRange } = require('../dist-test/fileRangeMention.js');
+  const S = (sl, sc, el, ec) => ({ start: { line: sl, character: sc }, end: { line: el, character: ec } });
+  it('single non-empty selection (README lines 1-3, 213 chars)', () => {
+    assert.deepEqual(pickSelectionRange([S(0, 0, 2, 187)]), { kind: 'ok', index: 0, startLine: 1, endLine: 3 });
+  });
+  it('ignores a stray empty cursor (primary empty, "2 selections")', () => {
+    const r = pickSelectionRange([S(5, 3, 5, 3), S(0, 0, 2, 187)]);
+    assert.equal(r.kind, 'ok');
+    assert.equal(r.index, 1);
+    assert.equal(r.startLine, 1);
+    assert.equal(r.endLine, 3);
+  });
+  it('only empty cursors → empty', () => {
+    assert.deepEqual(pickSelectionRange([S(1, 0, 1, 0), S(4, 2, 4, 2)]), { kind: 'empty' });
+    assert.deepEqual(pickSelectionRange([]), { kind: 'empty' });
+  });
+  it('reversed anchor/active is normalized', () => {
+    assert.deepEqual(pickSelectionRange([S(2, 187, 0, 0)]), { kind: 'ok', index: 0, startLine: 1, endLine: 3 });
+  });
+  it('adjacent / overlapping non-empty selections merge', () => {
+    const r = pickSelectionRange([S(0, 0, 0, 5), S(1, 0, 3, 2)]);
+    assert.equal(r.kind, 'ok');
+    assert.equal(r.startLine, 1);
+    assert.equal(r.endLine, 4);
+  });
+  it('disjoint non-empty selections → multi', () => {
+    assert.deepEqual(pickSelectionRange([S(0, 0, 0, 5), S(10, 0, 12, 1)]), { kind: 'multi', count: 2 });
+  });
+  it('line selection ending at col 0 of next line excludes that line', () => {
+    assert.deepEqual(pickSelectionRange([S(0, 0, 3, 0)]), { kind: 'ok', index: 0, startLine: 1, endLine: 3 });
+  });
+});
