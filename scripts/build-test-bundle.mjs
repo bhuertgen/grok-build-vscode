@@ -16,6 +16,7 @@ await esbuild.build({
     modelCatalog: 'src/util/modelCatalog.ts',
     compat: 'src/cli/compat.ts',
     semver: 'src/cli/semver.ts',
+    memory: 'src/util/memory.ts',
   },
   outdir: outDir,
   bundle: true,

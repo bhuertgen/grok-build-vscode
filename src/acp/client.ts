@@ -25,6 +25,7 @@ import {
 } from './types';
 import { buildAgentArgv } from '../util/agentArgs';
 import { getConfig, getWorkspaceCwd } from '../util/config';
+import { applyMemoryEnv } from '../util/memory';
 import { getLogger } from '../util/logger';
 import type { EditController } from '../edits/editController';
 
@@ -98,6 +99,7 @@ export class AcpClient extends EventEmitter {
       // Some builds also honor env (belt-and-suspenders with -m)
       env.GROK_MODEL = model;
     }
+    applyMemoryEnv(env, cfg.memory);
     try {
       this.proc = spawn(cfg.cliPath, args, {
         cwd,
@@ -375,12 +377,7 @@ export function buildAgentArgs(cliArgs: string[], model?: string): string[] {
   if (cfg.noPlan) {
     push('--no-plan');
   }
-  if (cfg.noMemory) {
-    push('--no-memory');
-  }
-  if (cfg.experimentalMemory) {
-    push('--experimental-memory');
-  }
+  // Memory: no CLI flag (removed in CLI 1.0.51); mapped to GROK_MEMORY env in connect().
   if (cfg.disableWebSearch) {
     push('--disable-web-search');
   }
