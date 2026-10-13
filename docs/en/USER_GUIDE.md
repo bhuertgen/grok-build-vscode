@@ -244,8 +244,9 @@ Open Settings (`Ctrl+,`) and search **Grok Build**.
 | `maxTurns` | `null` | `--max-turns` |
 | `noSubagents` | `false` | `--no-subagents` |
 | `noPlan` | `false` | `--no-plan` |
-| `noMemory` | `false` | `--no-memory` |
-| `experimentalMemory` | `false` | `--experimental-memory` |
+| `memory` | `"default"` | Env `GROK_MEMORY`: `on` → `1`, `off` → `0`, `default` → CLI config (`[memory] enabled`). CLI ≥1.0.51 has memory on/off only; no CLI flag is passed. |
+| `noMemory` | `false` | **Deprecated** → use `memory: "off"`. Still mapped to `GROK_MEMORY=0` when `memory` is `default`. |
+| `experimentalMemory` | `false` | **Deprecated** → use `memory: "on"`. Still mapped to `GROK_MEMORY=1` when `memory` is `default` (`noMemory` wins). |
 | `disableWebSearch` | `false` | `--disable-web-search` |
 | `sandbox` | `""` | `--sandbox <PROFILE>` |
 | `tools` | `""` | `--tools` allow-list (comma-separated) |

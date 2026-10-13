@@ -14,6 +14,7 @@ await esbuild.build({
     cwd: 'src/util/cwd.ts',
     agentArgs: 'src/util/agentArgs.ts',
     modelCatalog: 'src/util/modelCatalog.ts',
+    memory: 'src/util/memory.ts',
   },
   outdir: outDir,
   bundle: true,

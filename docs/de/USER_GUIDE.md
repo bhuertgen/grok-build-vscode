@@ -174,6 +174,14 @@ Kurzüberblick:
 
 CLI-Flags (`reasoningEffort`, `noSubagents`, `sandbox`, `tools`, …) siehe EN-Guide §6.2.
 
+**Memory (CLI ≥1.0.51: nur an/aus)**
+
+| Setting | Default | Wirkung |
+|---------|---------|---------|
+| `memory` | `"default"` | Env `GROK_MEMORY`: `on` → `1`, `off` → `0`, `default` → CLI-Config (`[memory] enabled`). Es wird kein CLI-Flag übergeben. |
+| `noMemory` | `false` | **Veraltet** → `memory: "off"`. Wird weiter als `GROK_MEMORY=0` gemappt, wenn `memory` = `default`. |
+| `experimentalMemory` | `false` | **Veraltet** → `memory: "on"`. Wird weiter als `GROK_MEMORY=1` gemappt, wenn `memory` = `default` (`noMemory` hat Vorrang). |
+
 Effektives Spawn:
 
 ```text

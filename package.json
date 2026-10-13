@@ -374,15 +374,28 @@
           "default": false,
           "description": "CLI --no-plan: disable plan mode in the agent."
         },
+        "grokBuild.memory": {
+          "type": "string",
+          "enum": ["default", "on", "off"],
+          "enumDescriptions": [
+            "Follow Grok CLI config (`[memory] enabled` in ~/.grok/config.toml). No override.",
+            "Enable cross-session memory (env GROK_MEMORY=1).",
+            "Disable cross-session memory (env GROK_MEMORY=0)."
+          ],
+          "default": "default",
+          "markdownDescription": "Cross-session memory (Grok CLI ≥1.0.51: on/off only). Passed to the agent as env `GROK_MEMORY`; `default` keeps the CLI config. Pinned/managed CLI settings may override this."
+        },
         "grokBuild.noMemory": {
           "type": "boolean",
           "default": false,
-          "description": "CLI --no-memory: disable cross-session memory."
+          "description": "Deprecated: use grokBuild.memory = off.",
+          "markdownDeprecationMessage": "Deprecated: CLI 1.0.51 removed `--no-memory`. Use `#grokBuild.memory#` = `off`. Still honored (mapped to `GROK_MEMORY=0`) when `grokBuild.memory` is `default`."
         },
         "grokBuild.experimentalMemory": {
           "type": "boolean",
           "default": false,
-          "description": "CLI --experimental-memory: enable cross-session memory."
+          "description": "Deprecated: use grokBuild.memory = on.",
+          "markdownDeprecationMessage": "Deprecated: CLI 1.0.51 removed `--experimental-memory`. Use `#grokBuild.memory#` = `on`. Still honored (mapped to `GROK_MEMORY=1`) when `grokBuild.memory` is `default` and `noMemory` is off."
         },
         "grokBuild.disableWebSearch": {
           "type": "boolean",
@@ -525,7 +538,7 @@
     "package": "vsce package --no-dependencies",
     "lint": "tsc -p ./ --noEmit",
     "test:bundle": "node scripts/build-test-bundle.mjs",
-    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/memory.test.mjs",
     "test:integration:bundle": "node scripts/build-integration-tests.mjs",
     "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
     "test": "npm run test:unit",
