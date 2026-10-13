@@ -71,11 +71,20 @@ html, body {
 
 .topbar {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px 6px;
+  flex-shrink: 0;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-main {
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px 8px;
-  flex-shrink: 0;
-  min-height: 44px;
+  min-width: 0;
+  width: 100%;
 }
 
 .brand {
@@ -108,30 +117,47 @@ body.vscode-light .brand-logo {
 .session-tabs {
   display: flex;
   gap: 4px;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
+  width: 100%;
   min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding: 2px 0 4px;
+  /* Keep tabs on their own row so Model/Ask/EXECUTE never collide */
 }
 
 .session-tabs::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.session-tabs::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
-  max-width: 140px;
+  max-width: 132px;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
   font-size: 12px;
   font-family: inherit;
+}
+
+.tab .tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .tab:hover {
@@ -167,6 +193,16 @@ body.vscode-light .brand-logo {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto;
+  /* Solid strip so chips stay readable when the panel is narrow */
+  background: var(--bg);
+  z-index: 1;
+}
+
+@media (max-width: 420px) {
+  .brand-name {
+    display: none;
+  }
 }
 
 .icon-btn {

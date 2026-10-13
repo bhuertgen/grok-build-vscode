@@ -252,6 +252,33 @@ Das genügt in fast allen Fällen — auch wenn die drei Punkte unsichtbar sind.
 
 ---
 
+## 7. Empfohlene Settings nach der Installation
+
+Settings, die wir für den Erststart empfehlen (Chat neben Dateien, Tools laufen, Execute-UX). Je Zeile **warum**:
+
+| Setting | Empfohlen | Warum |
+|---------|-----------|-------|
+| **Workspace Trust** (VS Code) | Ordner vertrauen | Writes, Edits und Terminal-Tools sind im Restricted Mode blockiert |
+| `grokBuild.openLocation` | `editor` | Chat in der mittleren Editor-Fläche; Explorer bleibt links (**Open Beside** = Code | Chat) |
+| `grokBuild.defaultMode` | `execute` | Sofort tool-fähig; Plan nur bei Bedarf im UI umschalten |
+| `grokBuild.autoAllowInExecuteMode` | `true` | In Execute hängen Tool-Permissions nicht an einem unsichtbaren Dialog |
+| `grokBuild.permissionMode` | `ask` | In Plan / ohne Auto-Allow weiter nachfragen |
+| `grokBuild.cliPath` | `grok` (oder Vollpfad) | Offizielles CLI; zuerst prüfen, wenn das Banner „CLI missing“ zeigt |
+
+Settings (`Strg+,`) → **Grok Build**, oder in `settings.json`:
+
+```json
+{
+  "grokBuild.openLocation": "editor",
+  "grokBuild.defaultMode": "execute",
+  "grokBuild.autoAllowInExecuteMode": true
+}
+```
+
+Vollständige Referenz: [USER_GUIDE.md §6](./USER_GUIDE.md#6-settings-grokbuild) (Detail: [EN §6](../en/USER_GUIDE.md#6-all-settings-grokbuild)).
+
+---
+
 ## Weiter
 
 - [Benutzerhandbuch](./USER_GUIDE.md)  
