@@ -26,6 +26,8 @@
     usageText: document.getElementById('usageText'),
     chipModel: document.getElementById('chipModel'),
     chipPerm: document.getElementById('chipPerm'),
+    configChips: document.getElementById('configChips'),
+    btnSelectionRange: document.getElementById('btnSelectionRange'),
     contextChips: document.getElementById('contextChips'),
     planPanel: document.getElementById('planPanel'),
     planList: document.getElementById('planList'),
@@ -124,7 +126,9 @@
 
   /** Bottom picker (model / permission / context) — same position as slash menu */
   let bottomPickerOpen = false;
-  let bottomPickerKind = /** @type {null | 'model' | 'permission' | 'context'} */ (null);
+  let bottomPickerKind = /** @type {null | 'model' | 'permission' | 'context' | 'config'} */ (null);
+  /** config option id while the config picker is open */
+  let configPickerId = '';
   let bottomPickerIndex = 0;
   /** @type {Array<{ value: string, label: string, description?: string, selected?: boolean }>} */
   let bottomPickerItems = [];
@@ -174,6 +178,29 @@
   }
 
   /**
+   * Explicit user scroll intent (wheel/keys/touch/scrollbar drag).
+   * Streaming renders keep a double-rAF (scrollRaf) pending nearly all the
+   * time, so the scroll listener used to drop every user scroll event while
+   * streaming and the next render re-pinned (Issue #3 yank). Intent events are
+   * never programmatic, so they can unpin immediately.
+   */
+  let userScrollIntentUntil = 0;
+  const USER_INTENT_MS = 400;
+  function noteUserScrollIntent() {
+    userScrollIntentUntil = Date.now() + USER_INTENT_MS;
+  }
+  function userScrollIntentActive() {
+    return Date.now() < userScrollIntentUntil;
+  }
+  function unpinFromUser() {
+    stickToBottom = false;
+    if (scrollRaf) {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+    }
+  }
+
+  /**
    * Apply scroll after layout. Double rAF waits for browser reflow after
    * DOM updates so we don't set scrollTop against stale heights.
    */
@@ -189,7 +216,8 @@
       }
       // Honor only the pre-wipe snapshot (ctx.forcePin). Do not re-read
       // stickToBottom here — wipe scroll events can falsely re-pin.
-      if (ctx.forcePin) {
+      // User may have scrolled up between render and this frame.
+      if (ctx.forcePin && stickToBottom) {
         el.scrollTop = el.scrollHeight;
         stickToBottom = true;
         return;
@@ -785,6 +813,8 @@
       els.chipModel.textContent = truncate(short, 22);
       els.chipModel.title = `Model: ${modelId}\nClick to change`;
     }
+    renderConfigChips(s);
+
     if (els.chipPerm) {
       const pl = state.settings?.permissionLabel || 'Ask';
       els.chipPerm.textContent = pl;
@@ -1462,6 +1492,16 @@
               : a.label || pathLabel;
           chip.title = pathLabel;
           chip.textContent = '@' + (short || a.label || 'file');
+          if (a.path && a.startLine != null) {
+            chip.classList.add('chip-link');
+            chip.addEventListener('click', () => {
+              post('openContextRange', {
+                path: a.path,
+                startLine: a.startLine,
+                endLine: a.endLine || a.startLine,
+              });
+            });
+          }
           att.appendChild(chip);
         }
         div.appendChild(att);
@@ -1498,6 +1538,74 @@
   }
 
 
+  function renderConfigChips(session) {
+    const host = els.configChips;
+    if (!host) {
+      return;
+    }
+    host.innerHTML = '';
+    const controls = session?.configControls || [];
+    for (const opt of controls) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const current =
+        opt.kind === 'boolean'
+          ? opt.currentValue
+            ? 'on'
+            : 'off'
+          : opt.currentValue || '—';
+      const shortName = effortName(opt);
+      btn.className =
+        'chip-btn' +
+        (opt.kind === 'boolean' && opt.currentValue ? ' config-on' : '');
+      btn.textContent = shortName + ': ' + truncate(String(current), 12);
+      btn.title =
+        (opt.description || opt.name || opt.id) +
+        '\n' +
+        (opt.kind === 'boolean'
+          ? 'Click to toggle (this session)'
+          : 'Click to change (this session)') +
+        '\nSetting grokBuild.reasoningEffort still seeds new sessions.';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openConfigControl(opt);
+      });
+      host.appendChild(btn);
+    }
+  }
+
+  function effortName(opt) {
+    const id = String(opt.id || '');
+    const name = String(opt.name || '');
+    // category first (CLI 1.0.52: thought_level), id/name fallback
+    if (
+      opt.category === 'thought_level' ||
+      opt.category === 'thought' ||
+      /effort|reasoning/i.test(id) ||
+      /effort|reasoning/i.test(name)
+    ) {
+      return 'Effort';
+    }
+    return truncate(name || id, 14);
+  }
+
+  function openConfigControl(opt) {
+    const s = activeSession();
+    if (!s) {
+      return;
+    }
+    if (opt.kind === 'boolean') {
+      post('setConfigOption', {
+        localId: s.localId,
+        configId: opt.id,
+        value: !opt.currentValue,
+      });
+      return;
+    }
+    configPickerId = opt.id;
+    openBottomPicker('config');
+  }
+
   function renderChips() {
     const s = activeSession();
     els.contextChips.innerHTML = '';
@@ -1506,8 +1614,21 @@
     }
     for (const c of s?.contextItems || []) {
       const chip = document.createElement('div');
-      chip.className = 'chip';
-      chip.innerHTML = `<span title="${escapeHtml(c.detail || c.path || '')}">${escapeHtml(c.label)}</span>`;
+      const ranged = c.startLine != null && c.endLine != null && c.path;
+      chip.className = 'chip' + (ranged ? ' chip-link' : '');
+      const label = document.createElement('span');
+      label.title = c.detail || c.path || '';
+      label.textContent = c.label;
+      if (ranged) {
+        label.addEventListener('click', () => {
+          post('openContextRange', {
+            path: c.path,
+            startLine: c.startLine,
+            endLine: c.endLine,
+          });
+        });
+      }
+      chip.appendChild(label);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = '×';
@@ -2136,6 +2257,19 @@
           },
         ];
       }
+    } else if (kind === 'config') {
+      const s = activeSession();
+      const opt = (s?.configControls || []).find((c) => c.id === configPickerId);
+      if (!opt || opt.kind !== 'select') {
+        hideBottomPicker();
+        return;
+      }
+      bottomPickerItems = (opt.options || []).map((c) => ({
+        value: c.value,
+        label: c.name || c.value,
+        description: c.description || '',
+        selected: c.value === opt.currentValue,
+      }));
     } else if (kind === 'context') {
       bottomPickerItems = [
         {
@@ -2192,7 +2326,9 @@
         ? 'Model'
         : bottomPickerKind === 'permission'
           ? 'Permission'
-          : 'Context';
+          : bottomPickerKind === 'config'
+            ? 'Session option'
+            : 'Context';
     els.bottomPicker.appendChild(title);
 
     if (bottomPickerItems.length === 0) {
@@ -2261,6 +2397,12 @@
           localId: s?.localId,
           mode: item.value,
         });
+      } else if (kind === 'config') {
+        post('setConfigOption', {
+          localId: s?.localId,
+          configId: configPickerId,
+          value: item.value,
+        });
       } else if (kind === 'context') {
         post('openContextKind', { kind: item.value });
       }
@@ -2302,14 +2444,52 @@
     els.messages.addEventListener(
       'scroll',
       () => {
-        // Ignore wipe rebuild + programmatic pin this frame
-        if (scrollRaf || rebuildGuard) {
+        if (rebuildGuard) {
+          return;
+        }
+        if (userScrollIntentActive()) {
+          // Real user scroll: no hysteresis for leaving the bottom.
+          if (distanceFromBottom() > STICK_PIN_PX) {
+            unpinFromUser();
+          } else {
+            stickToBottom = true;
+          }
+          return;
+        }
+        // Ignore programmatic pin scroll events while a scroll apply is pending
+        if (scrollRaf) {
           return;
         }
         updateStickFromUserScroll();
       },
       { passive: true }
     );
+    els.messages.addEventListener(
+      'wheel',
+      (e) => {
+        noteUserScrollIntent();
+        if (e.deltaY < 0) {
+          unpinFromUser();
+        }
+      },
+      { passive: true }
+    );
+    els.messages.addEventListener(
+      'touchmove',
+      () => noteUserScrollIntent(),
+      { passive: true }
+    );
+    els.messages.addEventListener('pointerdown', () => noteUserScrollIntent(), {
+      passive: true,
+    });
+    els.messages.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) {
+        noteUserScrollIntent();
+        unpinFromUser();
+      } else if (['ArrowDown', 'PageDown', 'End', ' '].includes(e.key)) {
+        noteUserScrollIntent();
+      }
+    });
   }
 
   els.btnSend.addEventListener('click', send);
@@ -2628,6 +2808,10 @@
     closeAttachMenu();
     post('openContextKind', { kind: 'active' });
   });
+  els.btnSelectionRange?.addEventListener('click', () => {
+    closeAttachMenu();
+    post('insertSelectionRange', {});
+  });
   els.chipModel?.addEventListener('click', () => openBottomPicker('model'));
   els.chipPerm?.addEventListener('click', () => openBottomPicker('permission'));
   els.btnImage?.addEventListener('click', () => {
@@ -2751,6 +2935,7 @@
       !els.bottomPicker.contains(e.target) &&
       e.target !== els.chipModel &&
       e.target !== els.chipPerm &&
+      !(els.configChips && els.configChips.contains(e.target)) &&
       e.target !== els.btnModel &&
       e.target !== els.btnPerm &&
       e.target !== els.btnContext

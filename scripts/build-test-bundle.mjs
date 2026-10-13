@@ -18,6 +18,8 @@ await esbuild.build({
     semver: 'src/cli/semver.ts',
     memory: 'src/util/memory.ts',
     elicitation: 'src/acp/elicitation.ts',
+    configOptionsUi: 'src/util/configOptionsUi.ts',
+    fileRangeMention: 'src/util/fileRangeMention.ts',
   },
   outdir: outDir,
   bundle: true,

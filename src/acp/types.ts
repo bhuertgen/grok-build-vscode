@@ -530,6 +530,9 @@ export interface ChatMessage {
     kind: string;
     label: string;
     path?: string;
+    relativePath?: string;
+    startLine?: number;
+    endLine?: number;
   }>;
 }
 

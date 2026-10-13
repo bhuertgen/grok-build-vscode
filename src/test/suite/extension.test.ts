@@ -15,6 +15,7 @@ const REQUIRED_COMMANDS = [
   'grokBuild.selectModel',
   'grokBuild.selectPermissionMode',
   'grokBuild.addContext',
+  'grokBuild.insertSelectionRange',
   'grokBuild.cancel',
 ];
 
