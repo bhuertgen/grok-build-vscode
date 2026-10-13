@@ -2,7 +2,7 @@
   "name": "grok-build-vscode",
   "displayName": "Grok Build for VS Code",
   "description": "Unofficial community extension (not affiliated with xAI). Hybrid ACP client: native VS Code UI over the official Grok Build CLI (grok agent stdio). Multi-session, plan/execute, diffs, context.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "publisher": "bhuertgen",
   "license": "MIT",
   "engines": {
@@ -397,7 +397,11 @@
         },
         "grokBuild.memory": {
           "type": "string",
-          "enum": ["default", "on", "off"],
+          "enum": [
+            "default",
+            "on",
+            "off"
+          ],
           "enumDescriptions": [
             "Follow Grok CLI config (`[memory] enabled` in ~/.grok/config.toml). No override.",
             "Enable cross-session memory (env GROK_MEMORY=1).",
