@@ -228,7 +228,7 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 
 ### Keybindings
 
-Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Shift+G I` runs **Focus Chat Input**: it opens the Grok UI if needed and focus the composer. It does not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu). `Ctrl+Esc` is not bound either: Windows opens the Start menu and VS Code never receives it.
+Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Shift+G I` runs **Focus Chat Input**: it opens the Grok UI if needed and focuses the composer. It does not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu). `Ctrl+Esc` is not bound either: Windows opens the Start menu and VS Code never receives it.
 
 | Action | Windows / Linux | Mac | When |
 |--------|-----------------|-----|------|
