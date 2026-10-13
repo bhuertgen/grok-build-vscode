@@ -46,14 +46,21 @@ describe('assessCliCompat', () => {
     assert.match(a.message, /too old/i);
   });
 
-  it('1.0.0+ is ok', () => {
+  it('1.0.52+ is ok', () => {
     const a = assessCliCompat({
       detected: true,
-      rawVersion: '1.0.0',
+      rawVersion: 'grok 1.0.52',
     });
     assert.equal(a.level, 'ok');
     assert.equal(a.usable, true);
     assert.equal(shouldShowCompatBanner(a.level), false);
+  });
+
+  it('1.0.0..1.0.51 is usable with soft warning', () => {
+    const a = assessCliCompat({ detected: true, rawVersion: '1.0.51' });
+    assert.equal(a.level, 'soft_warn');
+    assert.equal(a.usable, true);
+    assert.equal(shouldShowCompatBanner(a.level), true);
   });
 
   it('unknown raw version is soft-usable with banner', () => {
@@ -68,7 +75,7 @@ describe('assessCliCompat', () => {
 
   it('floors target CLI 1.0.x era', () => {
     assert.equal(CLI_HARD_MIN, '1.0.0');
-    assert.equal(CLI_SOFT_MIN, '1.0.0');
+    assert.equal(CLI_SOFT_MIN, '1.0.52');
   });
 
   it('soft_warn when below soft but above hard', () => {

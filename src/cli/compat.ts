@@ -11,8 +11,10 @@ export const CLI_HARD_MIN = '1.0.0';
 /**
  * Below this (but ≥ hard) → soft warning banner; extension still usable.
  * Raised independently when a newer 1.x patch becomes the recommended baseline.
+ * 1.0.52: GROK_MEMORY env (old --no-memory flag rejected), multi-select
+ * elicitation (1.0.51), `cancelled` tool status (1.0.50).
  */
-export const CLI_SOFT_MIN = '1.0.0';
+export const CLI_SOFT_MIN = '1.0.52';
 
 export type CliCompatLevel =
   | 'ok'
@@ -78,8 +80,7 @@ export function assessCliCompat(input: AssessCliCompatInput): CliCompatAssessmen
       hardMin,
       softMin,
       rawVersion: raw,
-      message:
-        'Grok CLI found, but version could not be parsed. Recommend 1.0.x+ (`grok --version`).',
+      message: `Grok CLI found, but version could not be parsed. Recommend ≥ ${softMin} (\`grok --version\`).`,
       usable: true,
     };
   }
