@@ -470,8 +470,33 @@
         if (prop && prop.minimum != null) input.min = String(prop.minimum);
         if (prop && prop.maximum != null) input.max = String(prop.maximum);
         if (def != null) input.value = String(def);
+      } else if (type === 'array' && elicitArrayOptions(prop)) {
+        // CLI >= 1.0.51 multi-select questions: checkbox group
+        input = document.createElement('div');
+        input.className = 'elicit-multi';
+        input.setAttribute('role', 'group');
+        const selected = Array.isArray(def) ? def : [];
+        for (const o of elicitArrayOptions(prop)) {
+          const row = document.createElement('label');
+          row.className = 'elicit-multi-option';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = o.value;
+          cb.checked = selected.includes(o.value);
+          row.appendChild(cb);
+          row.appendChild(document.createTextNode(' ' + o.title));
+          input.appendChild(row);
+        }
+      } else if (!['string', 'boolean', 'integer', 'number', 'array'].includes(type)) {
+        // Unknown field type: show a safe note, send nothing for it
+        const note = document.createElement('div');
+        note.className = 'hint';
+        note.textContent = `Unsupported field type "${String(type)}" — skipped.`;
+        field.appendChild(note);
+        container.appendChild(field);
+        continue;
       } else if (type === 'array') {
-        // multi-select as comma-separated for simplicity + a11y
+        // free-form array as comma-separated for simplicity + a11y
         input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'comma-separated values';
@@ -510,6 +535,24 @@
     }
   }
 
+  function elicitArrayOptions(prop) {
+    const items = prop && prop.items;
+    if (!items || typeof items !== 'object') return null;
+    if (Array.isArray(items.enum)) {
+      const names = Array.isArray(items.enumNames) ? items.enumNames : [];
+      return items.enum
+        .filter((v) => typeof v === 'string')
+        .map((v, i) => ({ value: v, title: typeof names[i] === 'string' ? names[i] : v }));
+    }
+    const list = Array.isArray(items.anyOf) ? items.anyOf : items.oneOf;
+    if (Array.isArray(list)) {
+      return list
+        .filter((o) => o && typeof o.const === 'string')
+        .map((o) => ({ value: o.const, title: typeof o.title === 'string' ? o.title : o.const }));
+    }
+    return null;
+  }
+
   function collectElicitFormValues() {
     const out = {};
     if (!els.elicitCardBody) {
@@ -518,7 +561,11 @@
     for (const el of els.elicitCardBody.querySelectorAll('[data-elicit-key]')) {
       const key = el.dataset.elicitKey;
       const type = el.dataset.elicitType || 'string';
-      if (el.type === 'checkbox') {
+      if (el.classList && el.classList.contains('elicit-multi')) {
+        out[key] = Array.from(el.querySelectorAll('input[type=checkbox]'))
+          .filter((cb) => cb.checked)
+          .map((cb) => cb.value);
+      } else if (el.type === 'checkbox') {
         out[key] = !!el.checked;
       } else if (type === 'integer') {
         out[key] = el.value === '' ? '' : parseInt(el.value, 10);

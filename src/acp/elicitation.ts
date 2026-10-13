@@ -166,6 +166,7 @@ function coerceField(
     return n;
   }
   if (type === 'array') {
+    const allowed = arrayItemOptions(prop);
     const arr = Array.isArray(raw)
       ? raw
       : typeof raw === 'string'
@@ -175,7 +176,26 @@ function coerceField(
       errors.push(`Field ${key} must be a string array`);
       return undefined;
     }
+    if (allowed) {
+      const vals = allowed.map((o) => o.value);
+      const bad = (arr as string[]).filter((x) => !vals.includes(x));
+      if (bad.length) {
+        errors.push(`Field ${key} has invalid option(s): ${bad.join(', ')}`);
+      }
+    }
+    const minItems = typeof prop?.minItems === 'number' ? prop.minItems : undefined;
+    const maxItems = typeof prop?.maxItems === 'number' ? prop.maxItems : undefined;
+    if (minItems != null && arr.length < minItems) {
+      errors.push(`Field ${key} needs at least ${minItems} selection(s)`);
+    }
+    if (maxItems != null && arr.length > maxItems) {
+      errors.push(`Field ${key} allows at most ${maxItems} selection(s)`);
+    }
     return arr as string[];
+  }
+  if (!isSupportedFieldType(type)) {
+    // Unknown schema type (object, null, future types): never send a guessed value.
+    return undefined;
   }
   // string / enum / default
   const s = String(raw);
@@ -272,4 +292,56 @@ export function parseElicitationCreateParams(
     };
   }
   return { ...base, mode, ...p } as CreateElicitationRequest;
+}
+
+export interface ElicitationOption {
+  value: string;
+  title: string;
+}
+
+/** Field types the form renderer understands; others are skipped safely. */
+export function isSupportedFieldType(type: unknown): boolean {
+  return (
+    type === 'string' ||
+    type === 'boolean' ||
+    type === 'integer' ||
+    type === 'number' ||
+    type === 'array'
+  );
+}
+
+/**
+ * Options for a multi-select (array) field, MCP/ACP style:
+ * `items: { enum: [...] }` or `items: { anyOf|oneOf: [{ const, title }] }`.
+ * Returns null when the array has free-form items.
+ */
+export function arrayItemOptions(
+  prop: ElicitationPropertySchema | undefined
+): ElicitationOption[] | null {
+  const items = prop?.items as Record<string, unknown> | undefined;
+  if (!items || typeof items !== 'object') {
+    return null;
+  }
+  if (Array.isArray(items.enum)) {
+    const names = Array.isArray(items.enumNames) ? (items.enumNames as unknown[]) : [];
+    return (items.enum as unknown[])
+      .filter((v) => typeof v === 'string')
+      .map((v, i) => ({
+        value: v as string,
+        title: typeof names[i] === 'string' ? (names[i] as string) : (v as string),
+      }));
+  }
+  const list = (Array.isArray(items.anyOf) ? items.anyOf : items.oneOf) as unknown[] | undefined;
+  if (Array.isArray(list)) {
+    const out: ElicitationOption[] = [];
+    for (const o of list) {
+      const c = (o as { const?: unknown; title?: unknown })?.const;
+      if (typeof c === 'string') {
+        const t = (o as { title?: unknown }).title;
+        out.push({ value: c, title: typeof t === 'string' ? t : c });
+      }
+    }
+    return out;
+  }
+  return null;
 }

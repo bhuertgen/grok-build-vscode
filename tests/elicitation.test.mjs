@@ -103,3 +103,43 @@ describe('url helpers + responses', () => {
     assert.deepEqual(cancelElicitation(), { action: 'cancel' });
   });
 });
+
+describe('multi-select (CLI >= 1.0.51)', () => {
+  const { arrayItemOptions, isSupportedFieldType } = require('../dist-test/elicitation.js');
+  const schema = {
+    type: 'object',
+    properties: {
+      langs: { type: 'array', items: { enum: ['ts', 'py', 'go'] }, minItems: 1, maxItems: 2 },
+      picks: { type: 'array', items: { anyOf: [{ const: 'a', title: 'Alpha' }, { const: 'b' }] } },
+      blob: { type: 'object' },
+    },
+  };
+  it('extracts options from items.enum and items.anyOf', () => {
+    assert.deepEqual(arrayItemOptions(schema.properties.langs).map((o) => o.value), ['ts', 'py', 'go']);
+    assert.deepEqual(arrayItemOptions(schema.properties.picks), [
+      { value: 'a', title: 'Alpha' },
+      { value: 'b', title: 'b' },
+    ]);
+    assert.equal(arrayItemOptions({ type: 'array' }), null);
+  });
+  it('accepts valid selections', () => {
+    const r = validateFormContent(schema, { langs: ['ts', 'go'], picks: ['a'] });
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.content.langs, ['ts', 'go']);
+  });
+  it('rejects invalid option and min/max violations', () => {
+    assert.equal(validateFormContent(schema, { langs: ['rust'] }).ok, false);
+    assert.equal(validateFormContent(schema, { langs: [] }).ok, false);
+    assert.equal(validateFormContent(schema, { langs: ['ts', 'py', 'go'] }).ok, false);
+  });
+  it('skips unknown field types without crashing', () => {
+    assert.equal(isSupportedFieldType('object'), false);
+    const r = validateFormContent(schema, { blob: { x: 1 }, picks: ['b'] });
+    assert.equal(r.ok, true);
+    assert.equal('blob' in r.content, false);
+  });
+  it('unknown mode parses without throwing', () => {
+    const p = parseElicitationCreateParams({ mode: 'future', message: 'hi' });
+    assert.equal(p.mode, 'future');
+  });
+});
