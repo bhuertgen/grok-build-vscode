@@ -17,6 +17,7 @@ await esbuild.build({
     compat: 'src/cli/compat.ts',
     semver: 'src/cli/semver.ts',
     memory: 'src/util/memory.ts',
+    elicitation: 'src/acp/elicitation.ts',
   },
   outdir: outDir,
   bundle: true,

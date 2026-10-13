@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import * as vscode from 'vscode';
 import type {
+  CreateElicitationRequest,
+  CreateElicitationResponse,
   CreateTerminalRequest,
   CreateTerminalResponse,
   KillTerminalRequest,
@@ -19,6 +21,11 @@ import type {
   WaitForTerminalExitResponse,
   WriteTextFileRequest,
 } from './types';
+import {
+  cancelElicitation,
+  isUrlElicitation,
+  parseElicitationCreateParams,
+} from './elicitation';
 import { getConfig } from '../util/config';
 import { getLogger } from '../util/logger';
 import { applyTextWrite } from '../util/fileWriter';
@@ -53,13 +60,19 @@ export class ClientHandlers {
   /** Global allow-always (apply always) for write paths */
   private globalAllowAlways = false;
 
+  /** Outstanding URL elicitation ids awaiting elicitation/complete */
+  private pendingUrlElicitations = new Set<string>();
+
   constructor(
     private readonly editController: EditController,
     private readonly onPermissionUi?: (
       sessionId: string,
       toolCall: ToolCallUpdate,
       options: PermissionOption[]
-    ) => Promise<RequestPermissionResponse>
+    ) => Promise<RequestPermissionResponse>,
+    private readonly onElicitationUi?: (
+      params: CreateElicitationRequest
+    ) => Promise<CreateElicitationResponse>
   ) {}
 
   resetSessionPermissions(): void {
@@ -265,6 +278,55 @@ export class ClientHandlers {
     };
   }
 
+
+  // ─── elicitation/create ───────────────────────────────────────────────────
+
+  async createElicitation(
+    rawParams: unknown
+  ): Promise<CreateElicitationResponse> {
+    const params = parseElicitationCreateParams(rawParams);
+    if (!params) {
+      throw new Error('Invalid elicitation/create params');
+    }
+    this.log.info('elicitation/create', params.mode, params.message?.slice(0, 80));
+
+    if (params.mode !== 'form' && params.mode !== 'url') {
+      this.log.warn('Unsupported elicitation mode', params.mode);
+      return cancelElicitation();
+    }
+
+    if (!this.onElicitationUi) {
+      // No UI wired — cancel so the agent can fall back instead of hanging
+      this.log.warn('elicitation/create with no UI handler — cancelling');
+      return cancelElicitation();
+    }
+
+    const result = await this.onElicitationUi(params);
+    if (isUrlElicitation(params) && result.action === 'accept') {
+      this.pendingUrlElicitations.add(params.elicitationId);
+      // Open URL in external browser after consent (secure context; not webview)
+      try {
+        await vscode.env.openExternal(vscode.Uri.parse(params.url));
+      } catch (err) {
+        this.log.warn('Failed to open elicitation URL', err);
+      }
+    }
+    return result;
+  }
+
+  /** Agent → client notification elicitation/complete */
+  handleElicitationComplete(elicitationId: string): void {
+    if (!elicitationId) {
+      return;
+    }
+    if (!this.pendingUrlElicitations.has(elicitationId)) {
+      this.log.debug('elicitation/complete for unknown id (ignored)', elicitationId);
+      return;
+    }
+    this.pendingUrlElicitations.delete(elicitationId);
+    this.log.info('elicitation/complete', elicitationId);
+  }
+
   // ─── terminal/* ───────────────────────────────────────────────────────────
 
   async createTerminal(
@@ -412,6 +474,7 @@ export class ClientHandlers {
   }
 
   dispose(): void {
+    this.pendingUrlElicitations.clear();
     for (const t of this.terminals.values()) {
       try {
         if (!t.exited) {

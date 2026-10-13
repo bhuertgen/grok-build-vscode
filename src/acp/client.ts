@@ -51,10 +51,11 @@ export class AcpClient extends EventEmitter {
 
   constructor(
     editController: EditController,
-    permissionUi?: ConstructorParameters<typeof ClientHandlers>[1]
+    permissionUi?: ConstructorParameters<typeof ClientHandlers>[1],
+    elicitationUi?: ConstructorParameters<typeof ClientHandlers>[2]
   ) {
     super();
-    this.handlers = new ClientHandlers(editController, permissionUi);
+    this.handlers = new ClientHandlers(editController, permissionUi, elicitationUi);
   }
 
   get isConnected(): boolean {
@@ -136,6 +137,7 @@ export class AcpClient extends EventEmitter {
         fs: { readTextFile: true, writeTextFile: true },
         terminal: enableTerminal,
         session: { configOptions: { boolean: {} } },
+        elicitation: { form: {}, url: {} },
       },
       clientInfo: {
         name: 'grok-build-vscode',
@@ -294,6 +296,9 @@ export class AcpClient extends EventEmitter {
         case 'session/request_permission':
           result = await this.handlers.requestPermission(req.params as never);
           break;
+        case 'elicitation/create':
+          result = await this.handlers.createElicitation(req.params);
+          break;
         case 'terminal/create':
           result = await this.handlers.createTerminal(req.params as never);
           break;
@@ -326,6 +331,17 @@ export class AcpClient extends EventEmitter {
     if (n.method === 'session/update') {
       const params = n.params as SessionNotification;
       this.emit('sessionUpdate', params);
+      return;
+    }
+    if (n.method === 'elicitation/complete') {
+      const id =
+        n.params &&
+        typeof n.params === 'object' &&
+        typeof (n.params as { elicitationId?: unknown }).elicitationId === 'string'
+          ? (n.params as { elicitationId: string }).elicitationId
+          : '';
+      this.handlers.handleElicitationComplete(id);
+      this.emit('elicitationComplete', id);
       return;
     }
     this.log.debug('Unhandled notification', n.method);
