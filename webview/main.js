@@ -1553,7 +1553,9 @@
   function effortName(opt) {
     const id = String(opt.id || '');
     const name = String(opt.name || '');
+    // category first (CLI 1.0.52: thought_level), id/name fallback
     if (
+      opt.category === 'thought_level' ||
       opt.category === 'thought' ||
       /effort|reasoning/i.test(id) ||
       /effort|reasoning/i.test(name)

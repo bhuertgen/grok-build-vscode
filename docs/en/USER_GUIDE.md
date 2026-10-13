@@ -228,7 +228,7 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 
 ### Keybindings
 
-Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Esc` / `Cmd+Esc` and `Ctrl+Shift+G I` both run **Focus Chat Input**: they open the Grok UI if needed and focus the composer. They do not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu).
+Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), release, then the letter or Escape. `Ctrl+Shift+G I` runs **Focus Chat Input**: it opens the Grok UI if needed and focus the composer. It does not move focus back to the editor. `Alt+G` is not bound (on Windows/Linux it opens the Go menu). `Ctrl+Esc` is not bound either: Windows opens the Start menu and VS Code never receives it.
 
 | Action | Windows / Linux | Mac | When |
 |--------|-----------------|-----|------|
@@ -240,7 +240,6 @@ Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shif
 | Cancel current turn | `Ctrl+Shift+G` then `Escape` | `Cmd+Shift+G` then `Escape` | A turn is running (`grokBuild.isBusy`) |
 | Cancel current turn (webview) | `Escape` | `Escape` | Chat focused and a turn is running (closes menus first) |
 | Focus chat input | `Ctrl+Shift+G` then `I` | `Cmd+Shift+G` then `I` | Always (no `when`) |
-| Focus chat input | `Ctrl+Esc` | `Cmd+Esc` | Always (no `when`) |
 
 Composer keys (`Enter` to send, `@`, `/`, arrow keys) are not extension keybindings. See §3.
 

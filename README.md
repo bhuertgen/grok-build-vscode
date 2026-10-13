@@ -86,7 +86,7 @@ npm run watch   # F5 → Extension Development Host
 | Slash commands | Type `/` at start of input |
 | Plan mode | Mode button or `Ctrl+Shift+G P` |
 | History | `↺` or `/` → Chat-History |
-| Focus chat input | `Ctrl+Esc` (`Cmd+Esc`) or `Ctrl+Shift+G I` |
+| Focus chat input | `Ctrl+Shift+G I` (`Cmd+Shift+G I`) |
 | Cancel turn | Stop or `Ctrl+Shift+G Escape` (when busy) |
 
 ### Example prompts

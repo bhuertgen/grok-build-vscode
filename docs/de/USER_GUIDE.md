@@ -159,7 +159,7 @@ Bietet der Agent `configOptions` (select/boolean), erscheint im Chat-Header nebe
 
 ## 5. Befehle & Tastatur
 
-Alle Einträge aus `contributes.keybindings`. Akkord: zuerst `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), loslassen, dann Buchstabe oder Escape. `Ctrl+Esc` / `Cmd+Esc` und `Ctrl+Shift+G I` führen beide **Focus Chat Input** aus: Grok-UI öffnen (falls nötig) und den Composer fokussieren. Der Fokus geht dabei nicht zurück in den Editor. `Alt+G` ist nicht gebunden (unter Windows/Linux öffnet es das Menü Go).
+Alle Einträge aus `contributes.keybindings`. Akkord: zuerst `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`), loslassen, dann Buchstabe oder Escape. `Ctrl+Shift+G I` führt **Focus Chat Input** aus: Grok-UI öffnen (falls nötig) und den Composer fokussieren. Der Fokus geht dabei nicht zurück in den Editor. `Alt+G` ist nicht gebunden (unter Windows/Linux öffnet es das Menü Go). `Ctrl+Esc` ist ebenfalls nicht gebunden: Windows öffnet damit das Startmenü, VS Code bekommt die Taste nie.
 
 | Aktion | Windows / Linux | Mac | Wann |
 |--------|-----------------|-----|------|
@@ -171,7 +171,6 @@ Alle Einträge aus `contributes.keybindings`. Akkord: zuerst `Ctrl+Shift+G` (Mac
 | Laufenden Turn abbrechen | `Ctrl+Shift+G` dann `Escape` | `Cmd+Shift+G` dann `Escape` | Ein Turn läuft (`grokBuild.isBusy`) |
 | Laufenden Turn abbrechen (Webview) | `Escape` | `Escape` | Chat fokussiert und Turn läuft (schließt zuerst Menüs) |
 | Chat-Eingabe fokussieren | `Ctrl+Shift+G` dann `I` | `Cmd+Shift+G` dann `I` | Immer (kein `when`) |
-| Chat-Eingabe fokussieren | `Ctrl+Esc` | `Cmd+Esc` | Immer (kein `when`) |
 
 Tasten im Composer (`Enter` sendet, `@`, `/`, Pfeile) sind keine Extension-Keybindings. Siehe §3 der englischen Anleitung.
 
