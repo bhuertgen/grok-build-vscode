@@ -53,7 +53,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       });
       this.pushState();
     });
-    sessions.on('permissionResolved', () => this.pushState());
+    sessions.on('permissionResolved', (payload: unknown) => {
+      void this.view?.webview.postMessage({
+        type: 'permissionResolved',
+        ...(payload as object),
+      });
+      this.pushState();
+    });
+    sessions.on('permissionsCleared', (payload: unknown) => {
+      void this.view?.webview.postMessage({
+        type: 'permissionsCleared',
+        ...(payload as object),
+      });
+    });
     sessions.on('elicitationRequest', (payload: unknown) => {
       void this.view?.webview.postMessage({
         type: 'elicitationRequest',
@@ -741,6 +753,7 @@ function serializeToolCall(t: {
   content?: unknown[];
   rawInput?: unknown;
   locations?: Array<{ path: string; line?: number }>;
+  unreadable?: boolean;
 }) {
   const { input, output } = extractToolIo(t);
   const durationMs =
@@ -752,6 +765,7 @@ function serializeToolCall(t: {
     title: t.title,
     kind: t.kind,
     status: t.status,
+    unreadable: t.unreadable || undefined,
     startedAt: t.startedAt,
     finishedAt: t.finishedAt,
     durationMs,

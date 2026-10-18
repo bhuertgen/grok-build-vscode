@@ -403,10 +403,32 @@
     els.permCard.classList.remove('hidden');
     const t = activePermission.toolCall || {};
     if (els.permCardTitle) {
-      els.permCardTitle.textContent = t.title || t.kind || 'Tool permission';
+      els.permCardTitle.textContent =
+        activePermission.displayTitle || t.title || t.kind || 'Tool permission';
     }
     if (els.permCardDetail) {
-      els.permCardDetail.textContent = `${t.kind || 'tool'} · ${t.status || 'pending'} — Allow so Grok can continue.`;
+      els.permCardDetail.textContent = '';
+      // CLI 1.0.54+: binary/unreadable target — explicit hint, no diff/preview
+      if (activePermission.unreadable) {
+        const badge = document.createElement('span');
+        badge.className = 'perm-unreadable';
+        badge.textContent = activePermission.unreadableLabel || 'unreadable – no preview';
+        els.permCardDetail.append(badge, document.createTextNode(' '));
+      }
+      const res = activePermission.resolved;
+      els.permCardDetail.append(
+        document.createTextNode(
+          res
+            ? `${t.kind || 'tool'} · ${res.label || res.decision}`
+            : `${t.kind || 'tool'} · ${t.status || 'pending'} — Allow so Grok can continue.`
+        )
+      );
+    }
+    els.permCard.classList.toggle('resolved', !!activePermission.resolved);
+    if (activePermission.resolved) {
+      els.permCard.dataset.decision = activePermission.resolved.decision || '';
+    } else {
+      delete els.permCard.dataset.decision;
     }
   }
 
@@ -1070,6 +1092,7 @@
       <span class="agent-dot ${escapeHtml(t.status || '')}"></span>
       <span class="tool-kind kind-${escapeHtml(kl.toLowerCase())}">${escapeHtml(kl)}</span>
       <span class="tool-title">${escapeHtml(title)}</span>
+      ${t.unreadable ? '<span class="perm-unreadable" title="Binary/unreadable file — no diff/preview">unreadable</span>' : ''}
       <span class="tool-meta">${escapeHtml(statusLabel)}</span>
       <span class="tool-chevron">${isOpen ? '▾' : '▸'}</span>
     `;
@@ -1667,10 +1690,19 @@
       const row = document.createElement('div');
       row.className = 'edit-row';
       row.innerHTML = `<span class="path" title="${escapeHtml(e.path)}">${escapeHtml(basename(e.path))}</span>`;
-      const diff = document.createElement('button');
-      diff.type = 'button';
-      diff.textContent = 'Diff';
-      diff.addEventListener('click', () => post('showDiff', { editId: e.id }));
+      let diff;
+      if (e.oldUnreadable) {
+        // Binary/unreadable previous content: no diff (CLI 1.0.54 "unreadable")
+        diff = document.createElement('span');
+        diff.className = 'perm-unreadable';
+        diff.textContent = 'unreadable';
+        diff.title = 'Previous content is binary/unreadable — no diff available';
+      } else {
+        diff = document.createElement('button');
+        diff.type = 'button';
+        diff.textContent = 'Diff';
+        diff.addEventListener('click', () => post('showDiff', { editId: e.id }));
+      }
       const apply = document.createElement('button');
       apply.type = 'button';
       apply.className = 'primary';
@@ -3292,9 +3324,33 @@
           id: msg.id,
           toolCall: msg.toolCall,
           options: msg.options || [],
+          localId: msg.localId,
+          displayTitle: msg.displayTitle,
+          unreadable: !!msg.unreadable,
+          unreadableLabel: msg.unreadableLabel,
         };
         renderPermissionCard();
     renderElicitationCard();
+        break;
+      case 'permissionResolved':
+        // Answered anywhere (inline card, native modal, timeout, turn end)
+        if (activePermission && activePermission.id === msg.id) {
+          activePermission.resolved = { decision: msg.decision, label: msg.label };
+          renderPermissionCard();
+          const resolvedId = msg.id;
+          setTimeout(() => {
+            if (activePermission && activePermission.id === resolvedId) {
+              activePermission = null;
+              renderPermissionCard();
+            }
+          }, 1500);
+        }
+        break;
+      case 'permissionsCleared':
+        if (activePermission && (!msg.localId || !activePermission.localId || activePermission.localId === msg.localId)) {
+          activePermission = null;
+          renderPermissionCard();
+        }
         break;
       case 'focusInput':
         els.input.focus();

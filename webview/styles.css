@@ -1721,3 +1721,20 @@ body.vscode-light .empty-state .empty-logo {
 
 .elicit-multi { display: flex; flex-direction: column; gap: 2px; }
 .elicit-multi-option { display: flex; align-items: center; gap: 4px; font-weight: normal; }
+
+/* CLI 1.0.54+: binary/unreadable file in write approval / pending edit */
+.perm-unreadable {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+/* Permission answered (any UI) — buttons hidden until the card fades out */
+.perm-card.resolved .perm-card-actions { display: none; }
+.perm-card.resolved { opacity: 0.75; }
+.perm-card.resolved[data-decision="rejected"],
+.perm-card.resolved[data-decision="cancelled"] { border-color: var(--vscode-inputValidation-errorBorder, #f14c4c); }
+.tool-row-head .perm-unreadable { margin-left: 6px; flex-shrink: 0; }

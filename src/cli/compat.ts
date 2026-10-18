@@ -11,10 +11,13 @@ export const CLI_HARD_MIN = '1.0.0';
 /**
  * Below this (but ≥ hard) → soft warning banner; extension still usable.
  * Raised independently when a newer 1.x patch becomes the recommended baseline.
- * 1.0.52: GROK_MEMORY env (old --no-memory flag rejected), multi-select
- * elicitation (1.0.51), `cancelled` tool status (1.0.50).
+ * 1.0.62 (tested stable, 2026-10): write approvals mark binary/unreadable
+ * files as "unreadable" (1.0.54), hooks returning `continue:false` end the
+ * turn with `cancellationCategory: "HookStopped"` (1.0.60).
+ * Earlier floor 1.0.52: GROK_MEMORY env (old --no-memory flag rejected),
+ * multi-select elicitation (1.0.51), `cancelled` tool status (1.0.50).
  */
-export const CLI_SOFT_MIN = '1.0.52';
+export const CLI_SOFT_MIN = '1.0.62';
 
 export type CliCompatLevel =
   | 'ok'

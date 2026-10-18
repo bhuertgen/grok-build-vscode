@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased (0.3.1)
+
+### Changed
+- Recommended Grok CLI version (soft floor) raised to **1.0.62** (tested stable); hard floor stays 1.0.0 (#33).
+
+### Fixed
+- Turns ended by a hook (`continue: false`, CLI 1.0.60) now show an info line ("Turn stopped by hook" / "Turn durch Hook beendet") with hook name and reason instead of `(cancelled)` or nothing (#34).
+- Write approvals for binary/unreadable files (CLI 1.0.54) show a clean "unreadable – no preview" hint; no diff is attempted against binary content (#35).
+
 ## 0.3.0 - 2026-10-13
 
 ### Added

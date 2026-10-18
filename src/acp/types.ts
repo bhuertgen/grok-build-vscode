@@ -272,6 +272,14 @@ export type StopReason =
 
 export interface PromptResponse {
   stopReason: StopReason;
+  /**
+   * Grok extension metadata. CLI ≥ 1.0.60 sets `cancellationCategory: "HookStopped"`
+   * and `cancellationContext: { reason, hook_name }` when a hook ended the turn.
+   */
+  _meta?: Record<string, unknown> & {
+    cancellationCategory?: string;
+    cancellationContext?: { reason?: string; hook_name?: string };
+  };
 }
 
 export interface CancelNotification {
@@ -546,6 +554,8 @@ export interface ChatToolCall {
   rawInput?: unknown;
   startedAt: number;
   finishedAt?: number;
+  /** Write target is binary/unreadable (CLI title suffix or on-disk check) — no diff. */
+  unreadable?: boolean;
 }
 
 export interface ChatPlan {
@@ -565,6 +575,8 @@ export interface PendingEdit {
   path: string;
   oldText: string;
   newText: string;
+  /** Previous content was binary/unreadable — never diff it (CLI 1.0.54 "unreadable"). */
+  oldUnreadable?: boolean;
   toolCallId?: string;
   sessionId: string;
   status: 'pending' | 'applied' | 'rejected';

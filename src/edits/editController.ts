@@ -9,6 +9,8 @@ export interface QueueWriteParams {
   path: string;
   oldText: string;
   newText: string;
+  /** Previous on-disk content was binary/unreadable — skip diff. */
+  oldUnreadable?: boolean;
   toolCallId?: string;
 }
 
@@ -62,6 +64,7 @@ export class EditController extends EventEmitter {
       path: params.path,
       oldText: params.oldText,
       newText: params.newText,
+      oldUnreadable: params.oldUnreadable || undefined,
       toolCallId: params.toolCallId,
       sessionId: params.sessionId,
       status: 'pending',
@@ -80,13 +83,14 @@ export class EditController extends EventEmitter {
       this.log.info('Applied write', params.path);
 
       const fileName = path.basename(params.path);
-      // Non-blocking toast — never await user choice for agent progress
+      // Non-blocking toast — never await user choice for agent progress.
+      // Binary/unreadable previous content: no diff offered (CLI 1.0.54 "unreadable").
+      const actions = edit.oldUnreadable ? ['Open File'] : ['Show Diff', 'Open File'];
+      const label = edit.oldUnreadable
+        ? `Grok wrote ${fileName} (previous content unreadable/binary — no diff)`
+        : `Grok wrote ${fileName}`;
       void vscode.window
-        .showInformationMessage(
-          `Grok wrote ${fileName}`,
-          'Show Diff',
-          'Open File'
-        )
+        .showInformationMessage(label, ...actions)
         .then(async (choice) => {
           if (choice === 'Show Diff') {
             await this.showDiff(id);
@@ -113,6 +117,12 @@ export class EditController extends EventEmitter {
   async showDiff(editId: string): Promise<void> {
     const edit = this.pending.get(editId);
     if (!edit) {
+      return;
+    }
+    if (edit.oldUnreadable) {
+      void vscode.window.showInformationMessage(
+        `${path.basename(edit.path)}: previous content is binary/unreadable — no diff available.`
+      );
       return;
     }
 

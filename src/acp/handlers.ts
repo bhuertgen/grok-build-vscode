@@ -35,6 +35,7 @@ import {
   promptTrustWorkspace,
 } from '../util/workspaceTrust';
 import type { EditController } from '../edits/editController';
+import { isProbablyBinary } from '../util/unreadable';
 
 interface ManagedTerminal {
   id: TerminalId;
@@ -126,6 +127,7 @@ export class ClientHandlers {
     }
 
     let oldText = '';
+    let oldUnreadable = false;
     try {
       const uri = vscode.Uri.file(filePath);
       const openDoc = vscode.workspace.textDocuments.find(
@@ -134,9 +136,19 @@ export class ClientHandlers {
       if (openDoc) {
         oldText = openDoc.getText();
       } else {
-        oldText = await fs.readFile(filePath, 'utf8');
+        const buf = await fs.readFile(filePath);
+        if (isProbablyBinary(buf)) {
+          // CLI 1.0.54+: binary/unreadable target → no diff against garbage
+          oldUnreadable = true;
+          this.log.info('fs/write_text_file: previous content binary/unreadable — no diff', filePath);
+        } else {
+          oldText = buf.toString('utf8');
+        }
       }
-    } catch {
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      // ENOENT = new file → empty old text; anything else = unreadable
+      oldUnreadable = code !== undefined && code !== 'ENOENT';
       oldText = '';
     }
 
@@ -146,6 +158,7 @@ export class ClientHandlers {
       sessionId: params.sessionId,
       path: filePath,
       oldText,
+      oldUnreadable,
       newText: params.content,
     });
 
