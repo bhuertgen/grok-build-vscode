@@ -21,6 +21,7 @@ await esbuild.build({
     configOptionsUi: 'src/util/configOptionsUi.ts',
     fileRangeMention: 'src/util/fileRangeMention.ts',
     turnOutcome: 'src/util/turnOutcome.ts',
+    unreadable: 'src/util/unreadable.ts',
   },
   outdir: outDir,
   bundle: true,

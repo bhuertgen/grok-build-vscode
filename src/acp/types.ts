@@ -573,6 +573,8 @@ export interface PendingEdit {
   path: string;
   oldText: string;
   newText: string;
+  /** Previous content was binary/unreadable — never diff it (CLI 1.0.54 "unreadable"). */
+  oldUnreadable?: boolean;
   toolCallId?: string;
   sessionId: string;
   status: 'pending' | 'applied' | 'rejected';

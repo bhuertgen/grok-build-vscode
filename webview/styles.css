@@ -1721,3 +1721,13 @@ body.vscode-light .empty-state .empty-logo {
 
 .elicit-multi { display: flex; flex-direction: column; gap: 2px; }
 .elicit-multi-option { display: flex; align-items: center; gap: 4px; font-weight: normal; }
+
+/* CLI 1.0.54+: binary/unreadable file in write approval / pending edit */
+.perm-unreadable {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}

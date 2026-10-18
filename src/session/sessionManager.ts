@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpClient } from '../acp/client';
 import { classifyTurnEnd, turnEndNotice } from '../util/turnOutcome';
+import { parsePermissionTitle, unreadableLabel } from '../util/unreadable';
 import type {
   AgentMode,
   AvailableCommand,
@@ -1891,6 +1892,17 @@ export class SessionManager extends EventEmitter {
       localId,
       sessionId,
       toolCall,
+      // CLI 1.0.54+: "(unreadable, no preview)" suffix → clean title + hint, no diff
+      ...(() => {
+        const parsed = parsePermissionTitle(toolCall.title);
+        return parsed.unreadable
+          ? {
+              displayTitle: parsed.title,
+              unreadable: true,
+              unreadableLabel: unreadableLabel(vscode.env.language),
+            }
+          : {};
+      })(),
       options: options.map((o) => ({
         optionId: o.optionId,
         name: o.name,
