@@ -56,3 +56,46 @@ export function unreadableLabel(lang?: string): string {
     ? 'nicht lesbar – keine Vorschau'
     : 'unreadable – no preview';
 }
+
+interface ToolCallLike {
+  kind?: string | null;
+  rawInput?: unknown;
+  locations?: Array<{ path?: string }> | null;
+  _meta?: Record<string, unknown> | null;
+}
+
+function pickStr(o: unknown, ...keys: string[]): string | undefined {
+  if (!o || typeof o !== 'object') {
+    return undefined;
+  }
+  for (const k of keys) {
+    const v = (o as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.trim()) {
+      return v.trim();
+    }
+  }
+  return undefined;
+}
+
+/** Target path of a write/edit tool call (rawInput, x.ai/tool meta, or locations). */
+export function extractWritePath(tc: ToolCallLike | undefined | null): string | undefined {
+  if (!tc) {
+    return undefined;
+  }
+  const meta = (tc._meta?.['x.ai/tool'] ?? undefined) as Record<string, unknown> | undefined;
+  return (
+    pickStr(tc.rawInput, 'file_path', 'path', 'target_file', 'filePath') ??
+    pickStr(meta?.input, 'path', 'file_path') ??
+    (tc.locations?.find((l) => typeof l?.path === 'string' && l.path)?.path || undefined)
+  );
+}
+
+/** True for ACP `edit` permissions or Grok tools of kind write/edit. */
+export function isWriteLikeToolCall(tc: ToolCallLike | undefined | null): boolean {
+  if (!tc) {
+    return false;
+  }
+  const meta = (tc._meta?.['x.ai/tool'] ?? undefined) as Record<string, unknown> | undefined;
+  const metaKind = typeof meta?.kind === 'string' ? meta.kind : '';
+  return tc.kind === 'edit' || metaKind === 'write' || metaKind === 'edit';
+}

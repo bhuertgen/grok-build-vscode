@@ -554,6 +554,8 @@ export interface ChatToolCall {
   rawInput?: unknown;
   startedAt: number;
   finishedAt?: number;
+  /** Write target is binary/unreadable (CLI title suffix or on-disk check) — no diff. */
+  unreadable?: boolean;
 }
 
 export interface ChatPlan {

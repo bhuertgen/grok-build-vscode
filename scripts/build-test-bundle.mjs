@@ -22,6 +22,7 @@ await esbuild.build({
     fileRangeMention: 'src/util/fileRangeMention.ts',
     turnOutcome: 'src/util/turnOutcome.ts',
     unreadable: 'src/util/unreadable.ts',
+    permissionOutcome: 'src/util/permissionOutcome.ts',
   },
   outdir: outDir,
   bundle: true,

@@ -3,7 +3,15 @@ import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpClient } from '../acp/client';
 import { classifyTurnEnd, turnEndNotice } from '../util/turnOutcome';
-import { parsePermissionTitle, unreadableLabel } from '../util/unreadable';
+import {
+  extractWritePath,
+  isProbablyBinary,
+  isWriteLikeToolCall,
+  parsePermissionTitle,
+  unreadableLabel,
+} from '../util/unreadable';
+import { permissionDecision, permissionDecisionLabel } from '../util/permissionOutcome';
+import { promises as fsp } from 'node:fs';
 import type {
   AgentMode,
   AvailableCommand,
@@ -210,6 +218,24 @@ export class SessionManager extends EventEmitter {
     editController.setApplyWrite((filePath, content) =>
       applyTextWrite(filePath, content)
     );
+    // Binary/unreadable write applied → flag the matching tool row (there is no
+    // pending-edit row: writes are applied immediately and only status 'pending' is listed).
+    editController.on('applied', (edit: { sessionId: string; path: string; oldUnreadable?: boolean }) => {
+      if (!edit?.oldUnreadable) {
+        return;
+      }
+      const state = [...this.sessions.values()].find((s) => s.agentSessionId === edit.sessionId);
+      if (!state) {
+        return;
+      }
+      const tc = [...state.toolCalls]
+        .reverse()
+        .find((t) => isWriteLikeToolCall(t as never) && sameFsPath(extractWritePath(t as never), edit.path));
+      if (tc) {
+        tc.unreadable = true;
+        this.emitChange(state.localId);
+      }
+    });
   }
 
   /** Active session's ACP client (if any). Prefer getClient(localId). */
@@ -932,6 +958,7 @@ export class SessionManager extends EventEmitter {
     } finally {
       state.busy = false;
       state.updatedAt = Date.now();
+      this.clearPendingPermissions(state.localId);
       void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', false);
       this.schedulePersist(state);
       this.emitChange(localId);
@@ -1732,6 +1759,8 @@ export class SessionManager extends EventEmitter {
     {
       resolve: (r: RequestPermissionResponse) => void;
       timer: ReturnType<typeof setTimeout>;
+      localId?: string;
+      options: Array<{ optionId: string; kind?: string }>;
     }
   >();
 
@@ -1885,6 +1914,18 @@ export class SessionManager extends EventEmitter {
 
     const permId = `perm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const localId = state?.localId;
+    const parsedTitle = parsePermissionTitle(toolCall.title);
+    const unreadable =
+      parsedTitle.unreadable ||
+      (isWriteLikeToolCall(toolCall as never) &&
+        (await isBinaryFileOnDisk(extractWritePath(toolCall as never))));
+    if (unreadable && state) {
+      const row = state.toolCalls.find((t) => t.id === toolCall.toolCallId);
+      if (row) {
+        row.unreadable = true;
+        this.emitChange(state.localId);
+      }
+    }
 
     // Notify webview
     this.emit('permissionRequest', {
@@ -1892,17 +1933,12 @@ export class SessionManager extends EventEmitter {
       localId,
       sessionId,
       toolCall,
-      // CLI 1.0.54+: "(unreadable, no preview)" suffix → clean title + hint, no diff
-      ...(() => {
-        const parsed = parsePermissionTitle(toolCall.title);
-        return parsed.unreadable
-          ? {
-              displayTitle: parsed.title,
-              unreadable: true,
-              unreadableLabel: unreadableLabel(vscode.env.language),
-            }
-          : {};
-      })(),
+      // CLI 1.0.54+: "(unreadable, no preview)" suffix → clean title + hint, no diff.
+      // CLI only flags some binaries (NUL bytes) → also detect on disk ourselves.
+      displayTitle: parsedTitle.title,
+      ...(unreadable
+        ? { unreadable: true, unreadableLabel: unreadableLabel(vscode.env.language) }
+        : {}),
       options: options.map((o) => ({
         optionId: o.optionId,
         name: o.name,
@@ -1911,11 +1947,14 @@ export class SessionManager extends EventEmitter {
     });
 
     // Also show a modal that can't be missed (Extension Host often hides QuickPick)
-    const title = toolCall.title ?? toolCall.kind ?? 'tool action';
+    const title = parsedTitle.title || toolCall.kind || 'tool action';
+    const modalDetail =
+      `Session tool permission (${toolCall.kind ?? 'other'})` +
+      (unreadable ? ` — ${unreadableLabel(vscode.env.language)}` : '');
     void vscode.window
       .showWarningMessage(
         `Grok wants to: ${title}`,
-        { modal: true, detail: `Session tool permission (${toolCall.kind ?? 'other'})` },
+        { modal: true, detail: modalDetail },
         'Allow',
         'Allow always',
         'Reject'
@@ -1961,7 +2000,12 @@ export class SessionManager extends EventEmitter {
           this.resolvePermission(permId, { outcome: { outcome: 'cancelled' } });
         }
       }, 90_000);
-      this.permissionWaiters.set(permId, { resolve, timer });
+      this.permissionWaiters.set(permId, {
+        resolve,
+        timer,
+        localId,
+        options: options.map((o) => ({ optionId: o.optionId, kind: o.kind })),
+      });
     });
   }
 
@@ -1976,7 +2020,25 @@ export class SessionManager extends EventEmitter {
     clearTimeout(w.timer);
     this.permissionWaiters.delete(permId);
     w.resolve(response);
-    this.emit('permissionResolved', permId);
+    // Tell every UI (inline card) which decision won — webview card, native modal,
+    // timeout or turn end — so a stale "pending" card never lingers.
+    const decision = permissionDecision(response, w.options);
+    this.emit('permissionResolved', {
+      id: permId,
+      localId: w.localId,
+      decision,
+      label: permissionDecisionLabel(decision, vscode.env.language),
+    });
+  }
+
+  /** Turn ended: cancel waiters still open for this session and clear their cards. */
+  private clearPendingPermissions(localId: string): void {
+    for (const [permId, w] of [...this.permissionWaiters]) {
+      if (w.localId === localId) {
+        this.resolvePermission(permId, { outcome: { outcome: 'cancelled' } });
+      }
+    }
+    this.emit('permissionsCleared', { localId });
   }
 
   /** Webview / command response to a pending permission card */
@@ -2460,4 +2522,29 @@ function buildModelChoices(
     detail: m.description,
     value: m.value,
   }));
+}
+
+function sameFsPath(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) {
+    return false;
+  }
+  return path.resolve(a) === path.resolve(b);
+}
+
+/** First 8 KB of an existing file look binary (NUL / invalid UTF-8). Missing file → false. */
+async function isBinaryFileOnDisk(filePath: string | undefined): Promise<boolean> {
+  if (!filePath) {
+    return false;
+  }
+  let fh: import('node:fs').promises.FileHandle | undefined;
+  try {
+    fh = await fsp.open(filePath, 'r');
+    const buf = Buffer.alloc(8192);
+    const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
+    return isProbablyBinary(buf.subarray(0, bytesRead), bytesRead);
+  } catch {
+    return false;
+  } finally {
+    await fh?.close().catch(() => undefined);
+  }
 }

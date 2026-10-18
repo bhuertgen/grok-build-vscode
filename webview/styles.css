@@ -1731,3 +1731,10 @@ body.vscode-light .empty-state .empty-logo {
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
 }
+
+/* Permission answered (any UI) — buttons hidden until the card fades out */
+.perm-card.resolved .perm-card-actions { display: none; }
+.perm-card.resolved { opacity: 0.75; }
+.perm-card.resolved[data-decision="rejected"],
+.perm-card.resolved[data-decision="cancelled"] { border-color: var(--vscode-inputValidation-errorBorder, #f14c4c); }
+.tool-row-head .perm-unreadable { margin-left: 6px; flex-shrink: 0; }
