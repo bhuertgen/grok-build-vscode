@@ -272,6 +272,14 @@ export type StopReason =
 
 export interface PromptResponse {
   stopReason: StopReason;
+  /**
+   * Grok extension metadata. CLI ≥ 1.0.60 sets `cancellationCategory: "HookStopped"`
+   * and `cancellationContext: { reason, hook_name }` when a hook ended the turn.
+   */
+  _meta?: Record<string, unknown> & {
+    cancellationCategory?: string;
+    cancellationContext?: { reason?: string; hook_name?: string };
+  };
 }
 
 export interface CancelNotification {

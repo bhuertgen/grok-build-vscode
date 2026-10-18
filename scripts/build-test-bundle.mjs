@@ -20,6 +20,7 @@ await esbuild.build({
     elicitation: 'src/acp/elicitation.ts',
     configOptionsUi: 'src/util/configOptionsUi.ts',
     fileRangeMention: 'src/util/fileRangeMention.ts',
+    turnOutcome: 'src/util/turnOutcome.ts',
   },
   outdir: outDir,
   bundle: true,

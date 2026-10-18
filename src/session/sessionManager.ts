@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpClient } from '../acp/client';
+import { classifyTurnEnd, turnEndNotice } from '../util/turnOutcome';
 import type {
   AgentMode,
   AvailableCommand,
@@ -907,15 +908,14 @@ export class SessionManager extends EventEmitter {
       state.messages = state.messages.filter(
         (m) => !(m.role === 'thought' && !m.content?.trim())
       );
-      if (!agentMsg.content && result.stopReason === 'cancelled') {
-        // only if still present
-      } else if (!agentMsg.content && result.stopReason === 'refusal') {
-        /* handled by filter above */
+      const outcome = classifyTurnEnd(result);
+      const agentSpoke = state.messages.some((m) => m.id === agentMsg.id);
+      const notice = turnEndNotice(outcome, agentSpoke, vscode.env.language);
+      if (notice) {
+        this.pushSystem(state, notice);
       }
-      if (result.stopReason === 'cancelled' && !state.messages.some((m) => m.id === agentMsg.id)) {
-        this.pushSystem(state, '_(cancelled)_');
-      } else if (result.stopReason === 'refusal' && !state.messages.some((m) => m.id === agentMsg.id)) {
-        this.pushSystem(state, '_(agent refused)_');
+      if (outcome.kind === 'hook_stopped') {
+        this.log.info('Turn stopped by hook', outcome.hookName ?? '?', outcome.reason ?? '');
       }
       this.log.info('Prompt finished', localId, result.stopReason);
     } catch (err) {
