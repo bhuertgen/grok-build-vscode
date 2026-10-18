@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased (0.3.1)
+## 0.3.1 – 2026-10-18
+
+### Security
+- Plain **Allow** on edit approvals previously granted a session-wide "allow always" because of the option order in CLI 1.0.62; it now picks `allow_once`.
 
 ### Changed
 - Recommended Grok CLI version (soft floor) raised to **1.0.62** (tested stable); hard floor stays 1.0.0 (#33).
@@ -8,6 +11,7 @@
 ### Fixed
 - Turns ended by a hook (`continue: false`, CLI 1.0.60) now show an info line ("Turn stopped by hook" / "Turn durch Hook beendet") with hook name and reason instead of `(cancelled)` or nothing (#34).
 - Write approvals for binary/unreadable files (CLI 1.0.54) show a clean "unreadable – no preview" hint; no diff is attempted against binary content (#35).
+- The inline permission card now resolves when the native modal answers the request, and leftover cards are cleared at turn end.
 
 ## 0.3.0 - 2026-10-13
 
