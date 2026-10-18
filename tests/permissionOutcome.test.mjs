@@ -40,3 +40,28 @@ describe('permissionDecisionLabel', () => {
     assert.equal(permissionDecisionLabel('allowed', undefined), 'Allowed');
   });
 });
+
+const { pickAllowOnceOption, pickAllowAlwaysOption, pickRejectOption } = require('../dist-test/permissionOutcome.js');
+
+describe('option picking (retest bug: native "Allow" → "Allowed always")', () => {
+  it('plain Allow picks allow_once even though CLI lists allow_always first', () => {
+    const o = pickAllowOnceOption(OPTS);
+    assert.equal(o.optionId, 'allow-once');
+    assert.equal(permissionDecision(sel(o.optionId), OPTS), 'allowed');
+  });
+  it('Allow always picks allow_always', () => {
+    const o = pickAllowAlwaysOption(OPTS);
+    assert.equal(o.optionId, 'allow-edits-session');
+    assert.equal(permissionDecision(sel(o.optionId), OPTS), 'allowed_always');
+  });
+  it('fallbacks when only one allow kind exists', () => {
+    assert.equal(pickAllowOnceOption([{ optionId: 'a', kind: 'allow_always' }]).optionId, 'a');
+    assert.equal(pickAllowAlwaysOption([{ optionId: 'b', kind: 'allow_once' }]).optionId, 'b');
+    assert.equal(pickAllowOnceOption([]), undefined);
+    assert.equal(pickAllowOnceOption(null), undefined);
+  });
+  it('reject prefers reject_once', () => {
+    assert.equal(pickRejectOption([{ optionId: 'ra', kind: 'reject_always' }, { optionId: 'ro', kind: 'reject_once' }]).optionId, 'ro');
+    assert.equal(pickRejectOption(OPTS).optionId, 'reject-once');
+  });
+});

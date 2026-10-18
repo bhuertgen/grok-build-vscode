@@ -52,3 +52,26 @@ export function permissionDecisionLabel(d: PermissionDecision, lang?: string): s
       return de ? 'Abgebrochen' : 'Cancelled';
   }
 }
+
+/**
+ * Option for a plain "Allow" (once). Prefers `allow_once`; falls back to
+ * `allow_always` only when the agent offers no one-shot option.
+ * (CLI 1.0.62 lists `allow-edits-session` (allow_always) FIRST, so a naive
+ * `find(allow_once || allow_always)` silently granted session-wide approval.)
+ */
+export function pickAllowOnceOption<T extends OptionLike>(options: T[] | undefined | null): T | undefined {
+  const list = options ?? [];
+  return list.find((o) => o.kind === 'allow_once') ?? list.find((o) => o.kind === 'allow_always');
+}
+
+/** Option for "Allow always"; falls back to allow_once. */
+export function pickAllowAlwaysOption<T extends OptionLike>(options: T[] | undefined | null): T | undefined {
+  const list = options ?? [];
+  return list.find((o) => o.kind === 'allow_always') ?? list.find((o) => o.kind === 'allow_once');
+}
+
+/** Option for "Reject" (once preferred). */
+export function pickRejectOption<T extends OptionLike>(options: T[] | undefined | null): T | undefined {
+  const list = options ?? [];
+  return list.find((o) => o.kind === 'reject_once') ?? list.find((o) => o.kind === 'reject_always');
+}

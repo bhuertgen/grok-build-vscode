@@ -10,7 +10,13 @@ import {
   parsePermissionTitle,
   unreadableLabel,
 } from '../util/unreadable';
-import { permissionDecision, permissionDecisionLabel } from '../util/permissionOutcome';
+import {
+  permissionDecision,
+  permissionDecisionLabel,
+  pickAllowAlwaysOption,
+  pickAllowOnceOption,
+  pickRejectOption,
+} from '../util/permissionOutcome';
 import { promises as fsp } from 'node:fs';
 import type {
   AgentMode,
@@ -1885,12 +1891,8 @@ export class SessionManager extends EventEmitter {
     );
     const cfg = getConfig();
 
-    const allowOpt = options.find(
-      (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
-    );
-    const rejectOpt = options.find(
-      (o) => o.kind === 'reject_once' || o.kind === 'reject_always'
-    );
+    const allowOpt = pickAllowOnceOption(options);
+    const rejectOpt = pickRejectOption(options);
 
     // Execute mode: auto-allow tools (agentic default) unless disabled in settings.
     // Plan mode and explicit non-auto settings still prompt (modal + webview).
@@ -1968,8 +1970,7 @@ export class SessionManager extends EventEmitter {
             outcome: { outcome: 'selected', optionId: allowOpt.optionId },
           });
         } else if (choice === 'Allow always') {
-          const always =
-            options.find((o) => o.kind === 'allow_always') ?? allowOpt;
+          const always = pickAllowAlwaysOption(options);
           if (always) {
             this.resolvePermission(permId, {
               outcome: { outcome: 'selected', optionId: always.optionId },
@@ -2047,13 +2048,9 @@ export class SessionManager extends EventEmitter {
     decision: 'allow' | 'allow_always' | 'reject' | 'cancel',
     options: PermissionOption[]
   ): void {
-    const allowOpt = options.find(
-      (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
-    );
-    const alwaysOpt = options.find((o) => o.kind === 'allow_always') ?? allowOpt;
-    const rejectOpt = options.find(
-      (o) => o.kind === 'reject_once' || o.kind === 'reject_always'
-    );
+    const allowOpt = pickAllowOnceOption(options);
+    const alwaysOpt = pickAllowAlwaysOption(options);
+    const rejectOpt = pickRejectOption(options);
     if (decision === 'allow' && allowOpt) {
       this.resolvePermission(permId, {
         outcome: { outcome: 'selected', optionId: allowOpt.optionId },
