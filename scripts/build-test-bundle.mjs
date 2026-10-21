@@ -34,8 +34,12 @@ await esbuild.build({
     pathScope: 'src/util/pathScope.ts',
     outsideAccess: 'src/util/outsideAccess.ts',
     panelRevive: 'src/util/panelRevive.ts',
+    openTabs: 'src/session/openTabs.ts',
+    sessionStore: 'src/session/sessionStore.ts',
   },
   outdir: outDir,
+  // sessionStore (and its logger/config imports) get a tiny vscode stub
+  alias: { vscode: './tests/stubs/vscode.cjs' },
   bundle: true,
   platform: 'node',
   format: 'cjs',

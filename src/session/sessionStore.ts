@@ -9,6 +9,7 @@ import type {
 import { getConfig } from '../util/config';
 import { normalizeCwdKey, sameCwd } from '../util/cwd';
 import { getLogger } from '../util/logger';
+import type { OpenTabsRecord } from './openTabs';
 
 export { normalizeCwdKey, sameCwd } from '../util/cwd';
 
@@ -35,6 +36,7 @@ export interface StoredSession extends StoredSessionMeta {
 
 const INDEX_KEY = 'grokBuild.sessionIndex';
 const LAST_ACTIVE_KEY = 'grokBuild.lastActiveByCwd';
+const OPEN_TABS_KEY = 'grokBuild.openTabsByCwd';
 const sessionKey = (localId: string) => `grokBuild.session.${localId}`;
 
 /**
@@ -73,6 +75,19 @@ export class SessionStore {
     await this.state.update(LAST_ACTIVE_KEY, map);
   }
 
+  getOpenTabs(cwd: string): OpenTabsRecord | undefined {
+    const map = this.state.get<Record<string, OpenTabsRecord>>(OPEN_TABS_KEY, {});
+    return map[normalizeCwdKey(cwd)];
+  }
+
+  async setOpenTabs(cwd: string, record: OpenTabsRecord): Promise<void> {
+    const map = {
+      ...this.state.get<Record<string, OpenTabsRecord>>(OPEN_TABS_KEY, {}),
+    };
+    map[normalizeCwdKey(cwd)] = record;
+    await this.state.update(OPEN_TABS_KEY, map);
+  }
+
   /**
    * Best session to reopen for this folder: last active with messages, else newest with messages.
    */
@@ -96,7 +111,16 @@ export class SessionStore {
     return undefined;
   }
 
-  async save(session: StoredSession): Promise<void> {
+  /** Saves run one after another: parallel restores used to race on the index. */
+  private saveChain: Promise<void> = Promise.resolve();
+
+  save(session: StoredSession): Promise<void> {
+    const run = this.saveChain.then(() => this.saveNow(session));
+    this.saveChain = run.catch(() => undefined);
+    return run;
+  }
+
+  private async saveNow(session: StoredSession): Promise<void> {
     const limit = getConfig().sessionHistoryLimit;
     const preview = extractPreview(session.messages);
     const meta: StoredSessionMeta = {
@@ -132,7 +156,8 @@ export class SessionStore {
       }
     }
     await this.state.update(INDEX_KEY, index);
-    await this.setLastActiveLocalId(session.cwd, session.localId);
+    // Do not touch last-active here: a background save of another tab used
+    // to steal it from the tab the user is on (#51 follow-up).
     this.log.debug('Saved session', session.localId, 'msgs=', session.messages.length);
   }
 
@@ -159,6 +184,9 @@ export class SessionStore {
     };
     delete map[normalizeCwdKey(cwd)];
     await this.state.update(LAST_ACTIVE_KEY, map);
+    const tabs = { ...this.state.get<Record<string, OpenTabsRecord>>(OPEN_TABS_KEY, {}) };
+    delete tabs[normalizeCwdKey(cwd)];
+    await this.state.update(OPEN_TABS_KEY, tabs);
     return toRemove.length;
   }
 
@@ -169,6 +197,7 @@ export class SessionStore {
     }
     await this.state.update(INDEX_KEY, []);
     await this.state.update(LAST_ACTIVE_KEY, {});
+    await this.state.update(OPEN_TABS_KEY, {});
   }
 }
 
