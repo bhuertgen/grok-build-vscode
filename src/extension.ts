@@ -133,6 +133,16 @@ export async function activate(
       status.command = 'grokBuild.openChat';
       return;
     }
+    if (!snap.ready && snap.invalidCliPath) {
+      status.text = '$(warning) Grok';
+      status.tooltip = (snap.error ?? 'Invalid grokBuild.cliPath') + '\nClick to open the setting';
+      status.command = {
+        title: 'Open Setting',
+        command: 'workbench.action.openSettings',
+        arguments: ['grokBuild.cliPath'],
+      };
+      return;
+    }
     if (!snap.ready) {
       status.text = '$(warning) Grok';
       status.tooltip =

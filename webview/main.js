@@ -54,6 +54,7 @@
     cliBannerDetail: document.getElementById('cliBannerDetail'),
     btnDismissCompat: document.getElementById('btnDismissCompat'),
     btnSetupCli: document.getElementById('btnSetupCli'),
+    btnOpenCliSetting: document.getElementById('btnOpenCliSetting'),
     updateBanner: document.getElementById('updateBanner'),
     updateBannerDetail: document.getElementById('updateBannerDetail'),
     btnUpdateCli: document.getElementById('btnUpdateCli'),
@@ -691,6 +692,22 @@
       }
       els.btnSetupCli?.classList.add('hidden');
       els.btnDismissCompat?.classList.add('hidden');
+      els.btnOpenCliSetting?.classList.add('hidden');
+      return;
+    }
+    els.btnOpenCliSetting?.classList.add('hidden');
+
+    // Explicit grokBuild.cliPath is wrong (#41): clear error + "Open Setting"
+    if (cli.invalidCliPath && !cli.ready) {
+      els.cliBanner.classList.remove('hidden');
+      els.cliBanner.classList.add('too-old');
+      setTitle('Invalid grokBuild.cliPath');
+      els.btnOpenCliSetting?.classList.remove('hidden');
+      els.btnSetupCli?.classList.add('hidden');
+      els.btnDismissCompat?.classList.add('hidden');
+      if (els.cliBannerDetail) {
+        els.cliBannerDetail.textContent = cli.error || 'grokBuild.cliPath does not point to the grok binary.';
+      }
       return;
     }
 
@@ -2851,6 +2868,7 @@
     els.imageInput?.click();
   });
   els.btnSetupCli?.addEventListener('click', () => post('setupCli', {}));
+  els.btnOpenCliSetting?.addEventListener('click', () => post('openCliPathSetting', {}));
   els.btnUpdateCli?.addEventListener('click', () => post('updateCli', {}));
   els.btnDismissUpdate?.addEventListener('click', () =>
     post('dismissCliUpdate', {})

@@ -604,6 +604,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await vscode.commands.executeCommand('grokBuild.setupCli');
         break;
 
+      case 'openCliPathSetting':
+        await vscode.commands.executeCommand(
+          'workbench.action.openSettings',
+          'grokBuild.cliPath'
+        );
+        break;
+
       case 'checkCli':
         await vscode.commands.executeCommand('grokBuild.checkCli');
         break;

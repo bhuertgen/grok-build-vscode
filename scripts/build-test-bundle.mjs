@@ -25,6 +25,8 @@ await esbuild.build({
     permissionOutcome: 'src/util/permissionOutcome.ts',
     initialMode: 'src/util/initialMode.ts',
     cliRefresh: 'src/cli/cliRefresh.ts',
+    cliPath: 'src/cli/cliPath.ts',
+    cliStatus: 'src/cli/cliStatus.ts',
   },
   outdir: outDir,
   bundle: true,
