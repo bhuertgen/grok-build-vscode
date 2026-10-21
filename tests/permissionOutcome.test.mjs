@@ -65,3 +65,56 @@ describe('option picking (retest bug: native "Allow" → "Allowed always")', () 
     assert.equal(pickRejectOption(OPTS).optionId, 'reject-once');
   });
 });
+
+describe('pickAutoAllowOption (#44)', () => {
+  const { pickAutoAllowOption } = require('../dist-test/permissionOutcome.js');
+  // CLI 1.0.62 order: session-wide grant listed FIRST
+  const cli = [
+    { optionId: 'allow-edits-session', name: 'Allow edits this session', kind: 'allow_always' },
+    { optionId: 'allow-once', name: 'Allow', kind: 'allow_once' },
+    { optionId: 'reject-once', name: 'Reject', kind: 'reject_once' },
+  ];
+  const disallowFirst = [
+    { optionId: 'no', name: 'Disallow', kind: 'reject_once' },
+    { optionId: 'never', name: "Don't allow", kind: 'reject_always' },
+    { optionId: 'yes', name: 'Yes', kind: 'allow_once' },
+  ];
+  const pick = (opts, ctx) => pickAutoAllowOption(opts, ctx)?.optionId;
+
+  it('allow-once picks allow_once despite CLI 1.0.62 order', () => {
+    assert.equal(pick(cli, { mode: 'allow-once' }), 'allow-once');
+  });
+  it('allow-once never falls back to a session-wide grant', () => {
+    assert.equal(pick([cli[0], cli[2]], { mode: 'allow-once' }), undefined);
+  });
+  it('allow-session picks allow_once; allow_always only when no one-shot option', () => {
+    assert.equal(pick(cli, { mode: 'allow-session' }), 'allow-once');
+    assert.equal(pick([cli[0], cli[2]], { mode: 'allow-session' }), 'allow-edits-session');
+  });
+  it('allow-always / globalAllowAlways pick allow_always, fallback allow_once', () => {
+    assert.equal(pick(cli, { mode: 'allow-always' }), 'allow-edits-session');
+    assert.equal(pick(cli, { mode: 'ask', globalAllowAlways: true }), 'allow-edits-session');
+    assert.equal(pick([cli[1], cli[2]], { mode: 'allow-always' }), 'allow-once');
+  });
+  it('ask returns undefined (prompt the user)', () => {
+    assert.equal(pick(cli, { mode: 'ask' }), undefined);
+  });
+  it('session allow-always key picks allow_once', () => {
+    assert.equal(pick(cli, { mode: 'ask', sessionKeyAllowed: true }), 'allow-once');
+  });
+  it('"Disallow" / "Don\'t allow" reject options are never auto-selected', () => {
+    for (const mode of ['allow-once', 'allow-session', 'allow-always']) {
+      assert.equal(pick(disallowFirst, { mode }), 'yes', mode);
+      assert.equal(pick(disallowFirst.slice(0, 2), { mode }), undefined, mode);
+    }
+    assert.equal(pick(disallowFirst.slice(0, 2), { mode: 'ask', globalAllowAlways: true, sessionKeyAllowed: true }), undefined);
+  });
+  it('options without kind are never auto-allowed by name', () => {
+    assert.equal(pick([{ optionId: 'allow', name: 'Allow' }], { mode: 'allow-always' }), undefined);
+  });
+  it('permissionDecision maps disallow-like ids of unknown kind to rejected', () => {
+    assert.equal(permissionDecision({ outcome: { outcome: 'selected', optionId: 'disallow' } }, []), 'rejected');
+    assert.equal(permissionDecision({ outcome: { outcome: 'selected', optionId: 'dont-allow' } }, []), 'rejected');
+    assert.equal(permissionDecision({ outcome: { outcome: 'selected', optionId: 'allow' } }, []), 'allowed');
+  });
+});

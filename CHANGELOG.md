@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Security
+- `grokBuild.permissionMode: allow-once` no longer grants session-wide approval: auto-answers now pick the option by ACP kind instead of list order (CLI 1.0.62 lists the session-wide `allow_always` option first) and never match by name, so a "Disallow" / "Don't allow" option can no longer be selected as an allow. `allow-session` answers each request with `allow_once`; `allow-always` picks `allow_always` (#44).
+
 ### Compatibility
 - Tested with Grok CLI **1.0.62 stable** and tested up to **1.0.66 alpha** (smoke + ACP probe green). The recommended soft floor stays **1.0.62**; hard floor 1.0.0 (#39).
 

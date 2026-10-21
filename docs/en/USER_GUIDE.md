@@ -324,7 +324,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `permissionMode` | `ask` | How the UI answers `session/request_permission` |
+| `permissionMode` | `ask` | How the UI answers `session/request_permission`. Options are picked by ACP kind, never by name or order: `ask` prompts; `allow-once` auto-selects the one-shot **allow_once** option (no session-wide grant; prompts if the agent offers none); `allow-session` auto-selects **allow_once** for every request in this VS Code session (falls back to allow_always only if no one-shot option exists), so switching back to `ask` takes effect immediately; `allow-always` selects **allow_always** and starts the CLI with `--always-approve`. Reject-kind options ("Disallow", "Don't allow") are never auto-selected |
 | `autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (recommended so Execute is not blocked on a hidden dialog) |
 | `showDiffBeforeApply` | `false` | Toast “Show Diff” after write (write does **not** block the agent) |
 | `autoIncludeActiveFile` | `true` | Attach active editor file as context |

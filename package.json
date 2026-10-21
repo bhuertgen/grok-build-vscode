@@ -479,7 +479,13 @@
             "allow-always"
           ],
           "default": "ask",
-          "description": "Extension UI: how to answer ACP session/request_permission dialogs (not the same as CLI --permission-mode)."
+          "enumDescriptions": [
+            "Prompt for every tool permission.",
+            "Auto-select the one-shot allow option for each request; never grants session-wide approval. Prompts if the agent offers no one-shot option.",
+            "Auto-select the one-shot allow option for every request in this VS Code session; switching back to Ask takes effect immediately.",
+            "Auto-select the allow-always option and start the CLI with --always-approve."
+          ],
+          "description": "Extension UI: how to answer ACP session/request_permission dialogs (not the same as CLI --permission-mode). Options are chosen by ACP kind, never by name or order."
         },
         "grokBuild.showDiffBeforeApply": {
           "type": "boolean",

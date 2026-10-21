@@ -36,7 +36,7 @@ import {
 } from '../util/workspaceTrust';
 import type { EditController } from '../edits/editController';
 import { isWriteLikePermission } from '../util/permissionKind';
-import { pickRejectOption } from '../util/permissionOutcome';
+import { pickAutoAllowOption, pickRejectOption } from '../util/permissionOutcome';
 import { sliceTextLines } from '../util/textSlice';
 import { isProbablyBinary } from '../util/unreadable';
 
@@ -189,38 +189,16 @@ export class ClientHandlers {
       }
     }
 
-    const findAllow = () =>
-      params.options.find(
-        (o) =>
-          o.kind === 'allow_once' ||
-          o.kind === 'allow_always' ||
-          /allow/i.test(o.kind) ||
-          /allow/i.test(o.name)
-      );
-
-    if (this.globalAllowAlways || cfg.permissionMode === 'allow-always') {
-      const allow = findAllow();
-      if (allow) {
-        return { outcome: { outcome: 'selected', optionId: allow.optionId } };
-      }
-    }
-
-    if (cfg.permissionMode === 'allow-session' || cfg.permissionMode === 'allow-once') {
-      const allow = findAllow();
-      if (allow) {
-        return { outcome: { outcome: 'selected', optionId: allow.optionId } };
-      }
-    }
-
-    // Check session allow-always keys
+    // permissionMode auto-answers: kind-based, order-independent (#44)
     const key = this.permissionKey(params.toolCall);
-    if (this.sessionAllowAlways.has(key)) {
-      const allow = params.options.find(
-        (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
-      );
-      if (allow) {
-        return { outcome: { outcome: 'selected', optionId: allow.optionId } };
-      }
+    const auto = pickAutoAllowOption(params.options, {
+      mode: cfg.permissionMode,
+      globalAllowAlways: this.globalAllowAlways,
+      sessionKeyAllowed: this.sessionAllowAlways.has(key),
+    });
+    if (auto) {
+      this.log.info('Auto-answer permission', cfg.permissionMode, auto.kind, auto.optionId);
+      return { outcome: { outcome: 'selected', optionId: auto.optionId } };
     }
 
     if (this.onPermissionUi) {

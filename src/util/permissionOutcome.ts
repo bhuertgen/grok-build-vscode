@@ -35,7 +35,7 @@ export function permissionDecision(
     return 'rejected';
   }
   // Unknown option kind: infer from id
-  if (/reject|deny/i.test(o.optionId)) {
+  if (/reject|deny|disallow|dont[-_ ]?allow|don't[-_ ]?allow|not[-_ ]allow/i.test(o.optionId)) {
     return 'rejected';
   }
   return /allow/i.test(o.optionId) ? 'allowed' : 'cancelled';
@@ -73,4 +73,51 @@ export function pickAllowAlwaysOption<T extends OptionLike>(options: T[] | undef
 export function pickRejectOption<T extends OptionLike>(options: T[] | undefined | null): T | undefined {
   const list = options ?? [];
   return list.find((o) => o.kind === 'reject_once') ?? list.find((o) => o.kind === 'reject_always');
+}
+
+export type UiPermissionMode = 'ask' | 'allow-once' | 'allow-session' | 'allow-always';
+
+/**
+ * Option the extension answers automatically for `grokBuild.permissionMode`
+ * (#44), or undefined → ask the user. Matches on ACP `kind` only, never on
+ * the option name (a "Disallow" / "Don't allow" reject option is never an
+ * allow), and never depends on option order.
+ *
+ * - `allow-always` / global allow-always → `allow_always` (fallback
+ *   `allow_once`); the CLI also runs with `--always-approve`.
+ * - `allow-session` → `allow_once` (fallback `allow_always` only when no
+ *   one-shot option exists). The extension itself keeps answering for the
+ *   rest of the VS Code session, so no CLI-side grant outlives a switch back
+ *   to `ask`.
+ * - `allow-once` → `allow_once` only; without one, the user is asked.
+ * - A tool the user approved with "Allow always" earlier in this session
+ *   (`sessionKeyAllowed`) → `pickAllowOnceOption()`.
+ */
+export function pickAutoAllowOption<T extends OptionLike>(
+  options: T[] | undefined | null,
+  ctx: { mode: UiPermissionMode | string; globalAllowAlways?: boolean; sessionKeyAllowed?: boolean }
+): T | undefined {
+  const list = options ?? [];
+  if (ctx.globalAllowAlways || ctx.mode === 'allow-always') {
+    const o = pickAllowAlwaysOption(list);
+    if (o) {
+      return o;
+    }
+  }
+  if (ctx.mode === 'allow-session') {
+    const o = pickAllowOnceOption(list);
+    if (o) {
+      return o;
+    }
+  }
+  if (ctx.mode === 'allow-once') {
+    const o = list.find((x) => x.kind === 'allow_once');
+    if (o) {
+      return o;
+    }
+  }
+  if (ctx.sessionKeyAllowed) {
+    return pickAllowOnceOption(list);
+  }
+  return undefined;
 }

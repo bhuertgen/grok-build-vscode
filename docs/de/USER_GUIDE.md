@@ -326,7 +326,7 @@ Auch in der Installationsanleitung: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-em
 
 | Setting | Default | Beschreibung |
 |---------|---------|--------------|
-| `permissionMode` | `ask` | Wie die UI `session/request_permission` beantwortet |
+| `permissionMode` | `ask` | Wie die UI `session/request_permission` beantwortet. Optionen werden nach ACP-Kind gewählt, nie nach Name oder Reihenfolge: `ask` fragt nach; `allow-once` wählt automatisch die einmalige Option **allow_once** (keine sessionweite Freigabe; fragt nach, wenn der Agent keine anbietet); `allow-session` wählt für jede Anfrage in dieser VS-Code-Session **allow_once** (nur ohne einmalige Option allow_always), daher wirkt ein Wechsel zurück auf `ask` sofort; `allow-always` wählt **allow_always** und startet die CLI mit `--always-approve`. Ablehnende Optionen („Disallow“, „Don't allow“) werden nie automatisch gewählt |
 | `autoAllowInExecuteMode` | `true` | Tools in Execute automatisch erlauben (empfohlen, damit Execute nicht an einem unsichtbaren Dialog hängt) |
 | `showDiffBeforeApply` | `false` | Toast „Show Diff“ nach dem Write (der Write blockiert den Agent **nicht**) |
 | `autoIncludeActiveFile` | `true` | Aktive Editor-Datei als Kontext anhängen |
