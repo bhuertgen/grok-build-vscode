@@ -283,7 +283,7 @@ Auch in der Installationsanleitung: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-em
 
 | Setting | Default | Beschreibung |
 |---------|---------|--------------|
-| `cliPath` | `grok` | Pfad zur CLI. Eine Änderung erkennt die CLI sofort neu (Header-Version, Kompatibilitätsbanner, Update-Check) — kein Fenster-Reload nötig |
+| `cliPath` | `grok` | Pfad zur CLI. Leer oder `grok`: PATH, danach `~/.local/bin`, `~/.grok/bin`, `/usr/local/bin`. Ein expliziter Pfad wird für Erkennung **und** Agent-Start **unverändert** verwendet (kein Fallback); ein fehlender / nicht ausführbarer Pfad zeigt das Banner **Invalid grokBuild.cliPath** mit **Open Setting**. Eine Änderung erkennt die CLI sofort neu (Header-Version, Kompatibilitätsbanner, Update-Check) und blendet das Banner aus, sobald der Pfad stimmt — kein Fenster-Reload nötig. |
 | `cliArgs` | `["agent","stdio"]` | Basis-Argumente für ACP |
 | `openLocation` | `editor` | `editor` = Mitte (empfohlen für Dateien + Chat); `sidebar` = Activity Bar |
 | `defaultMode` | `execute` | `plan` \| `execute` — Execute für Agent-Arbeit, Plan für reine Reviews |
@@ -376,6 +376,7 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 | Symptom | Was tun |
 |---------|---------|
 | CLI fehlt | **Setup CLI…** / `cliPath` setzen |
+| Banner „Invalid grokBuild.cliPath“ | **Open Setting** klicken, Pfad korrigieren oder leeren |
 | Keine Writes | Workspace **vertrauen** |
 | Modellwechsel „hängt“ | „Switching model…“; 45 s Timeout; Output **Grok Build** prüfen |
 | Agent nennt falsches Modell | UI-Systemzeile / Chip ist maßgeblich |

@@ -39,6 +39,12 @@ export async function ensureCliReady(
     return { ready: true, detection };
   }
 
+  if (!options?.force && detection.invalidPath) {
+    // Explicit grokBuild.cliPath is wrong: the banner offers "Open Setting" (#41)
+    log.warn('Configured grokBuild.cliPath is invalid', detection.error);
+    return { ready: false, detection };
+  }
+
   if (!options?.force && context.globalState.get<boolean>(SKIP_KEY)) {
     log.warn('CLI missing; onboard previously skipped');
     return { ready: false, detection };
