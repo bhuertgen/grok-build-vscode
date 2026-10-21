@@ -1,12 +1,14 @@
 # Installation aus VSIX — ausführliche Anleitung
 
+**Sprache:** Deutsch · English: [../en/INSTALL_VSIX.md](../en/INSTALL_VSIX.md)
+
 > **Nicht offiziell von xAI.** Community-Extension (Publisher: `bhuertgen`).  
 > Agent-Logik, Safety und Tools liegen im **offiziellen** Grok Build CLI; diese Extension ist nur der VS-Code-ACP-Client.
 
 Die Extension liegt **nicht** im offiziellen VS-Code-Marketplace.  
 Du bekommst eine Datei **`.vsix`** (wie ein Installationspaket) und installierst sie **manuell** in der Desktop-App **Visual Studio Code**.
 
-> **Wichtig:** Die Funktion heißt **nicht** in der Marketplace-Suche.  
+> **Wichtig:** „Von VSIX installieren“ erscheint **nicht** in den Marketplace-Suchtreffern.  
 > Du suchst also **nicht** nach „Grok“ im Erweiterungs-Store, sondern installierst eine **lokale Datei**.
 
 ---
@@ -213,6 +215,8 @@ Die Extension steuert das **Grok Build CLI**. Ohne CLI erscheint z. B. „CLI 
 grok --version
 ```
 
+Empfohlen ist **1.0.62 oder neuer** (getestet bis **1.0.66 alpha**); ältere 1.0.x-Versionen laufen mit Warnbanner.
+
 Fehlt die CLI: Befehl **Grok Build: Setup CLI…** in VS Code oder die offizielle CLI-Doku: https://x.ai/cli
 
 ---
@@ -275,7 +279,7 @@ Settings (`Strg+,`) → **Grok Build**, oder in `settings.json`:
 }
 ```
 
-Vollständige Referenz: [USER_GUIDE.md §6](./USER_GUIDE.md#6-settings-grokbuild) (Detail: [EN §6](../en/USER_GUIDE.md#6-all-settings-grokbuild)).
+Vollständige Referenz: [USER_GUIDE.md §6](./USER_GUIDE.md#6-alle-einstellungen-grokbuild).
 
 ---
 

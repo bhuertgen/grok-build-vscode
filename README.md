@@ -1,5 +1,7 @@
 # Grok Build for VS Code
 
+> **Deutsch:** [docs/de/README.md](docs/de/README.md) — full documentation in German (same content as English).
+
 **Hybrid architecture:** native Visual Studio Code UX on top of the official **xAI Grok Build CLI** via the [Agent Client Protocol](https://agentclientprotocol.com/) (`grok agent stdio`).
 
 - The extension does **not** reimplement the agent loop.
@@ -120,7 +122,7 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 **Trust the workspace** for writes/tools. First-run recommendations: [INSTALL_VSIX §7](docs/en/INSTALL_VSIX.md#7-recommended-settings-after-install) · [DE](docs/de/INSTALL_VSIX.md#7-empfohlene-settings-nach-der-installation).
 
 **Complete parameter reference** (CLI flags, UI permissions, context, updates):  
-→ [docs/en/USER_GUIDE.md §6](docs/en/USER_GUIDE.md#6-all-settings-grokbuild) · [DE overview](docs/de/USER_GUIDE.md#6-settings-grokbuild)
+→ [docs/en/USER_GUIDE.md §6](docs/en/USER_GUIDE.md#6-all-settings-grokbuild) · [DE](docs/de/USER_GUIDE.md#6-alle-einstellungen-grokbuild)
 
 ## Documentation index
 
@@ -131,7 +133,8 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 | Multi-agent | [en/MULTI_AGENT](docs/en/MULTI_AGENT.md) | [de/MULTI_AGENT](docs/de/MULTI_AGENT.md) |
 | Tests | [en/TEST_CONCEPT](docs/en/TEST_CONCEPT.md) | [de/TEST_CONCEPT](docs/de/TEST_CONCEPT.md) |
 | Scroll tests | [en/SCROLL_TEST](docs/en/SCROLL_TEST_PROMPT.md) | [de/SCROLL_TEST](docs/de/SCROLL_TEST_PROMPT.md) |
-| Index | [docs/README](docs/README.md) | same |
+| Index | [docs/en/README](docs/en/README.md) | [docs/de/README](docs/de/README.md) |
+| Install from VSIX | [en/INSTALL_VSIX](docs/en/INSTALL_VSIX.md) | [de/INSTALL_VSIX](docs/de/INSTALL_VSIX.md) |
 
 ## Architecture (hybrid)
 

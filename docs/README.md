@@ -1,19 +1,21 @@
 # Documentation — Grok Build for VS Code
 
+> **Deutsch:** [de/README.md](./de/README.md) — full documentation in German (same content as English).
+
 > **Not affiliated with xAI.** Community extension over the official Grok Build CLI.
 
-This repository documents the product in **two languages** under separate folders.
+The user documentation is **bilingual**: every document exists in English (`en/`) and German (`de/`) with the same content. When you change one language, update the other in the same pull request.
 
 | Language | Folder | Start here |
 |----------|--------|------------|
-| **English** (primary for GitHub discovery) | [en/](./en/) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) |
-| **Deutsch** | [de/](./de/) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) |
+| **English** | [en/](./en/) | [en/README.md](./en/README.md) · [en/USER_GUIDE.md](./en/USER_GUIDE.md) |
+| **Deutsch** | [de/](./de/) | [de/README.md](./de/README.md) · [de/USER_GUIDE.md](./de/USER_GUIDE.md) |
 
 ```
 docs/
   README.md          ← you are here
-  en/                ← English (complete)
-  de/                ← German (user-facing + short tech guides)
+  en/                ← English
+  de/                ← German (same content as en/)
 ```
 
 ### What lives where
@@ -21,12 +23,12 @@ docs/
 | Topic | English | German |
 |-------|---------|--------|
 | **Install from VSIX (step-by-step)** | [en/INSTALL_VSIX.md](./en/INSTALL_VSIX.md) | [de/INSTALL_VSIX.md](./de/INSTALL_VSIX.md) |
-| User guide (full settings tables) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) (overview + link to EN for full tables) |
+| User guide (all settings, shortcuts) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) |
 | Architecture | [en/ARCHITECTURE.md](./en/ARCHITECTURE.md) | [de/ARCHITECTURE.md](./de/ARCHITECTURE.md) |
 | Multi-agent | [en/MULTI_AGENT.md](./en/MULTI_AGENT.md) | [de/MULTI_AGENT.md](./de/MULTI_AGENT.md) |
 | Test concept | [en/TEST_CONCEPT.md](./en/TEST_CONCEPT.md) | [de/TEST_CONCEPT.md](./de/TEST_CONCEPT.md) |
 | Scroll tests | [en/SCROLL_TEST_PROMPT.md](./en/SCROLL_TEST_PROMPT.md) | [de/SCROLL_TEST_PROMPT.md](./de/SCROLL_TEST_PROMPT.md) |
 
-Root readme: [../README.md](../README.md).
+Root readme: [../README.md](../README.md) · Changelog (English only): [../CHANGELOG.md](../CHANGELOG.md)
 
-**UI language** of the extension is **English**. Docs: EN + DE folders as above.
+**UI language** of the extension is **English**; a few status labels are localized for a German VS Code display language (see [en/USER_GUIDE.md §4.10](./en/USER_GUIDE.md#410-info-lines-in-the-chat)).

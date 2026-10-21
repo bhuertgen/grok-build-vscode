@@ -1,5 +1,7 @@
 # Install from VSIX — detailed guide
 
+**Language:** English · Deutsch: [../de/INSTALL_VSIX.md](../de/INSTALL_VSIX.md)
+
 > **Not affiliated with xAI.** Community extension (publisher: `bhuertgen`).  
 > Agent logic, safety, and tools stay in the **official** Grok Build CLI; this extension is only the VS Code ACP client.
 
@@ -60,6 +62,12 @@ This is the **most reliable** path. You search for the command by name — you d
 
    ```text
    VSIX
+   ```
+
+   or, in a German VS Code UI:
+
+   ```text
+   Von VSIX
    ```
 
 5. Select this command from the list:
@@ -181,6 +189,8 @@ The extension drives the **Grok Build CLI**. Without it you may see “CLI requi
 ```bash
 grok --version
 ```
+
+**1.0.62 or newer** is recommended (tested up to **1.0.66 alpha**); older 1.0.x versions work with a warning banner.
 
 If missing: command **Grok Build: Setup CLI…** or https://x.ai/cli
 

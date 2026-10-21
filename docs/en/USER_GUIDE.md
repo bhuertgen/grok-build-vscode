@@ -16,7 +16,7 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 1. **VS Code** ≥ 1.90 (or compatible, e.g. Cursor)  
 2. **Grok Build CLI** installed and signed in  
    - Docs: https://x.ai/cli  
-   - Check: `grok --version`  
+   - Check: `grok --version` — **1.0.62 or newer recommended** (tested with 1.0.62 stable, up to **1.0.66 alpha**); older 1.0.x works with a warning banner  
 3. Optional for development: **Node.js** ≥ 18  
 
 ### Install the extension
@@ -175,9 +175,13 @@ Do not write files yet.
 | Setting / UI | Meaning |
 |--------------|---------|
 | **Ask** | Each tool: Allow / Reject (card in chat) |
-| **Allow once / session / always** | Fewer prompts |
+| **Allow** (card button) | Allows **this call only** (`allow_once`); the next call prompts again. Falls back to `allow_always` only if the agent offers no one-shot option |
+| **Allow always** (card button) | Allows this kind of call for the rest of the session |
+| **Allow once / session / always** (permission mode) | Fewer prompts |
 | **autoAllowInExecuteMode** (default on) | In Execute, tools are not blocked on a hidden dialog |
 | **CLI alwaysApprove** | Agent process auto-approves all tools (strong) |
+
+The resolved card shows the decision (**Allowed**, **Allowed always**, **Rejected**, **Cancelled**). Write approvals for a binary or unreadable file (CLI ≥ 1.0.54) show the badge **unreadable – no preview** instead of a diff.
 
 ### 4.7 CLI / extension updates
 
@@ -187,7 +191,7 @@ Do not write files yet.
 
 ---
 
-## 4.1 Session config (Effort)
+## 4.8 Session config (Effort)
 
 When the CLI advertises `configOptions` (select or boolean), the chat header shows a chip next to **Model** — Effort is labeled **Effort**. Model stays on its own chip.
 
@@ -197,7 +201,7 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 - `grokBuild.reasoningEffort` remains the process default for the next session (CLI `--reasoning-effort`). It is not rewritten by the chip.
 - If the agent advertises no extra options, no chip is shown.
 
-## 4.2 `@file#start-end`
+## 4.9 `@file#start-end`
 
 1. Select lines in the editor.
 2. `Alt+K` (or **+ → Selection range**) inserts `@rel/path#12-34` into the composer and attaches that range as context.
@@ -205,6 +209,16 @@ When the CLI advertises `configOptions` (select or boolean), the chat header sho
 4. On send, the mention is parsed and the line slice is sent as a resource block plus the mention text.
 5. Empty selection or multi-cursor: a warning, nothing inserted.
 6. `Ctrl+Shift+G A` (`Cmd+Shift+G A` on Mac) opens the context picker. You can also add a file by typing `@` in the prompt.
+
+## 4.10 Info lines in the chat
+
+| Line / badge | When |
+|--------------|------|
+| ℹ️ *Turn stopped by hook (`<hook>`): <reason>* | A CLI hook ended the turn with `continue: false` (CLI ≥ 1.0.60). Shown instead of `(cancelled)` or nothing. The hook id is shortened (`project/stop:pre_tool_use[0]…` → `project/stop`). |
+| **unreadable – no preview** | A write approval targets a binary/unreadable file (CLI ≥ 1.0.54); no diff is attempted. |
+| `grok update` hint | `cliPermissionMode: plan` on a CLI older than 1.0.65 (the session starts in `defaultMode`). |
+
+With a German VS Code display language, the hook-stop line, the unreadable badge and the permission decision labels are localized ("Turn durch Hook beendet", "nicht lesbar – keine Vorschau", "Erlaubt" / "Immer erlaubt" / "Abgelehnt" / "Abgebrochen"); all other UI text is English.
 
 ## 5. Commands (Command Palette: “Grok Build”)
 
@@ -265,7 +279,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `cliPath` | `grok` | Path to the CLI |
+| `cliPath` | `grok` | Path to the CLI. Changing it re-detects the CLI right away (header version, compat banner, update check) — no window reload needed |
 | `cliArgs` | `["agent","stdio"]` | Base args for ACP |
 | `openLocation` | `editor` | `editor` = middle (recommended for Files + Chat); `sidebar` = activity bar |
 | `defaultMode` | `execute` | `plan` \| `execute` — prefer execute for agent work, Plan for review-only |
@@ -277,7 +291,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 |---------|---------|----------------|
 | `defaultModel` | `""` | `-m` / `--model` (empty = CLI default) |
 | `reasoningEffort` | `""` | `--reasoning-effort` (default for **new** sessions). If the agent advertises an Effort / config option, the chat header chip overrides it **for the live session** via ACP `session/set_config_option` without rewriting this setting. |
-| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`), top-level flag. **`plan`:** per the CLI changelog, from CLI **1.0.65** the agent really starts in plan mode; new sessions then start in **Plan** in the UI (overrides `defaultMode`), so tool calls are prompted instead of auto-allowed. Grok does not report the mode over ACP, so the UI derives it from this setting and the CLI version. Older CLIs start in the default mode; the chat shows a hint to run `grok update`. |
+| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`), top-level flag. **`plan`:** per the CLI changelog, from CLI **1.0.65** the agent really starts in plan mode; new sessions then start in **Plan** in the UI (overrides `defaultMode`), so tool calls are prompted instead of auto-allowed. Grok does not report the mode over ACP, so the UI derives it from this setting and the CLI version. Older CLIs start in the default mode; the chat shows a hint to run `grok update`. Not passed when `alwaysApprove` is on. |
 | `alwaysApprove` | `false` | `--always-approve` |
 | `maxTurns` | `null` | `--max-turns` |
 | `noSubagents` | `false` | `--no-subagents` |
@@ -403,4 +417,4 @@ Related docs:
 
 ---
 
-*Docs for extension v0.2.x — for setting enums, `package.json` contributions are the source of truth.*
+*Docs for extension v0.3.x — for setting enums, `package.json` contributions are the source of truth.*
