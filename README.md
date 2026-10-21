@@ -106,7 +106,7 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 
 | Setting | Default | Role |
 |---------|---------|------|
-| `grokBuild.cliPath` | `grok` | CLI executable |
+| `grokBuild.cliPath` | `grok` | CLI executable. `grok`/empty: PATH + standard install locations; an explicit path is used as-is (error banner if invalid) |
 | `grokBuild.openLocation` | `editor` | Chat in middle (`editor`, recommended) or sidebar — keeps Explorer left |
 | `grokBuild.defaultMode` | `execute` | `plan` \| `execute` |
 | `grokBuild.defaultModel` | `""` | CLI `-m` (empty = CLI default) |

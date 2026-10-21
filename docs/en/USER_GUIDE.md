@@ -265,7 +265,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `cliPath` | `grok` | Path to the CLI |
+| `cliPath` | `grok` | Path to the CLI. Empty or `grok`: PATH, then `~/.local/bin`, `~/.grok/bin`, `/usr/local/bin`. An explicit path is used **as-is** for both detection and agent start (no fallback); a missing / non-executable path shows an error banner with **Open Setting**, which clears as soon as the path is fixed (no reload). |
 | `cliArgs` | `["agent","stdio"]` | Base args for ACP |
 | `openLocation` | `editor` | `editor` = middle (recommended for Files + Chat); `sidebar` = activity bar |
 | `defaultMode` | `execute` | `plan` \| `execute` — prefer execute for agent work, Plan for review-only |
@@ -358,6 +358,7 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | Symptom | What to try |
 |---------|-------------|
 | CLI missing | **Setup CLI…** / set `cliPath` |
+| "Invalid grokBuild.cliPath" banner | Click **Open Setting**, fix or clear the path |
 | No writes | **Trust** the workspace |
 | Model switch “hangs” | “Switching model…”; 45s timeout; check **Grok Build** output |
 | Agent names wrong model | UI system line / chip is authoritative |
