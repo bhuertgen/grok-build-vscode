@@ -7,6 +7,7 @@
 
 ### Changed
 - With `grokBuild.cliPermissionMode: plan`, new sessions now start in **Plan** mode in the UI (mode button / status bar), matching the agent: from Grok CLI **1.0.65** `--permission-mode plan` really starts in plan mode. On older CLIs the UI keeps `defaultMode` and shows a `grok update` hint (#38, related #11).
+- German-variant UI strings now share one locale helper (`src/util/locale.ts`) instead of three copy-pasted checks; no visible change. `vscode.l10n` migration deferred, see ARCHITECTURE (#48).
 
 ### Fixed
 - An explicit `grokBuild.cliPath` that does not exist or is not executable no longer falls back silently to `~/.local/bin/grok`, `~/.grok/bin/grok` or `/usr/local/bin/grok`. Detection and agent start now share one path resolution; an invalid path shows an "Invalid grokBuild.cliPath" banner with **Open Setting** and no version in the header. Empty or `grok` keeps the previous fallback (#41).

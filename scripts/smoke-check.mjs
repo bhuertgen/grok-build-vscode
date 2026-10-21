@@ -254,6 +254,7 @@ if (bundle.status !== 0) {
       'tests/cliRefresh.test.mjs',
       'tests/cliPath.test.mjs',
       'tests/cliRecovery.test.mjs',
+      'tests/locale.test.mjs',
     ],
     {
       encoding: 'utf8',

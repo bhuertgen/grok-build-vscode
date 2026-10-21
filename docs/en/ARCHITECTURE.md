@@ -110,6 +110,13 @@ End-user documentation: [USER_GUIDE.md](./USER_GUIDE.md).
 6. Session start failures surface clear hybrid-mode errors (not “AI failed”).
 7. Start mode: Grok does not report ACP modes on `session/new`, so with `cliPermissionMode: plan` the UI derives **Plan** from the setting + CLI version (≥ 1.0.65); a later `current_mode_update` still wins.
 
+## Localisation
+
+Decision (#48): the UI is English. A handful of strings that came from earlier German-language work (permission decision labels, the "unreadable – no preview" hint, the hook-stop info line) also have a German variant for a German VS Code display language.
+
+- Locale detection lives in **one** pure helper, `src/util/locale.ts` (`isGermanLocale`, `localize({ en, de }, vscode.env.language)`). Other modules must not add their own `de` checks.
+- We do **not** migrate to `vscode.l10n` / `l10n/bundle.l10n.*.json` / `package.nls.*.json` for now: there are only a few translated strings, and the pure modules stay unit-testable without the VS Code API. If more languages or many more strings are needed, migrate in a separate PR and inject a translate function into the pure modules.
+
 ## Native VS Code strengths
 
 - Context: active file, selection, workspace symbols, git changes

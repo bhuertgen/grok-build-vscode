@@ -6,6 +6,8 @@
  * against 1.0.62:  "Write `/path/img.bin` (unreadable, no preview)"  (no diff content).
  */
 
+import { isGermanLocale, localize } from './locale';
+
 const UNREADABLE_SUFFIX = /\s*\((?:[^()]*\b)?unreadable\b[^()]*\)\s*$/i;
 
 export interface ParsedPermissionTitle {
@@ -52,9 +54,7 @@ export function isProbablyBinary(buf: Uint8Array, sampleBytes = 8192): boolean {
 }
 
 export function unreadableLabel(lang?: string): string {
-  return typeof lang === 'string' && /^de\b/i.test(lang.trim())
-    ? 'nicht lesbar – keine Vorschau'
-    : 'unreadable – no preview';
+  return localize({ en: 'unreadable – no preview', de: 'nicht lesbar – keine Vorschau' }, lang);
 }
 
 interface ToolCallLike {

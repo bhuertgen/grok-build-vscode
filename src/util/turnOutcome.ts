@@ -11,6 +11,8 @@
  * The ACP stopReason alone cannot tell this apart from a user cancel.
  */
 
+import { isGermanLocale } from './locale';
+
 export type TurnEndKind =
   | 'end_turn'
   | 'cancelled'
@@ -77,9 +79,8 @@ export function shortHookName(name: string | undefined): string | undefined {
   return short || name;
 }
 
-export function isGermanLocale(lang: string | undefined): boolean {
-  return typeof lang === 'string' && /^de\b/i.test(lang.trim());
-}
+// Re-exported for existing callers; the implementation lives in ./locale (#48).
+export { isGermanLocale };
 
 /** Info line for a hook-stopped turn (markdown, italic). */
 export function formatHookStopNotice(outcome: TurnOutcome, lang?: string): string {

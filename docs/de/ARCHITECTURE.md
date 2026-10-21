@@ -110,6 +110,13 @@ Endnutzer-Dokumentation: [USER_GUIDE.md](./USER_GUIDE.md).
 6. Fehler beim Session-Start zeigen klare Hybrid-Modus-Meldungen (nicht „AI failed“).
 7. Startmodus: Grok meldet bei `session/new` keine ACP-Modi; mit `cliPermissionMode: plan` leitet die UI **Plan** aus Setting + CLI-Version (≥ 1.0.65) ab; ein späteres `current_mode_update` hat weiterhin Vorrang.
 
+## Lokalisierung
+
+Entscheidung (#48): Die UI ist englisch. Einige wenige Texte aus früheren deutschsprachigen Arbeiten (Labels der Permission-Entscheidung, der Hinweis „nicht lesbar – keine Vorschau“, die Info-Zeile bei Hook-Stopp) haben zusätzlich eine deutsche Variante für eine deutsche VS-Code-Anzeigesprache.
+
+- Die Locale-Erkennung liegt in **einem** reinen Helper, `src/util/locale.ts` (`isGermanLocale`, `localize({ en, de }, vscode.env.language)`). Andere Module dürfen keine eigenen `de`-Prüfungen einbauen.
+- Eine Migration auf `vscode.l10n` / `l10n/bundle.l10n.*.json` / `package.nls.*.json` machen wir vorerst **nicht**: Es gibt nur wenige übersetzte Texte, und die reinen Module bleiben ohne VS-Code-API unit-testbar. Werden weitere Sprachen oder deutlich mehr Texte nötig, erfolgt die Migration in einem eigenen PR; die reinen Module bekommen dann eine Übersetzungsfunktion injiziert.
+
 ## Stärken von VS Code, die wir nutzen
 
 - Kontext: aktive Datei, Auswahl, Workspace-Symbole, Git-Änderungen

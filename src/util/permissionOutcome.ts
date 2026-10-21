@@ -3,6 +3,8 @@
  * regardless of which UI answered: webview card, native modal, timeout, turn end).
  * Pure module (no vscode) — unit-tested.
  */
+import { localize, type LocalizedText } from './locale';
+
 export type PermissionDecision = 'allowed' | 'allowed_always' | 'rejected' | 'cancelled';
 
 interface OptionLike {
@@ -39,18 +41,15 @@ export function permissionDecision(
   return /allow/i.test(o.optionId) ? 'allowed' : 'cancelled';
 }
 
+const DECISION_LABELS: Record<PermissionDecision, LocalizedText> = {
+  allowed: { en: 'Allowed', de: 'Erlaubt' },
+  allowed_always: { en: 'Allowed always', de: 'Immer erlaubt' },
+  rejected: { en: 'Rejected', de: 'Abgelehnt' },
+  cancelled: { en: 'Cancelled', de: 'Abgebrochen' },
+};
+
 export function permissionDecisionLabel(d: PermissionDecision, lang?: string): string {
-  const de = typeof lang === 'string' && /^de\b/i.test(lang.trim());
-  switch (d) {
-    case 'allowed':
-      return de ? 'Erlaubt' : 'Allowed';
-    case 'allowed_always':
-      return de ? 'Immer erlaubt' : 'Allowed always';
-    case 'rejected':
-      return de ? 'Abgelehnt' : 'Rejected';
-    default:
-      return de ? 'Abgebrochen' : 'Cancelled';
-  }
+  return localize(DECISION_LABELS[d] ?? DECISION_LABELS.cancelled, lang);
 }
 
 /**
