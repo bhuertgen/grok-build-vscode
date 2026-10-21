@@ -251,6 +251,7 @@ if (bundle.status !== 0) {
       'tests/scrollStick.test.mjs',
       'tests/elicitation.test.mjs',
       'tests/initialMode.test.mjs',
+      'tests/cliRefresh.test.mjs',
     ],
     {
       encoding: 'utf8',
