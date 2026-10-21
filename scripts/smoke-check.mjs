@@ -250,6 +250,7 @@ if (bundle.status !== 0) {
       'tests/compat.test.mjs',
       'tests/scrollStick.test.mjs',
       'tests/elicitation.test.mjs',
+      'tests/initialMode.test.mjs',
     ],
     {
       encoding: 'utf8',
