@@ -20,6 +20,7 @@
 - Disposing the extension now stops pending CLI re-detections: a queued follow-up run is dropped and an in-flight detection no longer updates the status bar or webview after deactivation (#49).
 - Partial file reads by the agent (`fs/read_text_file` with `line`/`limit`) now keep the file's line endings; CRLF files no longer come back LF-only, which could lead to line-ending churn or failed exact-match edits on Windows repos (#47).
 - Restricted Mode no longer auto-rejects read permissions: the check now uses the ACP tool kind (`edit`, `delete`, `move`, `execute` are write-like; `read`, `search`, `fetch`, `think` are not). The title fallback only applies to kind `other`/missing and no longer matches the bare word "file", so "Read file x" / "List files" work without a trust prompt (#46).
+- The **+** (new session) button and **Grok Build: New Session** now reach the CLI-path check while the CLI is not ready and show the same "Invalid grokBuild.cliPath" hint instead of doing nothing; a stale "Error: …" status line from a failed start is cleared once the CLI is ready again.
 
 ## 0.3.1 – 2026-10-18
 
