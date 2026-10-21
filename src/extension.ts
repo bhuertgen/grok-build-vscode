@@ -87,9 +87,12 @@ export async function activate(
 
   // Re-detect the CLI when grokBuild.cliPath changes (header version,
   // compat banner, update check) — previously only on activation.
-  const cliRedetector = createCliRedetector(async () => {
+  const cliRedetector = createCliRedetector(async (signal) => {
     cliStatus.setChecking();
     const d = await detectGrokCli();
+    if (signal.aborted) {
+      return; // extension deactivating — do not touch disposed UI (#49)
+    }
     cliStatus.setDetection(d);
     if (cliStatus.ready) {
       sessions?.clearStaleCliErrors();
@@ -99,11 +102,13 @@ export async function activate(
         ? `CLI re-detected after cliPath change: ${d.cliPath}${d.version ? ` (${d.version})` : ''}`
         : `CLI not ready after cliPath change: ${d.error ?? 'unknown'}`
     );
-    cliStatus.setUpdateInfo(
-      d.ok
-        ? await checkCliUpdate(d.cliPath).catch(() => ({ checked: false, updateAvailable: false }))
-        : { checked: false, updateAvailable: false }
-    );
+    const upd = d.ok
+      ? await checkCliUpdate(d.cliPath).catch(() => ({ checked: false, updateAvailable: false }))
+      : { checked: false, updateAvailable: false };
+    if (signal.aborted) {
+      return;
+    }
+    cliStatus.setUpdateInfo(upd);
     chatView.pushState();
   });
   context.subscriptions.push({ dispose: () => cliRedetector.dispose() });

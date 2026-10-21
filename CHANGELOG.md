@@ -12,6 +12,7 @@
 - An explicit `grokBuild.cliPath` that does not exist or is not executable no longer falls back silently to `~/.local/bin/grok`, `~/.grok/bin/grok` or `/usr/local/bin/grok`. Detection and agent start now share one path resolution; an invalid path shows an "Invalid grokBuild.cliPath" banner with **Open Setting** and no version in the header. Empty or `grok` keeps the previous fallback (#41).
 - Changing `grokBuild.cliPath` now re-detects the CLI right away: the header version, compat banner and update check follow the new binary without **Developer: Reload Window**. New sessions already used the new path; only the displayed version was stale.
 - The agent no longer fails to start when `cliPermissionMode`, `maxTurns`, `noSubagents`, `noPlan`, `disableWebSearch`, `sandbox`, `tools`, `disallowedTools` or `rules` is set. These are top-level `grok` options and are now passed **before** `agent` (`grok --permission-mode plan agent … stdio`); previously `grok agent` rejected them with `unexpected argument` (#37).
+- Disposing the extension now stops pending CLI re-detections: a queued follow-up run is dropped and an in-flight detection no longer updates the status bar or webview after deactivation (#49).
 
 ## 0.3.1 – 2026-10-18
 

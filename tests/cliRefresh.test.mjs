@@ -61,3 +61,41 @@ describe('createCliRedetector', () => {
     assert.equal(n, 0);
   });
 });
+
+describe('createCliRedetector dispose (#49)', () => {
+  it('trigger() after dispose() never calls run', async () => {
+    let n = 0;
+    const r = createCliRedetector(async () => { n++; }, 5);
+    r.dispose();
+    assert.equal(r.disposed, true);
+    r.trigger(); r.trigger();
+    await sleep(30);
+    assert.equal(n, 0);
+  });
+
+  it('a run in flight during dispose() does not start the pending follow-up', async () => {
+    let n = 0; let release; let seenSignal;
+    const r = createCliRedetector(async (signal) => {
+      n++;
+      seenSignal = signal;
+      if (n === 1) await new Promise((res) => { release = res; });
+    }, 5);
+    r.trigger();
+    await sleep(20);            // run 1 in flight
+    r.trigger(); await sleep(20); // queued as pending follow-up
+    assert.equal(n, 1);
+    r.dispose();
+    assert.equal(seenSignal.aborted, true, 'in-flight run sees the abort');
+    release();
+    await sleep(30);
+    assert.equal(n, 1, 'no follow-up run after dispose');
+  });
+
+  it('run receives a non-aborted signal while active', async () => {
+    let aborted;
+    const r = createCliRedetector(async (signal) => { aborted = signal.aborted; }, 5);
+    r.trigger(); await sleep(20);
+    assert.equal(aborted, false);
+    r.dispose();
+  });
+});

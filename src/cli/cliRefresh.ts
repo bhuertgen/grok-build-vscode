@@ -21,34 +21,46 @@ export function affectsCliDetection(affects: (section: string) => boolean): bool
  * Debounced, serialized runner: bursts of config events (settings.json saves)
  * trigger one detection; a change during a running detection schedules one
  * more run afterwards so the final path always wins.
+ *
+ * After dispose() nothing runs any more (#49): trigger() is a no-op, a
+ * pending follow-up run is dropped, and the AbortSignal passed to `run` is
+ * aborted so an in-flight detection can skip its UI updates.
  */
 export function createCliRedetector(
-  run: () => Promise<void>,
+  run: (signal: AbortSignal) => Promise<void>,
   delayMs = 300
-): { trigger(): void; dispose(): void } {
+): { trigger(): void; dispose(): void; readonly disposed: boolean } {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let running = false;
   let pending = false;
+  let disposed = false;
+  const abort = new AbortController();
   const exec = async (): Promise<void> => {
+    if (disposed) {
+      return;
+    }
     if (running) {
       pending = true;
       return;
     }
     running = true;
     try {
-      await run();
+      await run(abort.signal);
     } catch {
       // detection errors are reported through CliStatus by `run`
     } finally {
       running = false;
     }
-    if (pending) {
+    if (pending && !disposed) {
       pending = false;
       await exec();
     }
   };
   return {
     trigger() {
+      if (disposed) {
+        return;
+      }
       if (timer) {
         clearTimeout(timer);
       }
@@ -58,10 +70,16 @@ export function createCliRedetector(
       }, delayMs);
     },
     dispose() {
+      disposed = true;
+      pending = false;
       if (timer) {
         clearTimeout(timer);
         timer = undefined;
       }
+      abort.abort();
+    },
+    get disposed() {
+      return disposed;
     },
   };
 }
