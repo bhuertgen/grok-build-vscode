@@ -14,6 +14,7 @@
 - Changing `grokBuild.cliPath` now re-detects the CLI right away: the header version, compat banner and update check follow the new binary without **Developer: Reload Window**. New sessions already used the new path; only the displayed version was stale.
 - The agent no longer fails to start when `cliPermissionMode`, `maxTurns`, `noSubagents`, `noPlan`, `disableWebSearch`, `sandbox`, `tools`, `disallowedTools` or `rules` is set. These are top-level `grok` options and are now passed **before** `agent` (`grok --permission-mode plan agent … stdio`); previously `grok agent` rejected them with `unexpected argument` (#37).
 - Disposing the extension now stops pending CLI re-detections: a queued follow-up run is dropped and an in-flight detection no longer updates the status bar or webview after deactivation (#49).
+- Partial file reads by the agent (`fs/read_text_file` with `line`/`limit`) now keep the file's line endings; CRLF files no longer come back LF-only, which could lead to line-ending churn or failed exact-match edits on Windows repos (#47).
 
 ## 0.3.1 – 2026-10-18
 

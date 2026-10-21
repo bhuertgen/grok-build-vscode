@@ -35,6 +35,7 @@ import {
   promptTrustWorkspace,
 } from '../util/workspaceTrust';
 import type { EditController } from '../edits/editController';
+import { sliceTextLines } from '../util/textSlice';
 import { isProbablyBinary } from '../util/unreadable';
 
 interface ManagedTerminal {
@@ -102,13 +103,8 @@ export class ClientHandlers {
       text = await fs.readFile(filePath, 'utf8');
     }
 
-    if (params.line != null || params.limit != null) {
-      const lines = text.split(/\r?\n/);
-      const start = Math.max(0, (params.line ?? 1) - 1);
-      const end =
-        params.limit != null ? start + params.limit : lines.length;
-      text = lines.slice(start, end).join('\n');
-    }
+    // Keep the file's own line endings for partial reads (#47).
+    text = sliceTextLines(text, params.line, params.limit);
 
     return { content: text };
   }
