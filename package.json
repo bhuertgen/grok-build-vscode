@@ -458,7 +458,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Advanced: extra args inserted after `agent` (e.g. [\"--agent-profile\", \"C:\\\\path\\\\profile\"]). Prefer dedicated settings when available."
+          "description": "Advanced: extra agent-level args inserted after `agent` (e.g. [\"--agent-profile\", \"C:\\\\path\\\\profile\"]). Top-level-only flags (--permission-mode, --max-turns, --tools, …) must use their dedicated settings; `grok agent` rejects them."
         },
         "grokBuild.autoIncludeActiveFile": {
           "type": "boolean",

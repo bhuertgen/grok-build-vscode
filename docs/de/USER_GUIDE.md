@@ -222,8 +222,11 @@ CLI-Flags (`reasoningEffort`, `noSubagents`, `sandbox`, `tools`, …) siehe EN-G
 Effektives Spawn:
 
 ```text
-grok agent --no-leader -m <model> [flags…] stdio
+grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 ```
+
+- **Top-Level** (vor `agent`): `--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`. `grok agent` lehnt diese ab (`unexpected argument`, #37).
+- **Agent-Level** (zwischen `agent` und `stdio`): `-m`, `--reasoning-effort`, `--always-approve`, `--no-leader`, `--debug` sowie `extraCliArgs`.
 
 ---
 

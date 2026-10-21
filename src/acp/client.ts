@@ -23,7 +23,7 @@ import {
   type SessionUpdate,
   type StopReason,
 } from './types';
-import { buildAgentArgv } from '../util/agentArgs';
+import { buildAgentArgsFromConfig } from '../util/agentArgs';
 import { getConfig, getWorkspaceCwd } from '../util/config';
 import { applyMemoryEnv } from '../util/memory';
 import { getLogger } from '../util/logger';
@@ -365,76 +365,16 @@ export class AcpClient extends EventEmitter {
 
 /**
  * Build CLI args for ACP.
- * Base: `grok agent [options…] stdio`
- * Options from extension settings are inserted after `agent` (not after stdio).
+ * Layout: `grok [top-level flags…] agent [agent flags…] stdio`
+ * Policy flags (--permission-mode, --max-turns, …) are top-level-only and go
+ * before `agent`; -m / --reasoning-effort / --always-approve / --no-leader /
+ * --debug stay on `agent` (#37). See buildAgentArgsFromConfig.
  *
  * Important: always pass `--no-leader` unless the user opted into leader mode.
  * Shared leader processes ignore per-spawn `-m` and stay on the default model.
  */
 export function buildAgentArgs(cliArgs: string[], model?: string): string[] {
-  const cfg = getConfig();
-  const extra: string[] = [];
-  const push = (flag: string, value?: string) => {
-    if (value != null) {
-      extra.push(flag, value);
-    } else {
-      extra.push(flag);
-    }
-  };
-
-  if (!cfg.alwaysApprove) {
-    if (cfg.cliPermissionMode) {
-      if (cfg.cliPermissionMode === 'bypassPermissions') {
-        push('--always-approve');
-      } else {
-        push('--permission-mode', cfg.cliPermissionMode);
-      }
-    } else if (cfg.permissionMode === 'allow-always') {
-      push('--always-approve');
-    }
-  }
-  if (cfg.maxTurns != null && cfg.maxTurns > 0) {
-    push('--max-turns', String(cfg.maxTurns));
-  }
-  if (cfg.noSubagents) {
-    push('--no-subagents');
-  }
-  if (cfg.noPlan) {
-    push('--no-plan');
-  }
-  // Memory: no CLI flag (removed in CLI 1.0.51); mapped to GROK_MEMORY env in connect().
-  if (cfg.disableWebSearch) {
-    push('--disable-web-search');
-  }
-  if (cfg.sandbox?.trim()) {
-    push('--sandbox', cfg.sandbox.trim());
-  }
-  if (cfg.tools?.trim()) {
-    push('--tools', cfg.tools.trim());
-  }
-  if (cfg.disallowedTools?.trim()) {
-    push('--disallowed-tools', cfg.disallowedTools.trim());
-  }
-  if (cfg.rules?.trim()) {
-    push('--rules', cfg.rules.trim());
-  }
-  if (cfg.debug) {
-    push('--debug');
-  }
-  for (const e of cfg.extraCliArgs ?? []) {
-    if (e) {
-      extra.push(e);
-    }
-  }
-
-  return buildAgentArgv({
-    baseArgs: cliArgs.length ? cliArgs : ['agent', 'stdio'],
-    model: model ?? cfg.defaultModel,
-    noLeader: true,
-    reasoningEffort: cfg.reasoningEffort,
-    alwaysApprove: cfg.alwaysApprove,
-    extraFlags: extra,
-  });
+  return buildAgentArgsFromConfig(getConfig(), cliArgs, model);
 }
 
 export type { SessionUpdate, StopReason, SessionModeState, SessionConfigOption };

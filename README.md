@@ -142,8 +142,10 @@ VS Code UI  ──►  SessionManager  ──►  AcpClient × N  ──►  gro
 Effective spawn shape:
 
 ```text
-grok agent --no-leader -m <model> [flags…] stdio
+grok [--permission-mode … --max-turns … top-level flags…] agent --no-leader -m <model> [--reasoning-effort … --always-approve --debug] stdio
 ```
+
+Policy flags (`--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`) are **top-level** `grok` options and go **before** `agent` — `grok agent` rejects them (#37).
 
 ## Automated checks
 
