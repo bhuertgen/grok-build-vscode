@@ -27,7 +27,7 @@ export interface AttachmentRef {
 
 /**
  * Ensure the chat bubble shows @file names even if the user only typed
- * "lies die Datei" while chips held the real paths.
+ * "read the file" while chips held the real paths.
  */
 export function formatUserMessageWithAttachments(
   text: string,
