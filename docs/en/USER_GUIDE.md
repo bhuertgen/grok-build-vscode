@@ -365,7 +365,7 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | **History** | Local VS Code `globalState`, scoped by workspace `cwd` |
 | **Trust** | Restricted Mode → banner. Write-like permissions (ACP kind `edit`, `delete`, `move`, `execute`; for kind `other` a title with write/edit/create/delete/move/rename) are auto-rejected and the trust prompt opens. Reads, searches and fetches are **not** rejected and do not prompt. File writes by the agent (`fs/write_text_file`) fail with a clear error until you trust the folder |
 | **Auth** | CLI only (`grok` login); no keys in the repo |
-| **Outside workspace** | Prefer workspace-only; trust + CLI safety |
+| **Outside workspace** | Agent file reads and writes through the extension (ACP `fs/read_text_file`, `fs/write_text_file`) are limited to the open workspace folders (all folders of a multi-root workspace; the agent `cwd` when no folder is open). `..` and symlinks are resolved first; Windows paths compare case-insensitively. Any other path opens a modal "Grok wants to read / write to a file outside the workspace." with the resolved path: **Allow once** (this request; re-reads of the same file during the next minute do not ask again, writes stay one-shot), **Allow for this session** (that path, until the agent restarts; a write approval also covers reads) or **Cancel** = deny; the agent then gets a clear error and Output **Grok Build** logs a warning. Reads of a file that does not exist outside the workspace fail with "not found" without a dialog (the CLI reads a new file before writing it). This applies in trusted workspaces too. Commands the CLI runs itself (shell tools) are not covered; there the CLI permission prompt and sandbox apply |
 
 ---
 

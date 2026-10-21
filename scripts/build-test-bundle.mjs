@@ -31,6 +31,8 @@ await esbuild.build({
     locale: 'src/util/locale.ts',
     textSlice: 'src/util/textSlice.ts',
     permissionKind: 'src/util/permissionKind.ts',
+    pathScope: 'src/util/pathScope.ts',
+    outsideAccess: 'src/util/outsideAccess.ts',
   },
   outdir: outDir,
   bundle: true,

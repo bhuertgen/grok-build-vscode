@@ -26,7 +26,7 @@ import {
   isUrlElicitation,
   parseElicitationCreateParams,
 } from './elicitation';
-import { getConfig } from '../util/config';
+import { getConfig, getWorkspaceCwd } from '../util/config';
 import { getLogger } from '../util/logger';
 import { applyTextWrite } from '../util/fileWriter';
 import {
@@ -38,7 +38,22 @@ import type { EditController } from '../edits/editController';
 import { isWriteLikePermission } from '../util/permissionKind';
 import { pickAutoAllowOption, pickRejectOption } from '../util/permissionOutcome';
 import { sliceTextLines } from '../util/textSlice';
+import { OutsideAccessGrants } from '../util/outsideAccess';
+import { isInsideWorkspace, resolveScopePath, scopeKey } from '../util/pathScope';
 import { isProbablyBinary } from '../util/unreadable';
+
+/** Re-reads of a file after "Allow once" within this window do not ask again (#45). */
+const OUTSIDE_READ_GRACE_MS = 60_000;
+
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await fs.stat(p);
+    return true;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    return code !== 'ENOENT' && code !== 'ENOTDIR';
+  }
+}
 
 interface ManagedTerminal {
   id: TerminalId;
@@ -64,6 +79,11 @@ export class ClientHandlers {
   /** Global allow-always (apply always) for write paths */
   private globalAllowAlways = false;
 
+  /** Out-of-workspace access the user allowed (#45) */
+  private outsideGrants = new OutsideAccessGrants(OUTSIDE_READ_GRACE_MS);
+  /** In-flight out-of-workspace prompts, so parallel requests share one dialog */
+  private outsidePrompts = new Map<string, Promise<boolean>>();
+
   /** Outstanding URL elicitation ids awaiting elicitation/complete */
   private pendingUrlElicitations = new Set<string>();
 
@@ -81,6 +101,91 @@ export class ClientHandlers {
 
   resetSessionPermissions(): void {
     this.sessionAllowAlways.clear();
+    this.outsideGrants.clear();
+  }
+
+  // ─── workspace boundary (#45) ─────────────────────────────────────────────
+
+  /** Workspace folder roots (multi-root aware); agent cwd when no folder is open. */
+  private workspaceRoots(): string[] {
+    const folders = (vscode.workspace.workspaceFolders ?? [])
+      .filter((f) => f.uri.scheme === 'file')
+      .map((f) => f.uri.fsPath);
+    return folders.length ? folders : [getWorkspaceCwd()];
+  }
+
+  /**
+   * Allow fs access inside the workspace roots; outside, ask the user with a
+   * modal (Allow once / Allow for this session / cancel = deny). Throws an
+   * ACP error when denied. A session write approval also covers reads.
+   */
+  private async ensureInWorkspace(
+    filePath: string,
+    op: 'read' | 'write',
+    opts: { skipIfMissing?: boolean } = {}
+  ): Promise<void> {
+    if (isInsideWorkspace(filePath, this.workspaceRoots())) {
+      return;
+    }
+    // The CLI reads a write target before asking for permission (preview);
+    // for a file that does not exist there is nothing to disclose, so let
+    // the read fail with ENOENT instead of opening a dialog.
+    if (opts.skipIfMissing && !(await pathExists(filePath))) {
+      return;
+    }
+    const resolved = resolveScopePath(filePath);
+    const key = scopeKey(resolved);
+    const already = this.outsideGrants.allowed(op, key);
+    if (already) {
+      this.log.warn(`fs/${op}_text_file outside workspace — allowed (${already})`, resolved);
+      return;
+    }
+    this.log.warn(`fs/${op}_text_file outside workspace — asking the user`, resolved);
+    // Parallel reads of one path share a dialog; writes always ask on their own.
+    const promptKey = `${op}:${key}`;
+    let pending = op === 'read' ? this.outsidePrompts.get(promptKey) : undefined;
+    if (!pending) {
+      pending = this.promptOutsideWorkspace(resolved, op, key).finally(() =>
+        this.outsidePrompts.delete(promptKey)
+      );
+      if (op === 'read') {
+        this.outsidePrompts.set(promptKey, pending);
+      }
+    }
+    if (!(await pending)) {
+      this.log.warn(`fs/${op}_text_file outside workspace — denied`, resolved);
+      throw new Error(
+        `Grok Build blocked ${op === 'write' ? 'a write to' : 'a read of'} ${resolved}: ` +
+          'the path is outside the workspace folders and the user did not allow it.'
+      );
+    }
+  }
+
+  private async promptOutsideWorkspace(resolved: string, op: 'read' | 'write', key: string): Promise<boolean> {
+    const once = 'Allow once';
+    const session = 'Allow for this session';
+    const verb = op === 'write' ? 'write to' : 'read';
+    const choice = await vscode.window.showWarningMessage(
+      `Grok wants to ${verb} a file outside the workspace.`,
+      {
+        modal: true,
+        detail:
+          `${resolved}\n\n` +
+          'Only files inside the open workspace folders are allowed without asking. ' +
+          (op === 'write'
+            ? '"Allow once" allows this write only; re-reads of the file during the next minute do not ask again. '
+            : '"Allow once" also covers re-reads of this file during the next minute. ') +
+          '"Allow for this session" stops asking for this path until the agent restarts. ' +
+          'Cancel denies the request.',
+      },
+      once,
+      session
+    );
+    return this.outsideGrants.record(
+      op,
+      key,
+      choice === session ? 'session' : choice === once ? 'once' : 'deny'
+    );
   }
 
   setGlobalAllowAlways(value: boolean): void {
@@ -98,6 +203,7 @@ export class ClientHandlers {
     const openDoc = vscode.workspace.textDocuments.find(
       (d) => d.uri.fsPath === uri.fsPath
     );
+    await this.ensureInWorkspace(filePath, 'read', { skipIfMissing: !openDoc });
     let text: string;
     if (openDoc) {
       text = openDoc.getText();
@@ -123,6 +229,7 @@ export class ClientHandlers {
       void promptTrustWorkspace();
       assertWorkspaceTrustedForWrite(filePath);
     }
+    await this.ensureInWorkspace(filePath, 'write');
 
     let oldText = '';
     let oldUnreadable = false;
@@ -165,6 +272,7 @@ export class ClientHandlers {
 
   async applyWrite(filePath: string, content: string): Promise<void> {
     assertWorkspaceTrustedForWrite(filePath);
+    await this.ensureInWorkspace(filePath, 'write');
     await applyTextWrite(filePath, content);
   }
 
