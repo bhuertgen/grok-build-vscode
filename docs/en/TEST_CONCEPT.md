@@ -298,6 +298,7 @@ Format per case:
 - **Steps:** "Create file evil.txt containing secret"  
 - **Pass:** trust banner; write blocked / clear error; the file is **not** created without trust  
 - **Pass (reads, #46):** "Read README.md and summarise it" works in Restricted Mode: no auto-reject, no trust prompt  
+- **Pass (trust switch, #51):** with `security.workspace.trust.enabled: true`, switch Trusted → Restricted (**Don't Trust**) and back (**Trust**) with the chat open (editor tab and sidebar). The chat stays usable without a reload: **+** opens a new chat, and the Restricted Mode banner appears / disappears immediately  
 
 #### T-F05 — Path traversal / outside workspace  
 - **Dim:** S  

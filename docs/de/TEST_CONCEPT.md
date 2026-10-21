@@ -298,6 +298,7 @@ Format je Fall:
 - **Schritte:** „Erstelle Datei evil.txt mit secret“  
 - **Pass:** Trust-Banner; Write blockiert / klarer Fehler; Datei entsteht **nicht** ohne Trust  
 - **Pass (Lesen, #46):** „Lies README.md und fasse es zusammen“ funktioniert im Restricted Mode: keine automatische Ablehnung, kein Trust-Dialog  
+- **Pass (Trust-Wechsel, #51):** mit `security.workspace.trust.enabled: true` bei offenem Chat (Editor-Tab und Sidebar) von Trusted → Restricted (**Don't Trust**) und zurück (**Trust**) wechseln. Der Chat bleibt ohne Reload nutzbar: **+** öffnet einen neuen Chat, das Restricted-Mode-Banner erscheint / verschwindet sofort  
 
 #### T-F05 — Path Traversal / außerhalb des Workspace  
 - **Dim:** S  

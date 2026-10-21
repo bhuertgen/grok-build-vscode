@@ -33,6 +33,7 @@ await esbuild.build({
     permissionKind: 'src/util/permissionKind.ts',
     pathScope: 'src/util/pathScope.ts',
     outsideAccess: 'src/util/outsideAccess.ts',
+    panelRevive: 'src/util/panelRevive.ts',
   },
   outdir: outDir,
   bundle: true,

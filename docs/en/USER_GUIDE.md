@@ -376,6 +376,7 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | CLI missing | **Setup CLI…** / set `cliPath` |
 | "Invalid grokBuild.cliPath" banner | Click **Open Setting**, fix or clear the path |
 | No writes | **Trust** the workspace |
+| Chat tab reloads after **Don't Trust** | Expected: VS Code restarts the extension host when a local folder goes from Trusted to Restricted Mode. Grok replaces its editor tab with a fresh one (same sessions, Restricted Mode banner). Trusting again needs no restart. If a stale tab remains, close it or run **Developer: Reload Window** |
 | Model switch “hangs” | “Switching model…”; 45s timeout; check **Grok Build** output |
 | Agent names wrong model | UI system line / chip is authoritative |
 | `@` empty | Workspace needs files |
