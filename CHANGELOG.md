@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Compatibility
-- Tested with Grok CLI **1.0.62 stable** and getestet bis / tested up to **1.0.66 alpha** (smoke + ACP probe green). The recommended soft floor stays **1.0.62**; hard floor 1.0.0 (#39).
+- Tested with Grok CLI **1.0.62 stable** and tested up to **1.0.66 alpha** (smoke + ACP probe green). The recommended soft floor stays **1.0.62**; hard floor 1.0.0 (#39).
 
 ### Changed
 - With `grokBuild.cliPermissionMode: plan`, new sessions now start in **Plan** mode in the UI (mode button / status bar), matching the agent: from Grok CLI **1.0.65** `--permission-mode plan` really starts in plan mode. On older CLIs the UI keeps `defaultMode` and shows a `grok update` hint (#38, related #11).
@@ -22,7 +22,7 @@
 - Recommended Grok CLI version (soft floor) raised to **1.0.62** (tested stable); hard floor stays 1.0.0 (#33).
 
 ### Fixed
-- Turns ended by a hook (`continue: false`, CLI 1.0.60) now show an info line ("Turn stopped by hook" / "Turn durch Hook beendet") with hook name and reason instead of `(cancelled)` or nothing (#34).
+- Turns ended by a hook (`continue: false`, CLI 1.0.60) now show an info line ("Turn stopped by hook"; German VS Code locale: "Turn durch Hook beendet") with hook name and reason instead of `(cancelled)` or nothing (#34).
 - Write approvals for binary/unreadable files (CLI 1.0.54) show a clean "unreadable – no preview" hint; no diff is attempted against binary content (#35).
 - The inline permission card now resolves when the native modal answers the request, and leftover cards are cleared at turn end.
 

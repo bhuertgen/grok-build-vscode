@@ -1,12 +1,14 @@
 # Installation aus VSIX — ausführliche Anleitung
 
+**Sprache:** Deutsch · English: [../en/INSTALL_VSIX.md](../en/INSTALL_VSIX.md)
+
 > **Nicht offiziell von xAI.** Community-Extension (Publisher: `bhuertgen`).  
 > Agent-Logik, Safety und Tools liegen im **offiziellen** Grok Build CLI; diese Extension ist nur der VS-Code-ACP-Client.
 
 Die Extension liegt **nicht** im offiziellen VS-Code-Marketplace.  
 Du bekommst eine Datei **`.vsix`** (wie ein Installationspaket) und installierst sie **manuell** in der Desktop-App **Visual Studio Code**.
 
-> **Wichtig:** Die Funktion heißt **nicht** in der Marketplace-Suche.  
+> **Wichtig:** „Von VSIX installieren“ erscheint **nicht** in den Marketplace-Suchtreffern.  
 > Du suchst also **nicht** nach „Grok“ im Erweiterungs-Store, sondern installierst eine **lokale Datei**.
 
 ---
@@ -25,7 +27,7 @@ Du bekommst eine Datei **`.vsix`** (wie ein Installationspaket) und installierst
 
 1. Browser öffnen:  
    **https://github.com/bhuertgen/grok-build-vscode/releases**
-2. Das **oberste / neueste** Release anklicken (z. B. **v0.2.2**).
+2. Das **oberste / neueste** Release anklicken (markiert mit **Latest**).
 3. Nach unten zu **Assets** scrollen.
 4. Die Datei **`grok-build-vscode-x.y.z.vsix`** anklicken (nicht „Source code“).
 5. Speichern, z. B. in  
@@ -33,7 +35,7 @@ Du bekommst eine Datei **`.vsix`** (wie ein Installationspaket) und installierst
 
 | Richtig | Falsch |
 |---------|--------|
-| `grok-build-vscode-0.2.2.vsix` | Source code (zip) |
+| `grok-build-vscode-x.y.z.vsix` | Source code (zip) |
 | | Source code (tar.gz) |
 | | den Ordner des Repos klonen (das ist keine Installation) |
 
@@ -80,7 +82,7 @@ Das ist der **zuverlässigste** Weg. Die Funktion steckt hinter einem Befehl, de
 6. Es öffnet sich der **Datei-Öffnen-Dialog** von Windows/macOS.
 7. Zur heruntergeladenen Datei navigieren, z. B.:
    - `Downloads`
-   - Datei `grok-build-vscode-0.2.2.vsix`
+   - Datei `grok-build-vscode-x.y.z.vsix`
 8. Datei auswählen → **Öffnen** / **Installieren**.
 9. Unten rechts erscheint eine Meldung etwa:
    - „Die Erweiterung wird installiert…“
@@ -162,14 +164,16 @@ Nach Klick auf … erscheint z. B.:
 1. PowerShell oder Terminal öffnen.
 2. Pfad zur `.vsix` anpassen und ausführen:
 
+`x.y.z` durch die heruntergeladene Version ersetzen (siehe Dateiname).
+
 ```powershell
-code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-0.2.2.vsix"
+code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-x.y.z.vsix"
 ```
 
 Beispiel mit festem Pfad:
 
 ```powershell
-code --install-extension C:\Users\Max\Downloads\grok-build-vscode-0.2.2.vsix
+code --install-extension C:\Users\Max\Downloads\grok-build-vscode-x.y.z.vsix
 ```
 
 3. Wenn die Meldung kommt, dass **`code` nicht erkannt** wird:
@@ -184,7 +188,7 @@ code --install-extension C:\Users\Max\Downloads\grok-build-vscode-0.2.2.vsix
 **Cursor:**
 
 ```powershell
-cursor --install-extension C:\Users\Max\Downloads\grok-build-vscode-0.2.2.vsix
+cursor --install-extension C:\Users\Max\Downloads\grok-build-vscode-x.y.z.vsix
 ```
 
 ---
@@ -212,6 +216,8 @@ Die Extension steuert das **Grok Build CLI**. Ohne CLI erscheint z. B. „CLI 
 ```powershell
 grok --version
 ```
+
+Empfohlen ist **1.0.62 oder neuer** (getestet bis **1.0.66 alpha**); ältere 1.0.x-Versionen laufen mit Warnbanner.
 
 Fehlt die CLI: Befehl **Grok Build: Setup CLI…** in VS Code oder die offizielle CLI-Doku: https://x.ai/cli
 
@@ -275,7 +281,7 @@ Settings (`Strg+,`) → **Grok Build**, oder in `settings.json`:
 }
 ```
 
-Vollständige Referenz: [USER_GUIDE.md §6](./USER_GUIDE.md#6-settings-grokbuild) (Detail: [EN §6](../en/USER_GUIDE.md#6-all-settings-grokbuild)).
+Vollständige Referenz: [USER_GUIDE.md §6](./USER_GUIDE.md#6-alle-einstellungen-grokbuild).
 
 ---
 

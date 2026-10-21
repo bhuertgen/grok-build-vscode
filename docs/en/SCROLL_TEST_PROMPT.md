@@ -1,6 +1,6 @@
 # Scroll test prompts (VS Code / Grok Build)
 
-**Language:** English (prompts may use any language for LLM stress).
+**Language:** English · Deutsch: [../de/SCROLL_TEST_PROMPT.md](../de/SCROLL_TEST_PROMPT.md)
 
 Goal: **sticky bottom**, **no jitter**, **scroll-up stays put** during streaming.
 
@@ -24,94 +24,94 @@ Goal: **sticky bottom**, **no jitter**, **scroll-up stays put** during streaming
 
 ---
 
-## Prompt A — Langer Stream (S1, S2)
+## Prompt A — Long stream (S1, S2)
 
-In den Chat kopieren:
+Copy into the chat:
 
 ```text
-SCROLL-TEST A — Langer Textstrom ohne Tools.
+SCROLL TEST A — long text stream without tools.
 
-Schreibe eine fortlaufende Antwort auf Deutsch mit GENAU 40 nummerierten Absätzen.
-Jeder Absatz beginnt mit "Absatz N:" und hat 2–3 Sätze Fülltext (beliebig, thematisch „Testprotokoll Scroll“).
-Keine Codeblöcke, keine Listen mit Bullets, keine Tools, keine Dateien anfassen.
-Streaming so lange wie nötig — ich prüfe, ob die Ansicht am Ende bleibt und nicht wackelt.
-Am Schluss eine Zeile: SCROLL-TEST-A-DONE
+Write one continuous answer in English with EXACTLY 40 numbered paragraphs.
+Each paragraph starts with "Paragraph N:" and has 2–3 sentences of filler text (any content, topic "scroll test log").
+No code blocks, no bullet lists, no tools, do not touch any files.
+Stream as long as needed — I am checking whether the view stays at the bottom and does not jitter.
+End with one line: SCROLL-TEST-A-DONE
 ```
 
-**Prüfen:** Während des Schreibens immer den letzten Absatz sehen; kein Flackern nach oben.
+**Check:** while it is writing, the last paragraph is always visible; no flicker towards the top.
 
 ---
 
-## Prompt B — Tools + Text (S1, S2, S6)
+## Prompt B — Tools + text (S1, S2, S6)
 
 ```text
-SCROLL-TEST B — Tools und Text gemischt.
+SCROLL TEST B — tools and text mixed.
 
-1) Erzeuge im Workspace die Datei scroll-test/note.md mit dem Inhalt "hello scroll".
-2) Lies die Datei wieder ein.
-3) Schreibe danach GENAU 25 nummerierte Absätze "Absatz N: …" (je 1–2 Sätze) über das Ergebnis.
-4) Keine weiteren Dateien. Ende mit SCROLL-TEST-B-DONE
+1) Create the file scroll-test/note.md in the workspace with the content "hello scroll".
+2) Read the file back.
+3) Then write EXACTLY 25 numbered paragraphs "Paragraph N: …" (1–2 sentences each) about the result.
+4) No other files. End with SCROLL-TEST-B-DONE
 ```
 
-**Prüfen:** Beim Erscheinen der Tool-Zeilen (Edit/Read) bleibt der Viewport am Bottom; Antwort-Text danach sichtbar.
+**Check:** when the tool rows (Edit/Read) appear, the viewport stays at the bottom; the answer text after them is visible.
 
 ---
 
-## Prompt C — User scrollt weg (S3, S4)
+## Prompt C — User scrolls away (S3, S4)
 
-1. Prompt A oder B starten.
-2. Sobald ~5 Absätze da sind: **Mausrad nach oben** (mind. 2 Bildschirmhöhen).
-3. Warten bis der Stream weiterläuft (mind. 5 Sekunden).
+1. Start prompt A or B.
+2. As soon as ~5 paragraphs are visible: **scroll up with the mouse wheel** (at least 2 screen heights).
+3. Wait while the stream continues (at least 5 seconds).
 
-**Pass S3:** Ansicht bleibt oben; Text wächst unten unbemerkt.  
-**Pass S4:** Danach ans Ende scrollen → folgt wieder dem Live-Text.
+**Pass S3:** the view stays up; text grows below unnoticed.  
+**Pass S4:** then scroll to the end → it follows the live text again.
 
 ---
 
-## Prompt D — Zweiter Turn (S5)
+## Prompt D — Second turn (S5)
 
-Nach A oder B sofort:
+Right after A or B:
 
 ```text
-SCROLL-TEST D — Zweiter Turn.
-Antworte mit 15 kurzen nummerierten Zeilen "D-N: ok".
-Ende: SCROLL-TEST-D-DONE
+SCROLL TEST D — second turn.
+Reply with 15 short numbered lines "D-N: ok".
+End: SCROLL-TEST-D-DONE
 ```
 
-**Pass:** Nach Enter springt die Ansicht ans Ende und bleibt dort.
+**Pass:** after Enter the view jumps to the end and stays there.
 
 ---
 
 ## Prompt E — Stress (optional)
 
 ```text
-SCROLL-TEST E — Stress.
-Gib 60 sehr kurze Zeilen aus, Format "E-001" … "E-060", eine pro Zeile, möglichst schnell.
-Dazwischen KEINE Leerzeilen. Ende: SCROLL-TEST-E-DONE
+SCROLL TEST E — stress.
+Output 60 very short lines, format "E-001" … "E-060", one per line, as fast as possible.
+NO blank lines in between. End: SCROLL-TEST-E-DONE
 ```
 
-**Pass:** Ruckelfreies Mitlaufen; CPU darf steigen, aber kein Scroll-Yoyo.
+**Pass:** smooth following; CPU may rise, but no scroll yo-yo.
 
 ---
 
-## Manuelle Notizen (1 Minute)
+## Manual notes (1 minute)
 
 ```text
-Datum:
-Build/Commit:
-S1 am Ende:     OK / FAIL
-S2 kein Wackeln: OK / FAIL
+Date:
+Build/commit:
+S1 at bottom:   OK / FAIL
+S2 no jitter:   OK / FAIL
 S3 scroll up:   OK / FAIL
 S4 re-pin:      OK / FAIL
-S5 2. Turn:     OK / FAIL
+S5 2nd turn:    OK / FAIL
 S6 tools:       OK / FAIL
-Notiz:
+Note:
 ```
 
-## Tech-Hintergrund (für Entwickler)
+## Technical background (for developers)
 
-- Sticky-Flag `stickToBottom` mit Hysterese (pin ≤40px, unpin >140px).
-- Streaming-Text-Deltas: **inkrementelles DOM-Patch** (kein Full-Wipe), solange Timeline-Struktur gleich bleibt; Full-Rebuild nur bei Strukturwechsel (neue Msg/Tool, Expand, Session).
-- Nach DOM-Rebuild: **double `requestAnimationFrame`** vor `scrollTop = scrollHeight`; `rebuildGuard` ignoriert Wipe-Scroll-Events.
-- `overflow-anchor: none` am `.messages`-Container.
-- Send / Session-Wechsel → erzwungenes Pin.
+- Sticky flag `stickToBottom` with hysteresis (pin ≤40px, unpin >140px).
+- Streaming text deltas: **incremental DOM patch** (no full wipe) as long as the timeline structure stays the same; full rebuild only on structural changes (new message/tool, expand, session).
+- After a DOM rebuild: **double `requestAnimationFrame`** before `scrollTop = scrollHeight`; `rebuildGuard` ignores scroll events caused by the wipe, and a pre-wipe `forcePin` keeps the pin.
+- `overflow-anchor: none` on the `.messages` container.
+- Send / session switch → forced pin.

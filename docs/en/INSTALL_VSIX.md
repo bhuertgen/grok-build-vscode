@@ -1,5 +1,7 @@
 # Install from VSIX — detailed guide
 
+**Language:** English · Deutsch: [../de/INSTALL_VSIX.md](../de/INSTALL_VSIX.md)
+
 > **Not affiliated with xAI.** Community extension (publisher: `bhuertgen`).  
 > Agent logic, safety, and tools stay in the **official** Grok Build CLI; this extension is only the VS Code ACP client.
 
@@ -25,7 +27,7 @@ You get a **`.vsix` file** (an install package) and install it **manually** in t
 
 1. Open in a browser:  
    **https://github.com/bhuertgen/grok-build-vscode/releases**
-2. Open the **latest** release (e.g. **v0.2.2**).
+2. Open the **latest** release (the one marked **Latest**).
 3. Scroll to **Assets**.
 4. Click **`grok-build-vscode-x.y.z.vsix`** (not “Source code”).
 5. Save it somewhere easy, e.g.  
@@ -33,7 +35,7 @@ You get a **`.vsix` file** (an install package) and install it **manually** in t
 
 | Correct | Wrong |
 |---------|--------|
-| `grok-build-vscode-0.2.2.vsix` | Source code (zip) |
+| `grok-build-vscode-x.y.z.vsix` | Source code (zip) |
 | | Source code (tar.gz) |
 | | Cloning the repo only (that is not an install) |
 
@@ -62,6 +64,12 @@ This is the **most reliable** path. You search for the command by name — you d
    VSIX
    ```
 
+   or, in a German VS Code UI:
+
+   ```text
+   Von VSIX
+   ```
+
 5. Select this command from the list:
 
    | VS Code UI language | Command |
@@ -70,7 +78,7 @@ This is the **most reliable** path. You search for the command by name — you d
    | **German** | **Erweiterungen: Von VSIX installieren…** |
 
 6. The OS **file open** dialog appears.
-7. Navigate to the downloaded file, e.g. `Downloads` → `grok-build-vscode-0.2.2.vsix`.
+7. Navigate to the downloaded file, e.g. `Downloads` → `grok-build-vscode-x.y.z.vsix`.
 8. Select the file → **Open** / **Install**.
 9. Wait for a toast such as “Completed installing …”.
 10. If VS Code offers **Reload**, click it.  
@@ -141,14 +149,16 @@ After clicking … you should see something like:
 
 ### Path C — Terminal
 
+Replace `x.y.z` with the version you downloaded (see the file name).
+
 ```bash
-code --install-extension path/to/grok-build-vscode-0.2.2.vsix
+code --install-extension path/to/grok-build-vscode-x.y.z.vsix
 ```
 
 Windows PowerShell example:
 
 ```powershell
-code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-0.2.2.vsix"
+code --install-extension "$env:USERPROFILE\Downloads\grok-build-vscode-x.y.z.vsix"
 ```
 
 If `code` is not recognized:
@@ -161,7 +171,7 @@ If `code` is not recognized:
 **Cursor:**
 
 ```powershell
-cursor --install-extension C:\Users\You\Downloads\grok-build-vscode-0.2.2.vsix
+cursor --install-extension C:\Users\You\Downloads\grok-build-vscode-x.y.z.vsix
 ```
 
 ---
@@ -181,6 +191,8 @@ The extension drives the **Grok Build CLI**. Without it you may see “CLI requi
 ```bash
 grok --version
 ```
+
+**1.0.62 or newer** is recommended (tested up to **1.0.66 alpha**); older 1.0.x versions work with a warning banner.
 
 If missing: command **Grok Build: Setup CLI…** or https://x.ai/cli
 

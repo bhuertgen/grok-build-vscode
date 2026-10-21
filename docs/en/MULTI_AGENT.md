@@ -1,5 +1,7 @@
 # Multi-Agent Monitoring (Grok Build for VS Code)
 
+**Language:** English · Deutsch: [../de/MULTI_AGENT.md](../de/MULTI_AGENT.md)
+
 ## How multi-agent works with this extension
 
 Grok Build’s **sub-agents** run **inside the official CLI** (`grok agent stdio`), not as separate VS Code processes.
@@ -27,6 +29,7 @@ The extension **observes** tool activity via ACP:
 
 - Live list of recent/active tool calls  
 - Status dots: yellow = running, green = done, red = failed  
+- **Tool rows** in the timeline (expandable)  
 
 This is the first multi-agent **status surface**. It does not yet open a separate window per sub-agent.
 
@@ -34,6 +37,7 @@ This is the first multi-agent **status surface**. It does not yet open a separat
 
 1. Workspace **trusted** (not Restricted Mode).  
 2. Mode **Execute**, permissions ideally auto-allow in execute (`grokBuild.autoAllowInExecuteMode: true`).  
+   The setting `grokBuild.noSubagents` must be **false** (CLI `--no-subagents` disables spawning).  
 3. Prompt that forces parallel work, e.g.:
 
    > Spawn two sub-agents: one lists TypeScript files in src/, the other summarizes package.json. Then merge the results.

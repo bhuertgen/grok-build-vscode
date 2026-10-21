@@ -33,10 +33,10 @@ describe('formatUserMessageWithAttachments', () => {
   });
 
   it('prefixes @mentions when missing from text', () => {
-    const out = formatUserMessageWithAttachments('Lies die Datei', [
+    const out = formatUserMessageWithAttachments('Read the file', [
       { kind: 'file', label: 'hello.txt', relativePath: 'notes/hello.txt' },
     ]);
-    assert.equal(out, '@notes/hello.txt\nLies die Datei');
+    assert.equal(out, '@notes/hello.txt\nRead the file');
   });
 
   it('does not duplicate existing @mention', () => {
@@ -83,7 +83,7 @@ describe('parseAtMention', () => {
   });
 
   it('detects @query after space', () => {
-    const r = parseAtMention('siehe @rea');
+    const r = parseAtMention('see @rea');
     assert.ok(r);
     assert.equal(r.query, 'rea');
   });
