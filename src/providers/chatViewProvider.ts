@@ -271,6 +271,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       );
       return false;
     }
+    if (this.cliStatus && !this.cliStatus.ready && this.cliStatus.detection?.invalidPath) {
+      // Explicit grokBuild.cliPath is wrong (#41) — point at the setting, not the install wizard
+      const action = await vscode.window.showWarningMessage(
+        this.cliStatus.detection.error ?? 'Invalid grokBuild.cliPath.',
+        'Open Setting',
+        'Cancel'
+      );
+      if (action === 'Open Setting') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'grokBuild.cliPath');
+      }
+      return false;
+    }
     if (this.cliStatus && !this.cliStatus.ready) {
       const action = await vscode.window.showWarningMessage(
         'Grok CLI not found. This extension needs the official CLI (`grok agent stdio`).',
