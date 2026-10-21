@@ -24,7 +24,8 @@
     "coding-agent"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onWebviewPanel:grokBuild.editorChat"
   ],
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
@@ -479,7 +480,13 @@
             "allow-always"
           ],
           "default": "ask",
-          "description": "Extension UI: how to answer ACP session/request_permission dialogs (not the same as CLI --permission-mode)."
+          "enumDescriptions": [
+            "Prompt for every tool permission.",
+            "Auto-select the one-shot allow option for each request; never grants session-wide approval. Prompts if the agent offers no one-shot option.",
+            "Auto-select the one-shot allow option for every request in this VS Code session; switching back to Ask takes effect immediately.",
+            "Auto-select the allow-always option and start the CLI with --always-approve."
+          ],
+          "description": "Extension UI: how to answer ACP session/request_permission dialogs (not the same as CLI --permission-mode). Options are chosen by ACP kind, never by name or order."
         },
         "grokBuild.showDiffBeforeApply": {
           "type": "boolean",
@@ -563,7 +570,7 @@
     "package": "vsce package --no-dependencies",
     "lint": "tsc -p ./ --noEmit",
     "test:bundle": "node scripts/build-test-bundle.mjs",
-    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs tests/cliPath.test.mjs tests/cliRecovery.test.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs tests/cliPath.test.mjs tests/cliRecovery.test.mjs tests/locale.test.mjs tests/textSlice.test.mjs tests/permissionKind.test.mjs tests/pathScope.test.mjs tests/outsideAccess.test.mjs tests/panelRevive.test.mjs tests/openTabs.test.mjs",
     "test:integration:bundle": "node scripts/build-integration-tests.mjs",
     "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
     "test": "npm run test:unit",

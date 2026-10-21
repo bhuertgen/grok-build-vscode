@@ -1,3 +1,4 @@
+import { isChatActivityUpdate, openTabsRecord, planRestore } from './openTabs';
 import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
@@ -213,7 +214,10 @@ export class SessionManager extends EventEmitter {
   private activeLocalId: string | null = null;
   private readonly log = getLogger();
   private readonly contextCollector = new ContextCollector();
-  private persistTimer: NodeJS.Timeout | null = null;
+  /** Debounced persists, one timer per session (a shared timer dropped other tabs' saves) */
+  private persistTimers = new Map<string, NodeJS.Timeout>();
+  /** True while bootstrap reopens the saved tabs (do not overwrite the list mid-restore) */
+  private restoringTabs = false;
   /** Prevents parallel bootstrap sessions from sidebar + editor webviews */
   private bootstrapInFlight: Promise<SessionState> | null = null;
 
@@ -284,6 +288,7 @@ export class SessionManager extends EventEmitter {
       if (s) {
         void this.store.setLastActiveLocalId(s.cwd, localId);
       }
+      this.persistOpenTabs();
       this.emit('activeChanged', localId);
       this.emitChange(localId);
     }
@@ -311,14 +316,54 @@ export class SessionManager extends EventEmitter {
    */
   private async bootstrapForWorkspace(): Promise<SessionState> {
     const cwd = getWorkspaceCwd();
-    const stored = this.store.findResumeTarget(cwd);
-    if (stored) {
-      this.log.info(
-        `Restoring session ${stored.localId} for workspace (${stored.messages.length} messages)`
-      );
-      return this.openStored(stored, true);
+    const plan = planRestore(
+      this.store.getOpenTabs(cwd),
+      (id) => {
+        const s = this.store.get(id);
+        return !!s && sameCwd(s.cwd, cwd);
+      },
+      this.store.findResumeTarget(cwd)?.localId
+    );
+    if (!plan.ids.length) {
+      return this.createSession();
     }
-    return this.createSession();
+    this.log.info(
+      `Restoring ${plan.ids.length} session tab(s) for workspace (active ${plan.active ?? plan.ids[0]})`
+    );
+    // Register every tab synchronously (strip order), then activate the saved
+    // one; agent processes connect in parallel.
+    this.restoringTabs = true;
+    let opened: Array<Promise<SessionState>>;
+    try {
+      opened = plan.ids.map((id) => {
+        const stored = this.store.get(id)!;
+        this.log.info(`Restoring session ${id} (${stored.messages?.length ?? 0} messages)`);
+        return this.openStored(stored, true);
+      });
+    } finally {
+      this.restoringTabs = false;
+    }
+    const activeId = plan.active ?? plan.ids[0];
+    this.setActive(activeId);
+    const activeIdx = Math.max(0, plan.ids.indexOf(activeId));
+    for (const [i, p] of opened.entries()) {
+      if (i !== activeIdx) {
+        p.catch((err) => this.log.warn('Restoring session tab failed', plan.ids[i], err));
+      }
+    }
+    return opened[activeIdx];
+  }
+
+  /** Store the open tabs + active tab of this folder right away (#51). */
+  private persistOpenTabs(): void {
+    if (this.restoringTabs) {
+      return;
+    }
+    const cwd = getWorkspaceCwd();
+    const ids = [...this.sessions.values()].filter((s) => sameCwd(s.cwd, cwd)).map((s) => s.localId);
+    void this.store
+      .setOpenTabs(cwd, openTabsRecord(ids, this.activeLocalId, Date.now()))
+      .catch((err) => this.log.warn('Saving open tabs failed', err));
   }
 
   /** History entries for the current project (webview / QuickPick). */
@@ -390,6 +435,10 @@ export class SessionManager extends EventEmitter {
     };
     this.sessions.set(localId, state);
     this.activeLocalId = localId;
+    // Persist eagerly so a new (even empty) tab survives a host restart (#51)
+    void this.store.setLastActiveLocalId(state.cwd, localId);
+    void this.persistNow(state);
+    this.persistOpenTabs();
     this.emit('sessionCreated', state);
     this.emitChange(localId);
 
@@ -427,7 +476,7 @@ export class SessionManager extends EventEmitter {
         state.configOptions
       );
 
-      this.schedulePersist(state);
+      await this.persistNow(state);
       this.log.info(
         `Session ${localId} ready (agentSessionId=${state.agentSessionId}, processes=${this.clients.size})`
       );
@@ -559,6 +608,7 @@ export class SessionManager extends EventEmitter {
     this.sessions.set(state.localId, state);
     this.activeLocalId = state.localId;
     void this.store.setLastActiveLocalId(state.cwd, state.localId);
+    this.persistOpenTabs();
     this.emit('sessionCreated', state);
     this.emitChange(state.localId);
 
@@ -725,6 +775,8 @@ export class SessionManager extends EventEmitter {
       const remaining = this.listSessions();
       this.activeLocalId = remaining[0]?.localId ?? null;
     }
+    this.cancelPersist(localId);
+    this.persistOpenTabs();
     this.emit('sessionClosed', localId);
     this.log.info(`Session closed ${localId} (processes=${this.clients.size})`);
   }
@@ -931,6 +983,8 @@ export class SessionManager extends EventEmitter {
     state.busy = true;
     state.updatedAt = Date.now();
     void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', true);
+    // Eager: the prompt and the new title survive a host restart mid-turn (#51)
+    void this.persistNow(state);
     this.emitChange(localId);
 
     const agentMsg: ChatMessage = {
@@ -990,7 +1044,7 @@ export class SessionManager extends EventEmitter {
       state.updatedAt = Date.now();
       this.clearPendingPermissions(state.localId);
       void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', false);
-      this.schedulePersist(state);
+      void this.persistNow(state);
       this.emitChange(localId);
     }
   }
@@ -1405,9 +1459,13 @@ export class SessionManager extends EventEmitter {
   }
 
   async dispose(): Promise<void> {
-    if (this.persistTimer) {
-      clearTimeout(this.persistTimer);
+    // Best effort: on an extension-host restart the main thread may already
+    // be gone, which is why tabs and turns are persisted eagerly (#51).
+    for (const t of this.persistTimers.values()) {
+      clearTimeout(t);
     }
+    this.persistTimers.clear();
+    this.persistOpenTabs();
     for (const s of this.sessions.values()) {
       await this.persistNow(s);
     }
@@ -1518,7 +1576,10 @@ export class SessionManager extends EventEmitter {
       return;
     }
     this.applyUpdate(state, n.update);
-    state.updatedAt = Date.now();
+    // Only chat activity reorders the tab strip (#51 follow-up)
+    if (isChatActivityUpdate((n.update as { sessionUpdate?: string } | undefined)?.sessionUpdate)) {
+      state.updatedAt = Date.now();
+    }
     this.emitChange(state.localId);
   }
 
@@ -1747,6 +1808,7 @@ export class SessionManager extends EventEmitter {
     if (kind === 'session_info_update') {
       if (u.title) {
         state.title = String(u.title);
+        this.schedulePersist(state);
       }
       return;
     }
@@ -2293,12 +2355,22 @@ export class SessionManager extends EventEmitter {
   }
 
   private schedulePersist(state: SessionState): void {
-    if (this.persistTimer) {
-      clearTimeout(this.persistTimer);
+    this.cancelPersist(state.localId);
+    this.persistTimers.set(
+      state.localId,
+      setTimeout(() => {
+        this.persistTimers.delete(state.localId);
+        void this.persistNow(state);
+      }, 500)
+    );
+  }
+
+  private cancelPersist(localId: string): void {
+    const t = this.persistTimers.get(localId);
+    if (t) {
+      clearTimeout(t);
+      this.persistTimers.delete(localId);
     }
-    this.persistTimer = setTimeout(() => {
-      void this.persistNow(state);
-    }, 500);
   }
 
   private async persistNow(state: SessionState): Promise<void> {

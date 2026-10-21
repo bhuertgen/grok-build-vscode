@@ -324,7 +324,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `permissionMode` | `ask` | How the UI answers `session/request_permission` |
+| `permissionMode` | `ask` | How the UI answers `session/request_permission`. Options are picked by ACP kind, never by name or order: `ask` prompts; `allow-once` auto-selects the one-shot **allow_once** option (no session-wide grant; prompts if the agent offers none); `allow-session` auto-selects **allow_once** for every request in this VS Code session (falls back to allow_always only if no one-shot option exists), so switching back to `ask` takes effect immediately; `allow-always` selects **allow_always** and starts the CLI with `--always-approve`. Reject-kind options ("Disallow", "Don't allow") are never auto-selected |
 | `autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (recommended so Execute is not blocked on a hidden dialog) |
 | `showDiffBeforeApply` | `false` | Toast “Show Diff” after write (write does **not** block the agent) |
 | `autoIncludeActiveFile` | `true` | Attach active editor file as context |
@@ -363,9 +363,9 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | Topic | Behavior |
 |-------|----------|
 | **History** | Local VS Code `globalState`, scoped by workspace `cwd` |
-| **Trust** | Restricted Mode → banner; writes/tools limited |
+| **Trust** | Restricted Mode → banner. Write-like permissions (ACP kind `edit`, `delete`, `move`, `execute`; for kind `other` a title with write/edit/create/delete/move/rename) are auto-rejected and the trust prompt opens. Reads, searches and fetches are **not** rejected and do not prompt. File writes by the agent (`fs/write_text_file`) fail with a clear error until you trust the folder |
 | **Auth** | CLI only (`grok` login); no keys in the repo |
-| **Outside workspace** | Prefer workspace-only; trust + CLI safety |
+| **Outside workspace** | Agent file reads and writes through the extension (ACP `fs/read_text_file`, `fs/write_text_file`) are limited to the open workspace folders (all folders of a multi-root workspace; the agent `cwd` when no folder is open). `..` and symlinks are resolved first; Windows paths compare case-insensitively. Any other path opens a modal "Grok wants to read / write to a file outside the workspace." with the resolved path: **Allow once** (this request; re-reads of the same file during the next minute do not ask again, writes stay one-shot), **Allow for this session** (that path, until the agent restarts; a write approval also covers reads) or **Cancel** = deny; the agent then gets a clear error and Output **Grok Build** logs a warning. Reads of a file that does not exist outside the workspace fail with "not found" without a dialog (the CLI reads a new file before writing it). This applies in trusted workspaces too. Commands the CLI runs itself (shell tools) are not covered; there the CLI permission prompt and sandbox apply |
 
 ---
 
@@ -376,6 +376,7 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | CLI missing | **Setup CLI…** / set `cliPath` |
 | "Invalid grokBuild.cliPath" banner | Click **Open Setting**, fix or clear the path |
 | No writes | **Trust** the workspace |
+| Chat tab reloads after **Don't Trust** | Expected: VS Code restarts the extension host when a local folder goes from Trusted to Restricted Mode. Grok replaces its editor tab with a fresh one (same sessions, Restricted Mode banner). Trusting again needs no restart. If a stale tab remains, close it or run **Developer: Reload Window** |
 | Model switch “hangs” | “Switching model…”; 45s timeout; check **Grok Build** output |
 | Agent names wrong model | UI system line / chip is authoritative |
 | `@` empty | Workspace needs files |

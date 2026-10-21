@@ -3,6 +3,7 @@ import type { SessionManager } from '../session/sessionManager';
 import type { EditController } from '../edits/editController';
 import { ChatViewProvider } from './chatViewProvider';
 import { getCliStatus } from '../cli/cliStatus';
+import { revivedPanelAction } from '../util/panelRevive';
 
 /**
  * Grok Build chat as an editor tab in the middle workbench area.
@@ -10,6 +11,7 @@ import { getCliStatus } from '../cli/cliStatus';
  *   [ Explorer ] | [ Code / Grok tab ] | (optional secondary bar)
  */
 export class EditorChatPanel {
+  public static readonly viewType = 'grokBuild.editorChat';
   public static current: EditorChatPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
@@ -108,7 +110,7 @@ export class EditorChatPanel {
     }
 
     const panel = vscode.window.createWebviewPanel(
-      'grokBuild.editorChat',
+      EditorChatPanel.viewType,
       'Grok Build',
       { viewColumn: col, preserveFocus: false },
       {
@@ -134,6 +136,26 @@ export class EditorChatPanel {
     return EditorChatPanel.current;
   }
 
+  /**
+   * Re-attach a panel that VS Code restored after an extension-host restart
+   * (Trusted → Restricted Mode restarts the host) or a window reload (#51).
+   * Without this the old panel stayed visible but talked to the stopped host.
+   */
+  static revive(
+    panel: vscode.WebviewPanel,
+    extensionUri: vscode.Uri,
+    sessions: SessionManager,
+    edits: EditController
+  ): void {
+    if (revivedPanelAction(EditorChatPanel.current !== undefined) === 'dispose') {
+      // A fresh panel already exists (e.g. opened by the sidebar redirect)
+      panel.dispose();
+      EditorChatPanel.current?.pushState();
+      return;
+    }
+    EditorChatPanel.current = new EditorChatPanel(panel, extensionUri, sessions, edits);
+  }
+
   /** Open as a split next to the current editor (code | Grok). */
   static showBeside(
     extensionUri: vscode.Uri,
@@ -146,6 +168,10 @@ export class EditorChatPanel {
       edits,
       vscode.ViewColumn.Beside
     );
+  }
+
+  get viewColumn(): number | undefined {
+    return this.panel.viewColumn;
   }
 
   focusInput(): void {

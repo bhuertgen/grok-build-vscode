@@ -326,7 +326,7 @@ Auch in der Installationsanleitung: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-em
 
 | Setting | Default | Beschreibung |
 |---------|---------|--------------|
-| `permissionMode` | `ask` | Wie die UI `session/request_permission` beantwortet |
+| `permissionMode` | `ask` | Wie die UI `session/request_permission` beantwortet. Optionen werden nach ACP-Kind gewählt, nie nach Name oder Reihenfolge: `ask` fragt nach; `allow-once` wählt automatisch die einmalige Option **allow_once** (keine sessionweite Freigabe; fragt nach, wenn der Agent keine anbietet); `allow-session` wählt für jede Anfrage in dieser VS-Code-Session **allow_once** (nur ohne einmalige Option allow_always), daher wirkt ein Wechsel zurück auf `ask` sofort; `allow-always` wählt **allow_always** und startet die CLI mit `--always-approve`. Ablehnende Optionen („Disallow“, „Don't allow“) werden nie automatisch gewählt |
 | `autoAllowInExecuteMode` | `true` | Tools in Execute automatisch erlauben (empfohlen, damit Execute nicht an einem unsichtbaren Dialog hängt) |
 | `showDiffBeforeApply` | `false` | Toast „Show Diff“ nach dem Write (der Write blockiert den Agent **nicht**) |
 | `autoIncludeActiveFile` | `true` | Aktive Editor-Datei als Kontext anhängen |
@@ -365,9 +365,9 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 | Thema | Verhalten |
 |-------|-----------|
 | **History** | Lokal in VS Code `globalState`, pro Workspace-`cwd` |
-| **Trust** | Restricted Mode → Banner; Writes/Tools eingeschränkt |
+| **Trust** | Restricted Mode → Banner. Schreibende Permissions (ACP-Kind `edit`, `delete`, `move`, `execute`; bei Kind `other` ein Titel mit write/edit/create/delete/move/rename) werden automatisch abgelehnt, und der Trust-Dialog öffnet sich. Lesen, Suchen und Fetch werden **nicht** abgelehnt und lösen keinen Dialog aus. Dateischreibzugriffe des Agents (`fs/write_text_file`) scheitern mit klarer Fehlermeldung, bis du dem Ordner vertraust |
 | **Auth** | Nur CLI (`grok` Login); keine Keys im Repo |
-| **Außerhalb des Workspace** | Möglichst nur Workspace; Trust + CLI-Safety |
+| **Außerhalb des Workspace** | Dateizugriffe des Agents über die Extension (ACP `fs/read_text_file`, `fs/write_text_file`) sind auf die geöffneten Workspace-Ordner beschränkt (alle Ordner eines Multi-Root-Workspace; ohne geöffneten Ordner das Agent-`cwd`). `..` und Symlinks werden vorher aufgelöst; Windows-Pfade werden ohne Groß-/Kleinschreibung verglichen. Jeder andere Pfad öffnet ein Modal „Grok wants to read / write to a file outside the workspace.“ mit dem aufgelösten Pfad: **Allow once** (diese Anfrage; erneutes Lesen derselben Datei in der nächsten Minute fragt nicht nochmal, Schreiben bleibt einmalig), **Allow for this session** (dieser Pfad, bis der Agent neu startet; eine Schreibfreigabe deckt auch Lesen ab) oder **Cancel** = ablehnen; der Agent erhält dann einen klaren Fehler, und im Output **Grok Build** steht eine Warnung. Lesen einer nicht existierenden Datei außerhalb des Workspace scheitert ohne Dialog mit „nicht gefunden“ (die CLI liest eine neue Datei vor dem Schreiben). Das gilt auch in vertrauenswürdigen Workspaces. Befehle, die die CLI selbst ausführt (Shell-Tools), sind nicht erfasst; dort greifen CLI-Permission-Prompt und Sandbox |
 
 ---
 
@@ -377,6 +377,7 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 |---------|---------|
 | CLI fehlt | **Setup CLI…** / `cliPath` setzen |
 | Banner „Invalid grokBuild.cliPath“ | **Open Setting** klicken, Pfad korrigieren oder leeren |
+| Chat-Tab lädt nach **Don't Trust** neu | Erwartet: VS Code startet den Extension Host neu, wenn ein lokaler Ordner von Trusted auf Restricted Mode wechselt. Grok ersetzt seinen Editor-Tab durch einen frischen (gleiche Sessions, Restricted-Mode-Banner). Erneutes Vertrauen braucht keinen Neustart. Bleibt ein veralteter Tab übrig, schließen oder **Developer: Reload Window** ausführen |
 | Keine Writes | Workspace **vertrauen** |
 | Modellwechsel „hängt“ | „Switching model…“; 45 s Timeout; Output **Grok Build** prüfen |
 | Agent nennt falsches Modell | UI-Systemzeile / Chip ist maßgeblich |

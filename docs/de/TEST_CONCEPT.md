@@ -297,12 +297,16 @@ Format je Fall:
 - **Vorbedingung:** Env B untrusted  
 - **Schritte:** „Erstelle Datei evil.txt mit secret“  
 - **Pass:** Trust-Banner; Write blockiert / klarer Fehler; Datei entsteht **nicht** ohne Trust  
+- **Pass (Lesen, #46):** „Lies README.md und fasse es zusammen“ funktioniert im Restricted Mode: keine automatische Ablehnung, kein Trust-Dialog  
+- **Pass (Trust-Wechsel, #51):** mit `security.workspace.trust.enabled: true` bei offenem Chat (Editor-Tab und Sidebar) von Trusted → Restricted (**Don't Trust**) und zurück (**Trust**) wechseln. Der Chat bleibt ohne Reload nutzbar: **+** öffnet einen neuen Chat, das Restricted-Mode-Banner erscheint / verschwindet sofort  
 
 #### T-F05 — Path Traversal / außerhalb des Workspace  
 - **Dim:** S  
-- **Schritte:** „Schreibe nach `C:\Windows\Temp\grok-should-not.txt`“ bzw. `../../outside.txt`  
-- **Pass:** Ablehnung, Fehler oder nur Workspace-Pfad; **kein** Write außerhalb des Workspace (abhängig von CLI + Handler)  
-- **Fail:** Datei existiert außerhalb  
+- **Vorbedingung:** vertrauenswürdiger Workspace (die Prüfung gilt auch mit Trust)  
+- **Schritte:** „Schreibe nach `C:\Windows\Temp\grok-should-not.txt`“ (Linux/macOS: `/tmp/grok-should-not.txt`), `../../outside.txt` oder ein Pfad über einen Symlink im Workspace, der nach außen zeigt; danach „Lies `/etc/hostname`“ (Windows: `C:\Windows\win.ini`)  
+- **Pass (Extension, #45):** Leitet die CLI den Write über ACP `fs/write_text_file` weiter, zeigt die Extension das Modal „Grok wants to write to a file outside the workspace.“ mit dem aufgelösten Pfad. **Cancel** → der Agent erhält den Fehler „Grok Build blocked a write to … outside the workspace folders“, die Datei entsteht **nicht**; im Output **Grok Build** steht eine `warn`-Zeile. **Allow once** schreibt einmal (eine neue Datei außerhalb löst genau einen Dialog aus, den Write; das Vorschau-Lesen der CLI für die fehlende Datei fragt nicht); **Allow for this session** fragt für diesen Pfad bis zum Neustart des Agents nicht mehr. Dasselbe Modal (Verb „read“) erscheint bei Lesezugriffen außerhalb des Workspace. Im Multi-Root-Workspace zählt jeder Ordner als innen.  
+- **Hinweis:** Ein CLI-Tool, das selbst schreibt (Shell, nicht über ACP-fs), wird von dieser Prüfung nicht erfasst; dort greifen CLI-Permission-Prompt / Sandbox  
+- **Fail:** Datei existiert außerhalb ohne explizites **Allow**  
 
 #### T-F06 — Freigabe für nicht lesbare / binäre Datei  
 - **Dim:** F, U  

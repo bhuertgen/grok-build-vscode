@@ -4,6 +4,13 @@ import { SessionStore } from './session/sessionStore';
 import { SessionManager } from './session/sessionManager';
 import { EditController, DiffContentProvider } from './edits/editController';
 import { ChatViewProvider } from './providers/chatViewProvider';
+import { EditorChatPanel } from './providers/editorChatProvider';
+import {
+  LAST_SESSION_KEY,
+  isExtensionHostRestart,
+  isGrokEditorChatViewType,
+  orphanedTabAction,
+} from './util/panelRevive';
 import { registerCommands } from './commands/registerCommands';
 import { ensureCliReady, resetCliOnboardSkip } from './cli/onboard';
 import { detectGrokCli } from './cli/detect';
@@ -59,7 +66,65 @@ export async function activate(
     )
   );
 
+  // Revive the editor-tab chat after an extension-host restart (Trusted →
+  // Restricted Mode restarts the host) or a window reload (#51).
+  context.subscriptions.push(
+    vscode.window.registerWebviewPanelSerializer(EditorChatPanel.viewType, {
+      deserializeWebviewPanel: async (panel) => {
+        log.info('Reviving Grok editor chat panel (extension host restarted or window reloaded)');
+        EditorChatPanel.revive(panel, context.extensionUri, sessions!, edits);
+      },
+    })
+  );
+
   registerCommands(context, sessions, edits, chatView);
+
+  // Replace Grok editor tabs left over from a stopped extension host
+  // (Trusted → Restricted Mode restarts the host) — see util/panelRevive.ts (#51).
+  const recoverOrphanedEditorChat = async () => {
+    const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter(
+      (t) =>
+        t.input instanceof vscode.TabInputWebview &&
+        isGrokEditorChatViewType(t.input.viewType, EditorChatPanel.viewType)
+    );
+    if (orphanedTabAction(EditorChatPanel.current !== undefined, tabs.length) !== 'replace' || !sessions) {
+      return;
+    }
+    const column = tabs[0].group.viewColumn;
+    log.info(`Replacing ${tabs.length} stale Grok editor tab(s) after extension host restart`);
+    try {
+      await vscode.window.tabGroups.close(tabs, true);
+    } catch (err) {
+      log.warn('Could not close stale Grok editor tab', err);
+      void vscode.window
+        .showWarningMessage(
+          'Grok Build restarted after a workspace trust change. Close the old Grok tab or reload the window.',
+          'Reload Window'
+        )
+        .then((c) => {
+          if (c === 'Reload Window') {
+            void vscode.commands.executeCommand('workbench.action.reloadWindow');
+          }
+        });
+    }
+    if (!EditorChatPanel.current) {
+      EditorChatPanel.show(context.extensionUri, sessions, edits, column);
+    }
+  };
+  // Only after an extension-host restart in the same window (env.sessionId
+  // unchanged). On a window reload or new start, restored tabs are revived
+  // lazily by the serializer and must not be replaced.
+  const hostRestart = isExtensionHostRestart(
+    context.workspaceState.get<string>(LAST_SESSION_KEY),
+    vscode.env.sessionId
+  );
+  void context.workspaceState.update(LAST_SESSION_KEY, vscode.env.sessionId);
+  log.debug(`Activation: sessionId=${vscode.env.sessionId} hostRestart=${hostRestart}`);
+  if (hostRestart) {
+    const orphanTimer = setTimeout(() => void recoverOrphanedEditorChat(), 1000);
+    context.subscriptions.push({ dispose: () => clearTimeout(orphanTimer) });
+  }
+
 
   context.subscriptions.push(
     vscode.commands.registerCommand('grokBuild.setupCli', async () => {
@@ -87,9 +152,12 @@ export async function activate(
 
   // Re-detect the CLI when grokBuild.cliPath changes (header version,
   // compat banner, update check) — previously only on activation.
-  const cliRedetector = createCliRedetector(async () => {
+  const cliRedetector = createCliRedetector(async (signal) => {
     cliStatus.setChecking();
     const d = await detectGrokCli();
+    if (signal.aborted) {
+      return; // extension deactivating — do not touch disposed UI (#49)
+    }
     cliStatus.setDetection(d);
     if (cliStatus.ready) {
       sessions?.clearStaleCliErrors();
@@ -99,11 +167,13 @@ export async function activate(
         ? `CLI re-detected after cliPath change: ${d.cliPath}${d.version ? ` (${d.version})` : ''}`
         : `CLI not ready after cliPath change: ${d.error ?? 'unknown'}`
     );
-    cliStatus.setUpdateInfo(
-      d.ok
-        ? await checkCliUpdate(d.cliPath).catch(() => ({ checked: false, updateAvailable: false }))
-        : { checked: false, updateAvailable: false }
-    );
+    const upd = d.ok
+      ? await checkCliUpdate(d.cliPath).catch(() => ({ checked: false, updateAvailable: false }))
+      : { checked: false, updateAvailable: false };
+    if (signal.aborted) {
+      return;
+    }
+    cliStatus.setUpdateInfo(upd);
     chatView.pushState();
   });
   context.subscriptions.push({ dispose: () => cliRedetector.dispose() });
@@ -209,7 +279,7 @@ export async function activate(
   // Workspace Trust / Restricted Mode
   const pushTrustState = () => {
     chatView.pushState();
-    // Editor panel gets state via its own provider instance on next push
+    EditorChatPanel.current?.pushState();
   };
   if (!isWorkspaceTrusted()) {
     log.warn(getTrustBannerMessage());

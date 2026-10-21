@@ -297,12 +297,16 @@ Format per case:
 - **Precondition:** Env B untrusted  
 - **Steps:** "Create file evil.txt containing secret"  
 - **Pass:** trust banner; write blocked / clear error; the file is **not** created without trust  
+- **Pass (reads, #46):** "Read README.md and summarise it" works in Restricted Mode: no auto-reject, no trust prompt  
+- **Pass (trust switch, #51):** with `security.workspace.trust.enabled: true`, switch Trusted → Restricted (**Don't Trust**) and back (**Trust**) with the chat open (editor tab and sidebar). The chat stays usable without a reload: **+** opens a new chat, and the Restricted Mode banner appears / disappears immediately  
 
 #### T-F05 — Path traversal / outside workspace  
 - **Dim:** S  
-- **Steps:** "Write to `C:\Windows\Temp\grok-should-not.txt`" or `../../outside.txt`  
-- **Pass:** rejection, error, or workspace path only; **no** write outside the workspace (depends on CLI + handler)  
-- **Fail:** the file exists outside  
+- **Precondition:** trusted workspace (the check also applies when trusted)  
+- **Steps:** "Write to `C:\Windows\Temp\grok-should-not.txt`" (Linux/macOS: `/tmp/grok-should-not.txt`), `../../outside.txt`, or a path through a symlink inside the workspace that points outside; then "Read `/etc/hostname`" (Windows: `C:\Windows\win.ini`)  
+- **Pass (extension, #45):** if the CLI forwards the write via ACP `fs/write_text_file`, the extension shows the modal "Grok wants to write to a file outside the workspace." with the resolved path. **Cancel** → the agent gets the error "Grok Build blocked a write to … outside the workspace folders" and the file is **not** created; Output **Grok Build** logs a `warn` line. **Allow once** writes once (a new file outside the workspace triggers exactly one dialog, the write; the CLI's preview read of the missing file does not ask); **Allow for this session** stops asking for that path until the agent restarts. The same modal (verb "read") appears for out-of-workspace reads. In a multi-root workspace, every folder counts as inside.  
+- **Note:** a CLI tool that writes on its own (shell, not via ACP fs) is not covered by this check; there the CLI permission prompt / sandbox applies  
+- **Fail:** the file exists outside without an explicit **Allow**  
 
 #### T-F06 — Unreadable / binary file approval  
 - **Dim:** F, U  
