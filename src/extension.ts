@@ -68,6 +68,9 @@ export async function activate(
       chatView.pushState();
       const result = await ensureCliReady(context, { force: true });
       cliStatus.update(result.detection);
+      if (cliStatus.ready) {
+        sessions?.clearStaleCliErrors();
+      }
       chatView.pushState();
       if (result.ready) {
         void vscode.window.showInformationMessage(
@@ -88,6 +91,9 @@ export async function activate(
     cliStatus.setChecking();
     const d = await detectGrokCli();
     cliStatus.setDetection(d);
+    if (cliStatus.ready) {
+      sessions?.clearStaleCliErrors();
+    }
     log.info(
       d.ok
         ? `CLI re-detected after cliPath change: ${d.cliPath}${d.version ? ` (${d.version})` : ''}`

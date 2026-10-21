@@ -253,6 +253,7 @@ if (bundle.status !== 0) {
       'tests/initialMode.test.mjs',
       'tests/cliRefresh.test.mjs',
       'tests/cliPath.test.mjs',
+      'tests/cliRecovery.test.mjs',
     ],
     {
       encoding: 'utf8',

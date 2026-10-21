@@ -27,6 +27,7 @@ await esbuild.build({
     cliRefresh: 'src/cli/cliRefresh.ts',
     cliPath: 'src/cli/cliPath.ts',
     cliStatus: 'src/cli/cliStatus.ts',
+    cliRecovery: 'src/util/cliRecovery.ts',
   },
   outdir: outDir,
   bundle: true,

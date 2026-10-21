@@ -11,6 +11,7 @@ import {
   isWorkspaceTrusted,
 } from '../util/workspaceTrust';
 import type { CliStatus } from '../cli/cliStatus';
+import { newSessionGate } from '../util/cliRecovery';
 import { uiConfigControls } from '../util/configOptionsUi';
 
 export interface ChatViewProviderOptions {
@@ -264,17 +265,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     };
   }
 
-  private async ensureCanStartSession(): Promise<boolean> {
-    if (this.cliStatus?.checking) {
+  /**
+   * Gate for "+" / New Session / resume (also used by the palette command).
+   * Invalid explicit cliPath → error + Open Setting (#41); missing → Setup CLI.
+   */
+  async ensureCanStartSession(): Promise<boolean> {
+    const snap = this.cliStatus?.snapshot;
+    const gate = newSessionGate(snap);
+    if (gate === 'checking') {
       void vscode.window.showInformationMessage(
         'Still checking for the Grok CLI…'
       );
       return false;
     }
-    if (this.cliStatus && !this.cliStatus.ready && this.cliStatus.detection?.invalidPath) {
-      // Explicit grokBuild.cliPath is wrong (#41) — point at the setting, not the install wizard
+    if (gate === 'invalid_path') {
       const action = await vscode.window.showWarningMessage(
-        this.cliStatus.detection.error ?? 'Invalid grokBuild.cliPath.',
+        snap?.error ?? 'Invalid grokBuild.cliPath.',
         'Open Setting',
         'Cancel'
       );
@@ -283,7 +289,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
       return false;
     }
-    if (this.cliStatus && !this.cliStatus.ready) {
+    if (gate === 'missing' && this.cliStatus) {
       const action = await vscode.window.showWarningMessage(
         'Grok CLI not found. This extension needs the official CLI (`grok agent stdio`).',
         'Setup CLI…',
