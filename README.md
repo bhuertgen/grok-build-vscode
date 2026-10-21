@@ -31,7 +31,7 @@
 
 1. **VS Code** 1.90+ (or compatible)  
 2. **Grok Build CLI** installed and authenticated — [x.ai/cli](https://x.ai/cli)  
-   - `grok --version` — **1.0.62 or newer recommended** (tested with 1.0.62 stable, getestet bis / tested up to **1.0.66 alpha**; older 1.0.x works with a warning banner)  
+   - `grok --version` — **1.0.62 or newer recommended** (tested with 1.0.62 stable, tested up to **1.0.66 alpha**; older 1.0.x works with a warning banner)  
 3. **Node.js** 18+ only if you build from source  
 
 ## Install
