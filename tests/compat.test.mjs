@@ -56,6 +56,18 @@ describe('assessCliCompat', () => {
     }
   });
 
+  it('1.0.66 alpha (tested up to) is ok, no banner; soft floor stays 1.0.62 (#39)', () => {
+    for (const v of ['grok 1.0.66 (858cb4f88f75) [alpha]', '1.0.65', '1.0.66-alpha.1']) {
+      const a = assessCliCompat({ detected: true, rawVersion: v });
+      assert.equal(a.level, 'ok', v);
+      assert.equal(a.usable, true, v);
+      assert.equal(shouldShowCompatBanner(a.level), false, v);
+      assert.equal(a.softMin, '1.0.62');
+    }
+    assert.equal(CLI_SOFT_MIN, '1.0.62');
+    assert.equal(CLI_HARD_MIN, '1.0.0');
+  });
+
   it('1.0.0..1.0.61 is usable with soft warning recommending 1.0.62', () => {
     for (const v of ['1.0.0', '1.0.51', '1.0.52', '1.0.61']) {
       const a = assessCliCompat({ detected: true, rawVersion: v });

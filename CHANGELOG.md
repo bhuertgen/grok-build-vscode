@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Compatibility
+- Tested with Grok CLI **1.0.62 stable** and getestet bis / tested up to **1.0.66 alpha** (smoke + ACP probe green). The recommended soft floor stays **1.0.62**; hard floor 1.0.0 (#39).
+
 ### Changed
 - With `grokBuild.cliPermissionMode: plan`, new sessions now start in **Plan** mode in the UI (mode button / status bar), matching the agent: from Grok CLI **1.0.65** `--permission-mode plan` really starts in plan mode. On older CLIs the UI keeps `defaultMode` and shows a `grok update` hint (#38, related #11).
 
