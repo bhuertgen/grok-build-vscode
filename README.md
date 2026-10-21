@@ -31,7 +31,7 @@
 
 1. **VS Code** 1.90+ (or compatible)  
 2. **Grok Build CLI** installed and authenticated — [x.ai/cli](https://x.ai/cli)  
-   - `grok --version` — **1.0.62 or newer recommended** (tested with 1.0.62; older 1.0.x works with a warning banner)  
+   - `grok --version` — **1.0.62 or newer recommended** (tested with 1.0.62 stable, getestet bis / tested up to **1.0.66 alpha**; older 1.0.x works with a warning banner)  
 3. **Node.js** 18+ only if you build from source  
 
 ## Install
@@ -113,6 +113,7 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 | `grokBuild.permissionMode` | `ask` | UI permission prompts |
 | `grokBuild.autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (avoids hidden permission stalls) |
 | `grokBuild.alwaysApprove` | `false` | CLI `--always-approve` |
+| `grokBuild.cliPermissionMode` | `""` | CLI `--permission-mode`; `plan` starts sessions in **Plan** (really plan mode from CLI 1.0.65) |
 | `grokBuild.updateRepo` | `bhuertgen/grok-build-vscode` | Extension update checks |
 | `grokBuild.logLevel` | `info` | Output channel **Grok Build** |
 
@@ -142,8 +143,10 @@ VS Code UI  ──►  SessionManager  ──►  AcpClient × N  ──►  gro
 Effective spawn shape:
 
 ```text
-grok agent --no-leader -m <model> [flags…] stdio
+grok [--permission-mode … --max-turns … top-level flags…] agent --no-leader -m <model> [--reasoning-effort … --always-approve --debug] stdio
 ```
+
+Policy flags (`--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`) are **top-level** `grok` options and go **before** `agent` — `grok agent` rejects them (#37).
 
 ## Automated checks
 

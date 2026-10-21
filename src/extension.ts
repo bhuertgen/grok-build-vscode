@@ -7,6 +7,7 @@ import { ChatViewProvider } from './providers/chatViewProvider';
 import { registerCommands } from './commands/registerCommands';
 import { ensureCliReady, resetCliOnboardSkip } from './cli/onboard';
 import { detectGrokCli } from './cli/detect';
+import { affectsCliDetection, createCliRedetector } from './cli/cliRefresh';
 import { getCliStatus } from './cli/cliStatus';
 import { checkCliUpdate } from './cli/updateCheck';
 import { checkExtensionUpdate } from './util/extensionUpdate';
@@ -81,10 +82,33 @@ export async function activate(
     })
   );
 
+  // Re-detect the CLI when grokBuild.cliPath changes (header version,
+  // compat banner, update check) — previously only on activation.
+  const cliRedetector = createCliRedetector(async () => {
+    cliStatus.setChecking();
+    const d = await detectGrokCli();
+    cliStatus.setDetection(d);
+    log.info(
+      d.ok
+        ? `CLI re-detected after cliPath change: ${d.cliPath}${d.version ? ` (${d.version})` : ''}`
+        : `CLI not ready after cliPath change: ${d.error ?? 'unknown'}`
+    );
+    cliStatus.setUpdateInfo(
+      d.ok
+        ? await checkCliUpdate(d.cliPath).catch(() => ({ checked: false, updateAvailable: false }))
+        : { checked: false, updateAvailable: false }
+    );
+    chatView.pushState();
+  });
+  context.subscriptions.push({ dispose: () => cliRedetector.dispose() });
+
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('grokBuild')) {
         log.refreshLevel();
+      }
+      if (affectsCliDetection((s) => e.affectsConfiguration(s))) {
+        cliRedetector.trigger();
       }
     })
   );

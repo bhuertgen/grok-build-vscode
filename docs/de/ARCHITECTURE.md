@@ -41,6 +41,6 @@ VS Code UI  →  SessionManager  →  AcpClient × N  →  grok agent stdio
 1. Activate → CLI erkennen (`grok --version`).  
 2. Fehlt → Setup-Wizard.  
 3. Commands: Check / Setup / Update CLI.  
-4. Spawn-Form: `grok agent --no-leader -m <model> [flags…] stdio`.
+4. Spawn-Form: `grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio` (Policy-Flags wie `--permission-mode` vor `agent`, #37).
 
 Ausführliche Ordnerstruktur und Details: englische Version [ARCHITECTURE.md](../en/ARCHITECTURE.md).

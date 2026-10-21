@@ -174,6 +174,8 @@ export interface InitializeResponse {
   agentCapabilities?: AgentCapabilities;
   agentInfo?: Implementation;
   authMethods?: AuthMethod[];
+  /** Grok extension: `{ agentVersion: "1.0.66", … }` */
+  _meta?: Record<string, unknown>;
 }
 
 // ─── Session ────────────────────────────────────────────────────────────────

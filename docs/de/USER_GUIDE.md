@@ -206,6 +206,7 @@ Kurzüberblick:
 | `permissionMode` | `ask` | UI-Permissions |
 | `autoAllowInExecuteMode` | `true` | Tools in Execute freigeben (empfohlen) |
 | `alwaysApprove` | `false` | CLI `--always-approve` |
+| `cliPermissionMode` | `""` | CLI `--permission-mode` (Top-Level-Flag). **`plan`:** laut CLI-Changelog startet der Agent ab CLI **1.0.65** wirklich im Plan-Modus; neue Sessions zeigen dann **Plan** in der UI (überschreibt `defaultMode`), Tool-Aufrufe werden abgefragt statt automatisch erlaubt. Grok meldet den Modus nicht über ACP – die UI leitet ihn aus Setting + CLI-Version ab. Ältere CLIs starten im Default-Modus; im Chat erscheint ein Hinweis auf `grok update`. |
 | `updateRepo` | `bhuertgen/grok-build-vscode` | Extension-Updates |
 | `logLevel` | `info` | Output **Grok Build** |
 
@@ -222,8 +223,11 @@ CLI-Flags (`reasoningEffort`, `noSubagents`, `sandbox`, `tools`, …) siehe EN-G
 Effektives Spawn:
 
 ```text
-grok agent --no-leader -m <model> [flags…] stdio
+grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 ```
+
+- **Top-Level** (vor `agent`): `--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`. `grok agent` lehnt diese ab (`unexpected argument`, #37).
+- **Agent-Level** (zwischen `agent` und `stdio`): `-m`, `--reasoning-effort`, `--always-approve`, `--no-leader`, `--debug` sowie `extraCliArgs`.
 
 ---
 

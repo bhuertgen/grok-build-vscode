@@ -370,7 +370,7 @@
             "plan"
           ],
           "default": "",
-          "description": "CLI --permission-mode (agent tool policy). Empty = CLI default. Separate from UI permission prompts below."
+          "description": "CLI --permission-mode (agent tool policy, passed as top-level flag before `agent`). Empty = CLI default. `plan`: from Grok CLI 1.0.65 the agent really starts in plan mode and new sessions show Plan in the UI (older CLIs start in the default mode). Separate from UI permission prompts below."
         },
         "grokBuild.alwaysApprove": {
           "type": "boolean",
@@ -458,7 +458,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Advanced: extra args inserted after `agent` (e.g. [\"--agent-profile\", \"C:\\\\path\\\\profile\"]). Prefer dedicated settings when available."
+          "description": "Advanced: extra agent-level args inserted after `agent` (e.g. [\"--agent-profile\", \"C:\\\\path\\\\profile\"]). Top-level-only flags (--permission-mode, --max-turns, --tools, …) must use their dedicated settings; `grok agent` rejects them."
         },
         "grokBuild.autoIncludeActiveFile": {
           "type": "boolean",
@@ -563,7 +563,7 @@
     "package": "vsce package --no-dependencies",
     "lint": "tsc -p ./ --noEmit",
     "test:bundle": "node scripts/build-test-bundle.mjs",
-    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs",
     "test:integration:bundle": "node scripts/build-integration-tests.mjs",
     "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
     "test": "npm run test:unit",

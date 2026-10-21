@@ -11,6 +11,8 @@ export const CLI_HARD_MIN = '1.0.0';
 /**
  * Below this (but ≥ hard) → soft warning banner; extension still usable.
  * Raised independently when a newer 1.x patch becomes the recommended baseline.
+ * Tested up to 1.0.66 alpha (2026-10-21: smoke + ACP probe green); the soft
+ * floor stays at the latest stable (1.0.62) until a newer stable ships.
  * 1.0.62 (tested stable, 2026-10): write approvals mark binary/unreadable
  * files as "unreadable" (1.0.54), hooks returning `continue:false` end the
  * turn with `cancellationCategory: "HookStopped"` (1.0.60).

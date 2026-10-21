@@ -277,7 +277,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 |---------|---------|----------------|
 | `defaultModel` | `""` | `-m` / `--model` (empty = CLI default) |
 | `reasoningEffort` | `""` | `--reasoning-effort` (default for **new** sessions). If the agent advertises an Effort / config option, the chat header chip overrides it **for the live session** via ACP `session/set_config_option` without rewriting this setting. |
-| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`) |
+| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`), top-level flag. **`plan`:** per the CLI changelog, from CLI **1.0.65** the agent really starts in plan mode; new sessions then start in **Plan** in the UI (overrides `defaultMode`), so tool calls are prompted instead of auto-allowed. Grok does not report the mode over ACP, so the UI derives it from this setting and the CLI version. Older CLIs start in the default mode; the chat shows a hint to run `grok update`. |
 | `alwaysApprove` | `false` | `--always-approve` |
 | `maxTurns` | `null` | `--max-turns` |
 | `noSubagents` | `false` | `--no-subagents` |
@@ -291,7 +291,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 | `disallowedTools` | `""` | `--disallowed-tools` |
 | `rules` | `""` | `--rules` extra system rules |
 | `debug` | `false` | `--debug` |
-| `extraCliArgs` | `[]` | Extra args after `agent` |
+| `extraCliArgs` | `[]` | Extra args after `agent` (agent-level only; top-level flags have dedicated settings) |
 
 **Example** `settings.json`:
 
@@ -332,10 +332,11 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 Effective shape (simplified):
 
 ```text
-grok agent --no-leader -m <model> [more flags…] stdio
+grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 ```
 
-- Flags sit **between** `agent` and `stdio` (not after `stdio`).  
+- **Top-level flags** sit **before** `agent`: `--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`. `grok agent` rejects them with `unexpected argument` (#37).
+- **Agent flags** sit **between** `agent` and `stdio` (not after `stdio`): `-m`, `--reasoning-effort`, `--always-approve`, `--no-leader`, `--debug`, plus `extraCliArgs`.  
 - `--no-leader`: one process per session so `-m` applies.  
 - Logs: Output channel **Grok Build** → `Starting agent: …`.
 
