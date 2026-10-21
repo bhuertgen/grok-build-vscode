@@ -35,6 +35,8 @@ import {
   promptTrustWorkspace,
 } from '../util/workspaceTrust';
 import type { EditController } from '../edits/editController';
+import { isWriteLikePermission } from '../util/permissionKind';
+import { pickRejectOption } from '../util/permissionOutcome';
 import { sliceTextLines } from '../util/textSlice';
 import { isProbablyBinary } from '../util/unreadable';
 
@@ -174,20 +176,12 @@ export class ClientHandlers {
     const cfg = getConfig();
     this.log.info('session/request_permission', params.toolCall?.title, params.toolCall?.kind);
 
-    // In Restricted Mode, warn before any write-related permission
-    const kind = params.toolCall?.kind ?? '';
-    const title = (params.toolCall?.title ?? '').toLowerCase();
-    const looksLikeWrite =
-      kind === 'edit' ||
-      kind === 'delete' ||
-      kind === 'move' ||
-      /write|edit|create|delete|file/i.test(title);
-    if (!isWorkspaceTrusted() && looksLikeWrite) {
+    // Restricted Mode: auto-reject write-like permissions only; reads,
+    // searches and fetches stay usable without a trust prompt (#46).
+    if (!isWorkspaceTrusted() && isWriteLikePermission(params.toolCall)) {
       void promptTrustWorkspace();
       // Prefer reject so the agent does not hang on a silent write
-      const reject = params.options.find(
-        (o) => o.kind === 'reject_once' || o.kind === 'reject_always'
-      );
+      const reject = pickRejectOption(params.options);
       if (reject) {
         return {
           outcome: { outcome: 'selected', optionId: reject.optionId },

@@ -363,7 +363,7 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | Topic | Behavior |
 |-------|----------|
 | **History** | Local VS Code `globalState`, scoped by workspace `cwd` |
-| **Trust** | Restricted Mode → banner; writes/tools limited |
+| **Trust** | Restricted Mode → banner. Write-like permissions (ACP kind `edit`, `delete`, `move`, `execute`; for kind `other` a title with write/edit/create/delete/move/rename) are auto-rejected and the trust prompt opens. Reads, searches and fetches are **not** rejected and do not prompt. File writes by the agent (`fs/write_text_file`) fail with a clear error until you trust the folder |
 | **Auth** | CLI only (`grok` login); no keys in the repo |
 | **Outside workspace** | Prefer workspace-only; trust + CLI safety |
 

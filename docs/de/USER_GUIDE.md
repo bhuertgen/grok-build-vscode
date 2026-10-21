@@ -365,7 +365,7 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 | Thema | Verhalten |
 |-------|-----------|
 | **History** | Lokal in VS Code `globalState`, pro Workspace-`cwd` |
-| **Trust** | Restricted Mode → Banner; Writes/Tools eingeschränkt |
+| **Trust** | Restricted Mode → Banner. Schreibende Permissions (ACP-Kind `edit`, `delete`, `move`, `execute`; bei Kind `other` ein Titel mit write/edit/create/delete/move/rename) werden automatisch abgelehnt, und der Trust-Dialog öffnet sich. Lesen, Suchen und Fetch werden **nicht** abgelehnt und lösen keinen Dialog aus. Dateischreibzugriffe des Agents (`fs/write_text_file`) scheitern mit klarer Fehlermeldung, bis du dem Ordner vertraust |
 | **Auth** | Nur CLI (`grok` Login); keine Keys im Repo |
 | **Außerhalb des Workspace** | Möglichst nur Workspace; Trust + CLI-Safety |
 

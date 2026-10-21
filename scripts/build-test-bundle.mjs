@@ -30,6 +30,7 @@ await esbuild.build({
     cliRecovery: 'src/util/cliRecovery.ts',
     locale: 'src/util/locale.ts',
     textSlice: 'src/util/textSlice.ts',
+    permissionKind: 'src/util/permissionKind.ts',
   },
   outdir: outDir,
   bundle: true,
