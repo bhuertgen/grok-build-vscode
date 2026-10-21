@@ -24,6 +24,14 @@ import {
   type StopReason,
 } from './types';
 import { buildAgentArgsFromConfig } from '../util/agentArgs';
+import {
+  checkExplicitCliPath,
+  invalidCliPathMessage,
+  isDefaultCliPath,
+  resolveSpawnCliPath,
+} from '../cli/cliPath';
+import { nodeCliPathFs } from '../cli/detect';
+import { getCliStatus } from '../cli/cliStatus';
 import { getConfig, getWorkspaceCwd } from '../util/config';
 import { applyMemoryEnv } from '../util/memory';
 import { getLogger } from '../util/logger';
@@ -97,7 +105,15 @@ export class AcpClient extends EventEmitter {
     const cfg = getConfig();
     const model = (options?.model ?? cfg.defaultModel)?.trim() || undefined;
     const args = buildAgentArgs(cfg.cliArgs, model);
-    this.log.info(`Starting agent: ${cfg.cliPath} ${args.join(' ')}`);
+    // Same resolution as CLI detection (#41): explicit path only, no fallback.
+    const cliPath = resolveSpawnCliPath(cfg.cliPath, getCliStatus().detection);
+    if (!isDefaultCliPath(cfg.cliPath)) {
+      const problem = checkExplicitCliPath(cliPath, nodeCliPathFs, process.platform);
+      if (problem) {
+        throw new Error(invalidCliPathMessage(cliPath, problem));
+      }
+    }
+    this.log.info(`Starting agent: ${cliPath} ${args.join(' ')}`);
 
     const cwd = getWorkspaceCwd();
     // Prefer shell:false so -m / flags are not mangled on Windows
@@ -108,7 +124,7 @@ export class AcpClient extends EventEmitter {
     }
     applyMemoryEnv(env, cfg.memory);
     try {
-      this.proc = spawn(cfg.cliPath, args, {
+      this.proc = spawn(cliPath, args, {
         cwd,
         env,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -118,7 +134,7 @@ export class AcpClient extends EventEmitter {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(
-        `Failed to spawn Grok CLI ("${cfg.cliPath}"). Is it installed and on PATH?\n${message}`
+        `Failed to spawn Grok CLI ("${cliPath}"). Is it installed and on PATH?\n${message}`
       );
     }
 

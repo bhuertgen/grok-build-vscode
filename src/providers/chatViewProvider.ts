@@ -11,6 +11,7 @@ import {
   isWorkspaceTrusted,
 } from '../util/workspaceTrust';
 import type { CliStatus } from '../cli/cliStatus';
+import { newSessionGate } from '../util/cliRecovery';
 import { uiConfigControls } from '../util/configOptionsUi';
 
 export interface ChatViewProviderOptions {
@@ -264,14 +265,31 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     };
   }
 
-  private async ensureCanStartSession(): Promise<boolean> {
-    if (this.cliStatus?.checking) {
+  /**
+   * Gate for "+" / New Session / resume (also used by the palette command).
+   * Invalid explicit cliPath → error + Open Setting (#41); missing → Setup CLI.
+   */
+  async ensureCanStartSession(): Promise<boolean> {
+    const snap = this.cliStatus?.snapshot;
+    const gate = newSessionGate(snap);
+    if (gate === 'checking') {
       void vscode.window.showInformationMessage(
         'Still checking for the Grok CLI…'
       );
       return false;
     }
-    if (this.cliStatus && !this.cliStatus.ready) {
+    if (gate === 'invalid_path') {
+      const action = await vscode.window.showWarningMessage(
+        snap?.error ?? 'Invalid grokBuild.cliPath.',
+        'Open Setting',
+        'Cancel'
+      );
+      if (action === 'Open Setting') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'grokBuild.cliPath');
+      }
+      return false;
+    }
+    if (gate === 'missing' && this.cliStatus) {
       const action = await vscode.window.showWarningMessage(
         'Grok CLI not found. This extension needs the official CLI (`grok agent stdio`).',
         'Setup CLI…',
@@ -602,6 +620,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       case 'setupCli':
         await vscode.commands.executeCommand('grokBuild.setupCli');
+        break;
+
+      case 'openCliPathSetting':
+        await vscode.commands.executeCommand(
+          'workbench.action.openSettings',
+          'grokBuild.cliPath'
+        );
         break;
 
       case 'checkCli':

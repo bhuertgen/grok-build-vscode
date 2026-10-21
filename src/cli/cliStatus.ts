@@ -76,7 +76,12 @@ export class CliStatus extends EventEmitter {
       ready: this._ready,
       checking: this._checking,
       cliPath: this._detection?.cliPath ?? null,
-      version: this._detection?.version ?? this._update?.currentVersion ?? null,
+      // A failed detection must not show a version from an earlier/other binary (#41)
+      version:
+        this._detection && !this._detection.ok
+          ? null
+          : this._detection?.version ?? this._update?.currentVersion ?? null,
+      invalidCliPath: !!this._detection?.invalidPath,
       error: this._detection?.error ?? null,
       updateAvailable: showUpdate,
       updateCurrent: this._update?.currentVersion ?? null,

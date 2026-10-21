@@ -129,6 +129,10 @@ export function registerCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand('grokBuild.newSession', async () => {
+      // Same gate as the chat "+" button (#41)
+      if (!(await chatView.ensureCanStartSession())) {
+        return;
+      }
       try {
         await sessions.createSession();
       } catch (err) {

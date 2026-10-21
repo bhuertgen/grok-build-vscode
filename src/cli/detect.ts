@@ -3,6 +3,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getConfig } from '../util/config';
 import { getLogger } from '../util/logger';
+import {
+  checkExplicitCliPath,
+  invalidCliPathMessage,
+  resolveCliCandidates,
+  type CliPathFs,
+} from './cliPath';
 
 export interface CliDetectionResult {
   ok: boolean;
@@ -10,44 +16,73 @@ export interface CliDetectionResult {
   cliPath: string;
   version?: string;
   error?: string;
+  /** Raw grokBuild.cliPath this detection was run for (#41). */
+  configuredPath?: string;
+  /** Explicit cliPath that does not exist / is not executable (#41). */
+  invalidPath?: boolean;
 }
+
+/** Real fs adapter for checkExplicitCliPath. */
+export const nodeCliPathFs: CliPathFs = {
+  stat(p) {
+    try {
+      return fs.statSync(p);
+    } catch {
+      return null;
+    }
+  },
+  isExecutable(p) {
+    try {
+      fs.accessSync(p, fs.constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
 
 /**
  * Probe whether the Grok Build CLI is available and responds to `--version`.
  * This is the only runtime dependency for the hybrid ACP architecture.
+ * An explicit grokBuild.cliPath is probed alone (no fallback, #41).
  */
 export function detectGrokCli(cliPathOverride?: string): Promise<CliDetectionResult> {
   const cfg = getConfig();
-  const cliPath = cliPathOverride ?? cfg.cliPath;
+  const configured = cliPathOverride ?? cfg.cliPath;
   const log = getLogger();
+  const { explicit, candidates } = resolveCliCandidates(configured, {
+    platform: process.platform,
+    home: process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME,
+    localAppData: process.env.LOCALAPPDATA,
+  });
+
+  if (explicit) {
+    const problem = checkExplicitCliPath(candidates[0], nodeCliPathFs, process.platform);
+    if (problem) {
+      const error = invalidCliPathMessage(candidates[0], problem);
+      log.warn(error);
+      return Promise.resolve({
+        ok: false,
+        cliPath: candidates[0],
+        configuredPath: configured,
+        invalidPath: true,
+        error,
+      });
+    }
+  }
 
   return new Promise((resolve) => {
-    const candidates = buildCandidates(cliPath);
-    tryNext(candidates, 0, resolve, log);
+    tryNext(candidates, 0, (r) => {
+      if (!r.ok && explicit) {
+        r = {
+          ...r,
+          invalidPath: true,
+          error: `grokBuild.cliPath points to ${candidates[0]} – it did not respond to --version. Fix the setting or clear it to use grok from PATH.`,
+        };
+      }
+      resolve({ ...r, configuredPath: configured });
+    }, log);
   });
-}
-
-function buildCandidates(cliPath: string): string[] {
-  const list: string[] = [cliPath];
-  // Common install locations (best-effort; PATH is still primary)
-  if (process.platform === 'win32') {
-    const home = process.env.USERPROFILE ?? '';
-    const local = process.env.LOCALAPPDATA ?? '';
-    list.push(
-      path.join(home, '.local', 'bin', 'grok.exe'),
-      path.join(home, '.grok', 'bin', 'grok.exe'),
-      path.join(local, 'grok', 'grok.exe')
-    );
-  } else {
-    const home = process.env.HOME ?? '';
-    list.push(
-      path.join(home, '.local', 'bin', 'grok'),
-      path.join(home, '.grok', 'bin', 'grok'),
-      '/usr/local/bin/grok'
-    );
-  }
-  // De-dupe
-  return [...new Set(list.filter(Boolean))];
 }
 
 function tryNext(

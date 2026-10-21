@@ -80,6 +80,7 @@ import {
   upsertEffortCurrent,
 } from '../util/configOptionsUi';
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
+import { clearStaleStartErrors } from '../util/cliRecovery';
 
 /**
  * How much conversation memory the live CLI agent has.
@@ -347,6 +348,18 @@ export class SessionManager extends EventEmitter {
         isOpen: this.sessions.has(m.localId),
         isActive: this.activeLocalId === m.localId,
       }));
+  }
+
+  /** CLI usable again → drop stale start errors (#41). Returns reset count. */
+  clearStaleCliErrors(): number {
+    const n = clearStaleStartErrors(this.sessions.values());
+    if (n > 0) {
+      this.log.info(`CLI ready again — cleared start error on ${n} session(s)`);
+      for (const s of this.sessions.values()) {
+        this.emitChange(s.localId);
+      }
+    }
+    return n;
   }
 
   async createSession(options?: { mode?: AgentMode }): Promise<SessionState> {

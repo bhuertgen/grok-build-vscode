@@ -54,6 +54,7 @@
     cliBannerDetail: document.getElementById('cliBannerDetail'),
     btnDismissCompat: document.getElementById('btnDismissCompat'),
     btnSetupCli: document.getElementById('btnSetupCli'),
+    btnOpenCliSetting: document.getElementById('btnOpenCliSetting'),
     updateBanner: document.getElementById('updateBanner'),
     updateBannerDetail: document.getElementById('updateBannerDetail'),
     btnUpdateCli: document.getElementById('btnUpdateCli'),
@@ -691,6 +692,22 @@
       }
       els.btnSetupCli?.classList.add('hidden');
       els.btnDismissCompat?.classList.add('hidden');
+      els.btnOpenCliSetting?.classList.add('hidden');
+      return;
+    }
+    els.btnOpenCliSetting?.classList.add('hidden');
+
+    // Explicit grokBuild.cliPath is wrong (#41): clear error + "Open Setting"
+    if (cli.invalidCliPath && !cli.ready) {
+      els.cliBanner.classList.remove('hidden');
+      els.cliBanner.classList.add('too-old');
+      setTitle('Invalid grokBuild.cliPath');
+      els.btnOpenCliSetting?.classList.remove('hidden');
+      els.btnSetupCli?.classList.add('hidden');
+      els.btnDismissCompat?.classList.add('hidden');
+      if (els.cliBannerDetail) {
+        els.cliBannerDetail.textContent = cli.error || 'grokBuild.cliPath does not point to the grok binary.';
+      }
       return;
     }
 
@@ -798,7 +815,7 @@
       return;
     }
     if (!cli.ready) {
-      els.statusText.textContent = 'CLI missing';
+      els.statusText.textContent = cli.invalidCliPath ? 'Invalid cliPath' : 'CLI missing';
       els.usageText.textContent = '';
       els.statusBar.classList.add('error');
       return;
@@ -877,6 +894,8 @@
         return s.busy ? 'Working…' : 'Ready';
       case 'error':
         return s.lastError ? `Error: ${truncate(s.lastError, 80)}` : 'Error';
+      case 'idle':
+        return 'Idle — send a message to start the agent';
       default:
         return s.status;
     }
@@ -1734,7 +1753,9 @@
     els.btnStop.classList.toggle('hidden', !busy);
     els.btnSend.disabled = !cliOk || !s || s.status === 'connecting' || s.status === 'error';
     els.input.disabled = !cliOk || !s || s.status === 'connecting';
-    els.btnNew.disabled = !cliOk && !state.cli?.checking;
+    // Keep "+" clickable when the CLI is not ready: the extension-side gate
+    // explains why (invalid cliPath → Open Setting, missing → Setup CLI) (#41).
+    els.btnNew.disabled = false;
   }
 
   // ─── Markdown (lightweight) ───────────────────────────────────────────────
@@ -2851,6 +2872,7 @@
     els.imageInput?.click();
   });
   els.btnSetupCli?.addEventListener('click', () => post('setupCli', {}));
+  els.btnOpenCliSetting?.addEventListener('click', () => post('openCliPathSetting', {}));
   els.btnUpdateCli?.addEventListener('click', () => post('updateCli', {}));
   els.btnDismissUpdate?.addEventListener('click', () =>
     post('dismissCliUpdate', {})
