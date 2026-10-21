@@ -58,8 +58,10 @@ That entry is **not** inside the Marketplace result list.
 **Terminal:**
 
 ```bash
-code --install-extension path/to/grok-build-vscode-0.2.2.vsix
+code --install-extension path/to/grok-build-vscode-x.y.z.vsix
 ```
+
+Replace `x.y.z` with the version you downloaded.
 
 ### Build locally
 
@@ -67,8 +69,10 @@ code --install-extension path/to/grok-build-vscode-0.2.2.vsix
 npm install
 npm run build
 npm run package
-code --install-extension grok-build-vscode-0.2.2.vsix
+code --install-extension grok-build-vscode-x.y.z.vsix
 ```
+
+`x.y.z` = the version in the `.vsix` file name (`npm run package` uses the version from `package.json`).
 
 ### Development
 

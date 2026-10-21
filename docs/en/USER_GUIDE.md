@@ -41,8 +41,10 @@ It does **not** appear in Marketplace search results — only via `…` or the C
 npm install
 npm run build
 npm run package
-code --install-extension grok-build-vscode-0.2.2.vsix
+code --install-extension grok-build-vscode-x.y.z.vsix
 ```
+
+`x.y.z` = the version in the `.vsix` file name (`npm run package` uses the version from `package.json`).
 
 ### First chat
 
