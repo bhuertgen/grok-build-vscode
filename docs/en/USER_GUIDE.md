@@ -277,7 +277,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 |---------|---------|----------------|
 | `defaultModel` | `""` | `-m` / `--model` (empty = CLI default) |
 | `reasoningEffort` | `""` | `--reasoning-effort` (default for **new** sessions). If the agent advertises an Effort / config option, the chat header chip overrides it **for the live session** via ACP `session/set_config_option` without rewriting this setting. |
-| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`) |
+| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`), top-level flag. **`plan`:** from CLI **1.0.65** the agent really starts in plan mode, and new sessions start in **Plan** in the UI (overrides `defaultMode`). Older CLIs start in the default mode; the chat shows a hint to run `grok update`. |
 | `alwaysApprove` | `false` | `--always-approve` |
 | `maxTurns` | `null` | `--max-turns` |
 | `noSubagents` | `false` | `--no-subagents` |

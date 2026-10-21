@@ -23,6 +23,7 @@ await esbuild.build({
     turnOutcome: 'src/util/turnOutcome.ts',
     unreadable: 'src/util/unreadable.ts',
     permissionOutcome: 'src/util/permissionOutcome.ts',
+    initialMode: 'src/util/initialMode.ts',
   },
   outdir: outDir,
   bundle: true,

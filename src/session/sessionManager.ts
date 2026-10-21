@@ -79,6 +79,7 @@ import {
   retainConfigOptions,
   upsertEffortCurrent,
 } from '../util/configOptionsUi';
+import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
 
 /**
  * How much conversation memory the live CLI agent has.
@@ -350,7 +351,14 @@ export class SessionManager extends EventEmitter {
 
   async createSession(options?: { mode?: AgentMode }): Promise<SessionState> {
     const cfg = getConfig();
-    const mode = options?.mode ?? cfg.defaultMode;
+    // Optimistic start mode before the CLI version is known (#38);
+    // corrected by applyCliStartMode() right after connect().
+    let mode: AgentMode = resolveInitialMode({
+      requestedMode: options?.mode,
+      defaultMode: cfg.defaultMode,
+      cliPermissionMode: cfg.cliPermissionMode,
+      alwaysApprove: cfg.alwaysApprove,
+    }).mode;
     const localId = newLocalId();
     const state: SessionState = {
       localId,
@@ -377,6 +385,8 @@ export class SessionManager extends EventEmitter {
       state.model = preferredModel;
       const client = this.spawnClient(localId);
       await client.connect({ model: preferredModel });
+      // #38: cliPermissionMode=plan really starts in plan on CLI ≥ 1.0.65
+      mode = this.applyCliStartMode(state, client, options?.mode);
       const res = await client.newSession({ cwd: state.cwd });
       state.agentSessionId = res.sessionId;
       state.modes = res.modes ?? undefined;
@@ -545,6 +555,7 @@ export class SessionManager extends EventEmitter {
       state.model = preferredModel;
       const client = this.spawnClient(state.localId);
       await client.connect({ model: preferredModel });
+      this.applyCliStartMode(state, client, stored.mode);
       if (tryAgentResume && stored.agentSessionId) {
         try {
           const res = await client.resumeSession(stored.agentSessionId, {
@@ -2153,6 +2164,37 @@ export class SessionManager extends EventEmitter {
       };
     }
     return null;
+  }
+
+  /**
+   * Align the UI mode with the agent's real start mode (#38): with
+   * `cliPermissionMode: plan` the CLI (≥ 1.0.65) starts in plan mode.
+   * Returns the effective mode; later `current_mode_update` still wins.
+   */
+  private applyCliStartMode(
+    state: SessionState,
+    client: AcpClient,
+    requestedMode?: AgentMode
+  ): AgentMode {
+    const cfg = getConfig();
+    const res = resolveInitialMode({
+      requestedMode,
+      defaultMode: cfg.defaultMode,
+      cliPermissionMode: cfg.cliPermissionMode,
+      alwaysApprove: cfg.alwaysApprove,
+      agentVersion: client.agentVersion,
+    });
+    if (res.reason === 'cli_plan' && state.mode !== 'plan') {
+      this.log.info(
+        `cliPermissionMode=plan (CLI ${res.version ?? 'unknown'}) → session starts in Plan mode`
+      );
+    }
+    if (res.reason === 'cli_too_old') {
+      this.pushSystem(state, planModeTooOldHint(res.version));
+    }
+    state.mode = res.mode;
+    this.emitChange(state.localId);
+    return res.mode;
   }
 
   private resolveModeId(state: SessionState, mode: AgentMode): string | null {

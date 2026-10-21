@@ -47,6 +47,7 @@ export class AcpClient extends EventEmitter {
   private initialized = false;
   private agentCapabilities: AgentCapabilities = {};
   private agentInfo: Implementation | null = null;
+  private agentVersionStr: string | undefined;
   private readonly log = getLogger();
 
   constructor(
@@ -68,6 +69,11 @@ export class AcpClient extends EventEmitter {
 
   get info(): Implementation | null {
     return this.agentInfo;
+  }
+
+  /** CLI version from ACP initialize (`_meta.agentVersion` / agentInfo.version). */
+  get agentVersion(): string | undefined {
+    return this.agentVersionStr;
   }
 
   get clientHandlers(): ClientHandlers {
@@ -155,6 +161,11 @@ export class AcpClient extends EventEmitter {
 
     this.agentCapabilities = init.agentCapabilities ?? {};
     this.agentInfo = init.agentInfo ?? null;
+    const metaVersion = init._meta?.agentVersion;
+    this.agentVersionStr =
+      typeof metaVersion === 'string'
+        ? metaVersion
+        : (this.agentInfo as { version?: string } | null)?.version;
     this.initialized = true;
     this.log.info('ACP initialized', this.agentInfo);
     this.emit('connected');

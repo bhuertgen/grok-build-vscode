@@ -206,6 +206,7 @@ Kurzüberblick:
 | `permissionMode` | `ask` | UI-Permissions |
 | `autoAllowInExecuteMode` | `true` | Tools in Execute freigeben (empfohlen) |
 | `alwaysApprove` | `false` | CLI `--always-approve` |
+| `cliPermissionMode` | `""` | CLI `--permission-mode` (Top-Level-Flag). **`plan`:** ab CLI **1.0.65** startet der Agent wirklich im Plan-Modus, neue Sessions zeigen dann **Plan** in der UI (überschreibt `defaultMode`). Ältere CLIs starten im Default-Modus; im Chat erscheint ein Hinweis auf `grok update`. |
 | `updateRepo` | `bhuertgen/grok-build-vscode` | Extension-Updates |
 | `logLevel` | `info` | Output **Grok Build** |
 

@@ -113,6 +113,7 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 | `grokBuild.permissionMode` | `ask` | UI permission prompts |
 | `grokBuild.autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (avoids hidden permission stalls) |
 | `grokBuild.alwaysApprove` | `false` | CLI `--always-approve` |
+| `grokBuild.cliPermissionMode` | `""` | CLI `--permission-mode`; `plan` starts sessions in **Plan** (really plan mode from CLI 1.0.65) |
 | `grokBuild.updateRepo` | `bhuertgen/grok-build-vscode` | Extension update checks |
 | `grokBuild.logLevel` | `info` | Output channel **Grok Build** |
 
