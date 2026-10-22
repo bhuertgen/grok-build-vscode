@@ -80,6 +80,17 @@
       <button type="button" class="text-btn primary-btn" id="btnTrust">Trust workspace…</button>
     </div>
 
+    <div class="trust-banner grok-trust-banner hidden" id="grokTrustBanner">
+      <div class="cli-banner-text">
+        <strong id="grokTrustBannerTitle">Grok ignores this project's settings</strong>
+        <span id="grokTrustBannerDetail">Grok CLI does not trust this folder yet, so it ignores the project's hooks, rules and skills.</span>
+      </div>
+      <div class="memory-banner-actions">
+        <button type="button" class="text-btn primary-btn hidden" id="btnTrustGrokFolder" title="Restart the agent with --trust; Grok remembers the folder">Trust folder</button>
+        <button type="button" class="text-btn" id="btnDismissGrokTrust">Dismiss</button>
+      </div>
+    </div>
+
     <div class="memory-banner hidden" id="memoryBanner">
       <div class="cli-banner-text">
         <strong id="memoryBannerTitle">Agent context</strong>

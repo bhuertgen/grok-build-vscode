@@ -66,6 +66,11 @@
     trustBanner: document.getElementById('trustBanner'),
     trustBannerDetail: document.getElementById('trustBannerDetail'),
     btnTrust: document.getElementById('btnTrust'),
+    grokTrustBanner: document.getElementById('grokTrustBanner'),
+    grokTrustBannerTitle: document.getElementById('grokTrustBannerTitle'),
+    grokTrustBannerDetail: document.getElementById('grokTrustBannerDetail'),
+    btnTrustGrokFolder: document.getElementById('btnTrustGrokFolder'),
+    btnDismissGrokTrust: document.getElementById('btnDismissGrokTrust'),
     memoryBanner: document.getElementById('memoryBanner'),
     memoryBannerTitle: document.getElementById('memoryBannerTitle'),
     memoryBannerDetail: document.getElementById('memoryBannerDetail'),
@@ -248,6 +253,7 @@
     renderCliBanner();
     renderUpdateBanner();
     renderTrustBanner();
+    renderGrokTrustBanner();
     renderMemoryBanner();
     renderTabs();
     renderStatus();
@@ -765,6 +771,31 @@
       }
     } else {
       els.trustBanner.classList.add('hidden');
+    }
+  }
+
+  /** Grok CLI folder trust: project hooks/rules/skills/MCP are skipped (P1). */
+  function renderGrokTrustBanner() {
+    if (!els.grokTrustBanner) {
+      return;
+    }
+    const g = state.grokTrust;
+    if (!g || !g.show) {
+      els.grokTrustBanner.classList.add('hidden');
+      return;
+    }
+    els.grokTrustBanner.classList.remove('hidden');
+    if (els.grokTrustBannerTitle) {
+      els.grokTrustBannerTitle.textContent = g.folderName
+        ? `Grok ignores project settings in "${g.folderName}"`
+        : "Grok ignores this project's settings";
+    }
+    if (els.grokTrustBannerDetail) {
+      els.grokTrustBannerDetail.textContent = g.message || '';
+      els.grokTrustBannerDetail.title = g.folder || '';
+    }
+    if (els.btnTrustGrokFolder) {
+      els.btnTrustGrokFolder.classList.toggle('hidden', !g.canTrust);
     }
   }
 
@@ -2893,6 +2924,8 @@
   );
   els.btnDismissCompat?.addEventListener('click', () => post('dismissCompat', {}));
   els.btnTrust?.addEventListener('click', () => post('manageWorkspaceTrust', {}));
+  els.btnTrustGrokFolder?.addEventListener('click', () => post('trustGrokFolder', {}));
+  els.btnDismissGrokTrust?.addEventListener('click', () => post('dismissGrokTrust', {}));
   els.btnSeedHistory?.addEventListener('click', () => {
     const s = activeSession();
     post('seedHistory', { localId: s?.localId });
@@ -3273,6 +3306,7 @@
         state.settings = msg.settings || state.settings;
         state.workspaceTrusted = msg.workspaceTrusted !== false;
         state.trustMessage = msg.trustMessage || null;
+        state.grokTrust = msg.grokTrust || null;
         state.history = msg.history || [];
         if (prevActive !== state.activeId) {
           toolsExpanded = false;

@@ -42,7 +42,7 @@ We do **not** reimplement the agent. We get identical behaviour to the terminal 
 
 **Extension → CLI:** `initialize`, `session/new|load|resume|prompt|cancel|set_mode|set_config_option|close`
 
-**CLI → Extension:** `session/update`, `fs/read_text_file`, `fs/write_text_file`, `terminal/*`, `session/request_permission`
+**CLI → Extension:** `session/update`, `fs/read_text_file`, `fs/write_text_file`, `terminal/*`, `session/request_permission`; Grok extensions `_x.ai/session_notification` (`model_changed`) and `_x.ai/models/update` (model catalog with per-model reasoning efforts, refreshes the Model / Effort chips)
 
 ## Folder structure
 
@@ -51,7 +51,7 @@ src/
   extension.ts                 # activate: wire + CLI onboard + cliPath re-detect
   acp/
     types.ts                   # ACP v1 types
-    transport.ts               # line-delimited JSON-RPC
+    transport.ts               # line-delimited JSON-RPC; dispose = stdin EOF + SIGTERM, exit after dispose is not a disconnect
     client.ts                  # one process = one AcpClient
     handlers.ts                # fs / terminal / permission
     elicitation.ts             # ACP elicitation (incl. multi-select)
@@ -60,8 +60,9 @@ src/
     onboard.ts                 # first-run wizard, install help
     cliStatus.ts               # shared CLI readiness (status bar + webview)
     cliRefresh.ts              # re-detect when grokBuild.cliPath changes
-    compat.ts / semver.ts      # version floors (soft 1.0.62, hard 1.0.0), banners
+    compat.ts / semver.ts      # version floors (soft 1.0.67, hard 1.0.0), banners
     updateCheck.ts             # grok update --check --json
+    grokTrust.ts               # Grok folder-trust banner + "Trust folder" flow (vscode glue)
   session/
     sessionManager.ts          # multi-session + process map
     sessionStore.ts            # globalState history
@@ -90,6 +91,8 @@ src/
     fileWriter.ts              # shared apply path for diffs
     extensionUpdate.ts         # GitHub Releases check
     workspaceTrust.ts          # Restricted Mode helpers
+    grokFolderTrust.ts         # Grok trusted_folders.toml + project hooks/rules/skills/MCP detection
+    restoreNotices.ts          # one restore notice of each kind per chat (#52)
   test/                        # Extension Host integration tests
 webview/                       # theme-aware chat UI
 tests/                         # node --test unit tests
@@ -104,11 +107,13 @@ End-user documentation: [USER_GUIDE.md](./USER_GUIDE.md).
 
 1. On activate → `ensureCliReady()` (detect `grok --version`).
 2. If missing → modal: install instructions, copy command, set path, retry, skip.
-3. Version check against the floors: recommended **1.0.62** (tested up to **1.0.66 alpha**), older 1.0.x → warning banner.
+3. Version check against the floors: recommended **1.0.67** (tested with **1.0.67 stable**), older 1.0.x → warning banner.
 4. Changing `grokBuild.cliPath` re-runs detection (debounced): header version, compat banner and update check follow the new binary without a window reload.
 5. Commands: **Check Grok CLI Status**, **Setup CLI…**, **Update Grok CLI**
 6. Session start failures surface clear hybrid-mode errors (not “AI failed”).
 7. Start mode: Grok does not report ACP modes on `session/new`, so with `cliPermissionMode: plan` the UI derives **Plan** from the setting + CLI version (≥ 1.0.65); a later `current_mode_update` still wins.
+8. Grok folder trust: Grok skips project hooks, rules, skills and MCP servers in folders it does not trust, without an ACP signal. `grokFolderTrust.ts` reads `$GROK_HOME/trusted_folders.toml` (nearest entry inside the same git repo wins, `GROK_FOLDER_TRUST=0` / `[folder_trust] enabled = false` turn the gate off) and scans repo root → cwd for those sources. The banner's **Trust folder** (trusted VS Code workspace only) restarts the folder's agents with top-level `--trust`; Grok persists the grant itself.
+9. Shutdown: closing a chat, a model switch or a restart disposes the transport (stdin EOF + SIGTERM; SIGKILL only after 10 s). Grok exits gracefully in ~2.5 s and runs SessionEnd hooks; that late exit is expected and no longer marks the replacement process as disconnected.
 
 ## Localisation
 

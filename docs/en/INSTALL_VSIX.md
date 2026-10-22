@@ -192,7 +192,7 @@ The extension drives the **Grok Build CLI**. Without it you may see “CLI requi
 grok --version
 ```
 
-**1.0.62 or newer** is recommended (tested up to **1.0.66 alpha**); older 1.0.x versions work with a warning banner.
+**1.0.67 or newer** is recommended (tested with **1.0.67 stable**); older 1.0.x versions work with a warning banner.
 
 If missing: command **Grok Build: Setup CLI…** or https://x.ai/cli
 

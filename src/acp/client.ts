@@ -91,7 +91,7 @@ export class AcpClient extends EventEmitter {
   /**
    * @param options.model  Preferred model id → injected as `grok agent -m <id> stdio`
    */
-  async connect(options?: { model?: string }): Promise<InitializeResponse> {
+  async connect(options?: { model?: string; trustFolder?: boolean }): Promise<InitializeResponse> {
     if (this.isConnected) {
       return {
         protocolVersion: ACP_PROTOCOL_VERSION,
@@ -104,7 +104,7 @@ export class AcpClient extends EventEmitter {
 
     const cfg = getConfig();
     const model = (options?.model ?? cfg.defaultModel)?.trim() || undefined;
-    const args = buildAgentArgs(cfg.cliArgs, model);
+    const args = buildAgentArgs(cfg.cliArgs, model, options?.trustFolder === true);
     // Same resolution as CLI detection (#41): explicit path only, no fallback.
     const cliPath = resolveSpawnCliPath(cfg.cliPath, getCliStatus().detection);
     if (!isDefaultCliPath(cfg.cliPath)) {
@@ -380,6 +380,15 @@ export class AcpClient extends EventEmitter {
       this.emit('elicitationComplete', id);
       return;
     }
+    // Grok's process-wide model catalog (no sessionId). On a cold start
+    // session/new returns a fallback catalog without reasoning efforts; this
+    // notification carries the real one (P2, CLI 1.0.62+).
+    if (n.method === '_x.ai/models/update' || n.method === 'x.ai/models/update') {
+      if (n.params && typeof n.params === 'object') {
+        this.emit('modelsUpdate', n.params);
+      }
+      return;
+    }
     this.log.debug('Unhandled notification', n.method);
   }
 
@@ -400,8 +409,12 @@ export class AcpClient extends EventEmitter {
  * Important: always pass `--no-leader` unless the user opted into leader mode.
  * Shared leader processes ignore per-spawn `-m` and stay on the default model.
  */
-export function buildAgentArgs(cliArgs: string[], model?: string): string[] {
-  return buildAgentArgsFromConfig(getConfig(), cliArgs, model);
+export function buildAgentArgs(
+  cliArgs: string[],
+  model?: string,
+  trustFolder = false
+): string[] {
+  return buildAgentArgsFromConfig({ ...getConfig(), trustFolder }, cliArgs, model);
 }
 
 export type { SessionUpdate, StopReason, SessionModeState, SessionConfigOption };

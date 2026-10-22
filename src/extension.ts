@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { initGrokTrustMonitor } from './cli/grokTrust';
 import { getLogger } from './util/logger';
 import { SessionStore } from './session/sessionStore';
 import { SessionManager } from './session/sessionManager';
@@ -76,6 +77,14 @@ export async function activate(
       },
     })
   );
+
+  // Grok CLI folder trust (P1): banner when Grok skips project hooks/rules/skills/MCP
+  const grokTrust = initGrokTrustMonitor(context.workspaceState, sessions);
+  grokTrust.on('changed', () => {
+    chatView.pushState();
+    EditorChatPanel.current?.pushState();
+  });
+  context.subscriptions.push({ dispose: () => grokTrust.dispose() });
 
   registerCommands(context, sessions, edits, chatView);
 

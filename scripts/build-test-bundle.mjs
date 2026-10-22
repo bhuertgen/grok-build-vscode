@@ -36,6 +36,9 @@ await esbuild.build({
     panelRevive: 'src/util/panelRevive.ts',
     openTabs: 'src/session/openTabs.ts',
     sessionStore: 'src/session/sessionStore.ts',
+    grokFolderTrust: 'src/util/grokFolderTrust.ts',
+    restoreNotices: 'src/util/restoreNotices.ts',
+    transport: 'src/acp/transport.ts',
   },
   outdir: outDir,
   // sessionStore (and its logger/config imports) get a tiny vscode stub

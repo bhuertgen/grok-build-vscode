@@ -261,6 +261,10 @@ if (bundle.status !== 0) {
       'tests/permissionKind.test.mjs',
       'tests/textSlice.test.mjs',
       'tests/locale.test.mjs',
+      'tests/configOptionsUi.test.mjs',
+      'tests/grokFolderTrust.test.mjs',
+      'tests/restoreNotices.test.mjs',
+      'tests/transport.test.mjs',
     ],
     {
       encoding: 'utf8',

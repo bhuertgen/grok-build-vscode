@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getGrokTrustMonitor } from '../cli/grokTrust';
 import type { SessionManager } from '../session/sessionManager';
 import type { EditController } from '../edits/editController';
 import type { ChatViewProvider } from '../providers/chatViewProvider';
@@ -147,6 +148,10 @@ export function registerCommands(
 
     vscode.commands.registerCommand('grokBuild.openChat', async () => {
       await openGrokUi();
+    }),
+
+    vscode.commands.registerCommand('grokBuild.trustFolderForGrok', async () => {
+      await getGrokTrustMonitor()?.trustFolder();
     }),
 
     vscode.commands.registerCommand('grokBuild.openInEditor', async () => {

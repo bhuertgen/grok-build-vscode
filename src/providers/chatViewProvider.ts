@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
+import { getGrokTrustMonitor } from '../cli/grokTrust';
 import type { SessionManager, SessionState } from '../session/sessionManager';
 import type { EditController } from '../edits/editController';
 import { ContextPicker } from '../context/contextPicker';
@@ -214,6 +215,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       settings: this.settingsSnapshot(),
       workspaceTrusted: isWorkspaceTrusted(),
       trustMessage: isWorkspaceTrusted() ? null : getTrustBannerMessage(),
+      /** Grok CLI folder trust: project hooks/rules/skills/MCP skipped (P1) */
+      grokTrust: getGrokTrustMonitor()?.bannerState() ?? null,
       /** Project-scoped chat history (Claude Code–style resume list) */
       history: this.sessions.listHistoryForWorkspace(40),
     });
@@ -662,6 +665,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       case 'manageWorkspaceTrust':
         await vscode.commands.executeCommand('workbench.trust.manage');
+        break;
+
+      case 'trustGrokFolder':
+        await getGrokTrustMonitor()?.trustFolder();
+        this.pushState();
+        break;
+
+      case 'dismissGrokTrust':
+        await getGrokTrustMonitor()?.dismiss();
+        this.pushState();
         break;
 
       case 'permissionResponse': {

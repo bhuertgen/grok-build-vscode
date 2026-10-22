@@ -67,6 +67,7 @@ import {
 import type { EditController } from '../edits/editController';
 import {
   SessionStore,
+  normalizeCwdKey,
   sameCwd,
   type StoredSession,
 } from './sessionStore';
@@ -77,10 +78,13 @@ import {
   sliceLines,
 } from '../util/fileRangeMention';
 import {
+  applyModelsUpdate,
   retainConfigOptions,
   upsertEffortCurrent,
+  type GrokModelsUpdate,
 } from '../util/configOptionsUi';
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
+import { pushNotice } from '../util/restoreNotices';
 import { clearStaleStartErrors } from '../util/cliRecovery';
 
 /**
@@ -211,6 +215,8 @@ export class SessionManager extends EventEmitter {
   private sessions = new Map<string, SessionState>();
   /** One ACP process (CLI subprocess) per local session id */
   private clients = new Map<string, AcpClient>();
+  /** Folders the user chose to trust for Grok (spawned with top-level `--trust`). */
+  private grokTrustedCwds = new Set<string>();
   private activeLocalId: string | null = null;
   private readonly log = getLogger();
   private readonly contextCollector = new ContextCollector();
@@ -446,7 +452,7 @@ export class SessionManager extends EventEmitter {
       const preferredModel = cfg.defaultModel?.trim() || undefined;
       state.model = preferredModel;
       const client = this.spawnClient(localId);
-      await client.connect({ model: preferredModel });
+      await client.connect({ model: preferredModel, trustFolder: this.wantsGrokTrust() });
       // #38: cliPermissionMode=plan really starts in plan on CLI ≥ 1.0.65
       mode = this.applyCliStartMode(state, client, options?.mode);
       const res = await client.newSession({ cwd: state.cwd });
@@ -617,7 +623,7 @@ export class SessionManager extends EventEmitter {
         stored.model || getConfig().defaultModel?.trim() || undefined;
       state.model = preferredModel;
       const client = this.spawnClient(state.localId);
-      await client.connect({ model: preferredModel });
+      await client.connect({ model: preferredModel, trustFolder: this.wantsGrokTrust() });
       this.applyCliStartMode(state, client, stored.mode);
       if (tryAgentResume && stored.agentSessionId) {
         try {
@@ -1430,7 +1436,7 @@ export class SessionManager extends EventEmitter {
     this.emitChange(state.localId);
 
     const client = this.spawnClient(state.localId);
-    await client.connect({ model: modelId });
+    await client.connect({ model: modelId, trustFolder: this.wantsGrokTrust() });
 
     // New agent process → new ACP session (model is process-level)
     const res = await client.newSession({ cwd: state.cwd });
@@ -1456,6 +1462,79 @@ export class SessionManager extends EventEmitter {
         /* model already applied via -m */
       }
     }
+  }
+
+  /** True when new agent processes for the workspace folder get `--trust`. */
+  wantsGrokTrust(cwd: string = getWorkspaceCwd()): boolean {
+    return this.grokTrustedCwds.has(normalizeCwdKey(cwd));
+  }
+
+  /**
+   * Grok persisted the grant (trusted_folders.toml): later starts need no
+   * flag, and a revocation by the user (deleting the entry) is honoured.
+   */
+  clearGrokTrustRequest(cwd: string): void {
+    this.grokTrustedCwds.delete(normalizeCwdKey(cwd));
+  }
+
+  /**
+   * "Trust folder" (P1): remember the folder so every new agent process for
+   * it starts with top-level `--trust` (Grok persists the grant in
+   * `~/.grok/trusted_folders.toml`), then restart the idle agents of that
+   * folder so they load the project's hooks, rules, skills and MCP servers.
+   * A chat with a conversation resumes its agent session (conversation kept;
+   * rules apply to new chats), an empty chat gets a fresh agent session. Busy
+   * chats are not interrupted; they pick up trust on their next start.
+   * Callers must check VS Code workspace trust first.
+   */
+  async trustFolderForGrok(cwd: string = getWorkspaceCwd()): Promise<{ restarted: number; busy: number }> {
+    this.grokTrustedCwds.add(normalizeCwdKey(cwd));
+    let restarted = 0;
+    let busy = 0;
+    for (const state of [...this.sessions.values()]) {
+      if (!sameCwd(state.cwd, cwd)) {
+        continue;
+      }
+      const client = this.clients.get(state.localId);
+      if (!client) {
+        continue; // not running: the next start uses --trust
+      }
+      if (state.busy) {
+        busy++;
+        this.pushSystem(
+          state,
+          '**Folder trusted for Grok** — this chat is busy; restart it (or reload the window) after the turn to load project hooks, rules and skills.'
+        );
+        this.emitChange(state.localId);
+        continue;
+      }
+      // Grok reads project rules (AGENTS.md) when an agent session starts;
+      // a resumed session keeps its old instructions (hooks do apply, verified
+      // on 1.0.67). An empty chat gets a fresh agent session instead.
+      const hasConversation = state.messages.some((m) => m.role === 'user');
+      if (!hasConversation) {
+        state.agentSessionId = undefined;
+      }
+      await this.teardownClient(state.localId);
+      await this.reconnect(state);
+      if (state.status === 'ready') {
+        restarted++;
+        this.pushSystem(
+          state,
+          hasConversation
+            ? '**Folder trusted for Grok** — agent restarted with `--trust` and resumed this conversation. Project hooks and MCP servers are active now; project rules (AGENTS.md) and skills are read when a chat starts, so open a new chat (+) to apply them.'
+            : '**Folder trusted for Grok** — agent restarted with `--trust`; project hooks, rules, skills and MCP servers are loaded.'
+        );
+      } else {
+        this.pushSystem(
+          state,
+          `**Folder trusted for Grok** — agent restart failed: ${state.lastError ?? 'unknown error'}`
+        );
+      }
+      this.schedulePersist(state);
+      this.emitChange(state.localId);
+    }
+    return { restarted, busy };
   }
 
   async dispose(): Promise<void> {
@@ -1494,6 +1573,11 @@ export class SessionManager extends EventEmitter {
       this.onSessionUpdate(localId, n);
     });
     client.on('disconnected', () => {
+      // A replaced client (model switch, restart) must not mark the session
+      // of its successor as disconnected.
+      if (this.clients.get(localId) !== client) {
+        return;
+      }
       const state = this.sessions.get(localId);
       if (state && state.status === 'ready') {
         state.status = 'idle';
@@ -1504,6 +1588,24 @@ export class SessionManager extends EventEmitter {
         );
         this.emitChange(localId);
       }
+    });
+    client.on('modelsUpdate', (update: GrokModelsUpdate) => {
+      if (this.clients.get(localId) !== client) {
+        return;
+      }
+      const state = this.sessions.get(localId);
+      if (!state) {
+        return;
+      }
+      const res = applyModelsUpdate(state.configOptions, update);
+      if (!res) {
+        return;
+      }
+      state.configOptions = res.options as SessionConfigOption[];
+      if (res.modelId) {
+        state.model = res.modelId;
+      }
+      this.emitChange(localId);
     });
     client.on('error', (err: Error) => {
       this.log.error(`ACP client error [${localId}]`, err);
@@ -1533,7 +1635,7 @@ export class SessionManager extends EventEmitter {
       const model =
         state.model || getConfig().defaultModel?.trim() || undefined;
       const client = this.spawnClient(state.localId);
-      await client.connect({ model });
+      await client.connect({ model, trustFolder: this.wantsGrokTrust() });
       if (state.agentSessionId) {
         try {
           const res = await client.resumeSession(state.agentSessionId, {
@@ -2339,7 +2441,8 @@ export class SessionManager extends EventEmitter {
   }
 
   private pushSystem(state: SessionState, content: string): void {
-    state.messages.push({
+    // Restore notices replace trailing copies of the same kind (#52).
+    pushNotice(state.messages, {
       id: newMsgId('sys'),
       role: 'system',
       content,

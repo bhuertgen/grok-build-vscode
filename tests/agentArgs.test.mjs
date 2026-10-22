@@ -174,10 +174,10 @@ describe('buildAgentArgsFromConfig: top-level flags before agent (#37)', () => {
 });
 
 describe('top-level flag helpers', () => {
-  it('TOP_LEVEL_ONLY_FLAGS lists exactly the nine top-level-only flags', () => {
+  it('TOP_LEVEL_ONLY_FLAGS lists exactly the top-level-only flags (1.0.67: + --trust, --add-dir)', () => {
     assert.deepEqual([...TOP_LEVEL_ONLY_FLAGS].sort(), [
-      '--disable-web-search', '--disallowed-tools', '--max-turns', '--no-plan', '--no-subagents',
-      '--permission-mode', '--rules', '--sandbox', '--tools',
+      '--add-dir', '--disable-web-search', '--disallowed-tools', '--max-turns', '--no-plan', '--no-subagents',
+      '--permission-mode', '--rules', '--sandbox', '--tools', '--trust',
     ]);
   });
 
@@ -196,5 +196,32 @@ describe('top-level flag helpers', () => {
   it('buildAgentArgv topLevelFlags keeps value pairs even if value starts with -', () => {
     const args = buildAgentArgv({ topLevelFlags: ['--rules', '-x', '--no-plan'], noLeader: false });
     assert.deepEqual(args, ['--rules', '-x', '--no-plan', 'agent', 'stdio']);
+  });
+});
+
+describe('folder trust (--trust, top-level)', () => {
+  it('trustFolder puts --trust before agent', () => {
+    const args = buildAgentArgsFromConfig({ trustFolder: true, cliPermissionMode: 'plan' }, [], 'grok-4.7');
+    const agentIdx = args.indexOf('agent');
+    assert.ok(args.indexOf('--trust') >= 0 && args.indexOf('--trust') < agentIdx, args.join(' '));
+    assert.ok(topLevelFlagsBeforeAgent(args), args.join(' '));
+    assert.deepEqual(args.slice(0, 4), ['--trust', '--permission-mode', 'plan', 'agent']);
+  });
+
+  it('no --trust unless requested', () => {
+    const args = buildAgentArgsFromConfig({}, [], 'grok-4.7');
+    assert.equal(args.includes('--trust'), false);
+  });
+
+  it('--trust and --add-dir are top-level-only flags', () => {
+    assert.ok(isTopLevelOnlyFlag('--trust'));
+    assert.ok(isTopLevelOnlyFlag('--add-dir'));
+    assert.ok(TOP_LEVEL_ONLY_FLAGS.includes('--trust'));
+    assert.equal(topLevelFlagsBeforeAgent(['agent', '--trust', 'stdio']), false);
+  });
+
+  it('does not duplicate --trust from custom base args', () => {
+    const args = buildAgentArgsFromConfig({ trustFolder: true }, ['--trust', 'agent', 'stdio']);
+    assert.equal(args.filter((a) => a === '--trust').length, 1);
   });
 });

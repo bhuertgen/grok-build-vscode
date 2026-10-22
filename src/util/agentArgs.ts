@@ -3,7 +3,7 @@
  * No vscode dependency — unit-tested.
  *
  * clap layout of the official CLI (verified with `grok --help` /
- * `grok agent --help` on 1.0.62 stable and 1.0.66 alpha):
+ * `grok agent --help` on 1.0.62 stable, 1.0.66 alpha and 1.0.67 stable):
  *   - `grok agent` only accepts -m/--model, --reasoning-effort, --always-approve,
  *     --leader/--no-leader, --debug/--debug-file, --agent-profile, --plugin-dir …
  *   - Session/policy flags (--permission-mode, --max-turns, …) exist ONLY on the
@@ -26,6 +26,11 @@ export const TOP_LEVEL_ONLY_FLAGS: readonly string[] = [
   '--tools',
   '--disallowed-tools',
   '--rules',
+  // Hidden on 1.0.62+ (not in --help): trust the cwd for project hooks,
+  // rules, skills and MCP, and persist it in ~/.grok/trusted_folders.toml.
+  '--trust',
+  // New in 1.0.67 (no observable effect over ACP, see #21).
+  '--add-dir',
 ];
 
 /** True if `flag` must be placed before `agent` (top-level-only option). */
@@ -59,6 +64,7 @@ const TOP_LEVEL_VALUE_FLAGS: readonly string[] = [
   '--tools',
   '--disallowed-tools',
   '--rules',
+  '--add-dir',
 ];
 
 /** Add `flag [value]` groups from `src` to `dest`, skipping flags already present. */
@@ -106,6 +112,12 @@ export interface AgentFlagConfig {
   extraCliArgs?: string[];
   reasoningEffort?: string;
   defaultModel?: string;
+  /**
+   * Pass top-level `--trust` so Grok trusts the workspace folder (project
+   * hooks, rules, skills, MCP). Set only after the user chose "Trust folder"
+   * in a trusted VS Code workspace (P1 folder-trust banner).
+   */
+  trustFolder?: boolean;
 }
 
 /**
@@ -121,6 +133,9 @@ export function buildAgentArgsFromConfig(
   const top: string[] = [];
   const agentLevel: string[] = [];
 
+  if (cfg.trustFolder) {
+    top.push('--trust');
+  }
   if (!cfg.alwaysApprove) {
     if (cfg.cliPermissionMode) {
       if (cfg.cliPermissionMode === 'bypassPermissions') {

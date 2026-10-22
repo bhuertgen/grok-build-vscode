@@ -49,7 +49,7 @@ A single agent can take all three roles in sequence.
 | P03 | Missing CLI → banner + setup |
 | P04 | Activation / openChat / openInEditor / sidebar |
 | P05 | Changing `grokBuild.cliPath` re-detects the CLI without a window reload |
-| P06 | CLI compatibility banner (recommended ≥ 1.0.62, tested up to 1.0.66 alpha) |
+| P06 | CLI compatibility banner (recommended ≥ 1.0.67, tested with 1.0.67 stable) |
 
 ### 2.2 Session & history
 
@@ -178,8 +178,8 @@ Format per case:
 
 #### T-P06 — Compatibility banner  
 - **Dim:** U  
-- **Steps:** run with CLI 1.0.62 stable and with the newest tested alpha (1.0.66); optionally with an older 1.0.x  
-- **Pass:** no banner for ≥ 1.0.62; older 1.0.x shows a warning banner but works  
+- **Steps:** run with CLI 1.0.67 stable; optionally with an older 1.0.x (e.g. 1.0.62)  
+- **Pass:** no banner for ≥ 1.0.67; older 1.0.x shows a warning banner but works  
 
 ---
 
@@ -369,6 +369,21 @@ Format per case:
 - **Dim:** F, U  
 - **Steps:** switch model, ask a short question  
 - **Pass:** chip shows the new model; an answer arrives (no silent hang on the old process)  
+- **Pass (stale exit):** wait 5 s after the switch: **no** "Agent process disconnected" line, the status stays ready (the old process exits ~2.5 s later after its SessionEnd hooks)  
+
+#### T-M08 — Effort chip after models update  
+- **Dim:** F, U  
+- **Steps:** start a new chat (ideally right after `grok update` or a CLI cache reset, i.e. a cold start); look at the header; switch to a model without reasoning effort and back  
+- **Pass:** the **Effort** chip shows the current model's efforts (e.g. Extra High / High / Medium / Low, current High) without opening a new chat; a model without reasoning effort shows no Effort chip; a chosen effort that the model still offers is kept  
+
+#### T-F07 — Grok folder trust banner  
+- **Dim:** F, S, U  
+- **Precondition:** a git repo with `.grok/hooks/*.json` and/or `AGENTS.md` that is **not** in `~/.grok/trusted_folders.toml`; VS Code workspace trusted  
+- **Steps:** open the folder and the chat; read the banner; click **Trust folder** → **Trust and Restart Agent**; ask for something that triggers the hook; open a new chat (+) and check that `AGENTS.md` rules apply  
+- **Pass:** amber banner "Grok ignores project settings in …" lists the found hooks / rules; after trusting, the chat shows **Folder trusted for Grok**, the banner disappears, `~/.grok/trusted_folders.toml` contains the folder, the project hook runs, and new chats follow `AGENTS.md`  
+- **Pass (Restricted Mode):** same folder untrusted in VS Code → banner without **Trust folder** and with "Trust the workspace in VS Code first"  
+- **Pass (Dismiss):** **Dismiss** hides the banner; it stays hidden after **Developer: Reload Window**  
+- **Pass (no false alarm):** trusted folder, folder without project files, or `GROK_FOLDER_TRUST=0` → no banner  
 
 ---
 

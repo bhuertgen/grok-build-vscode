@@ -26,6 +26,7 @@
 | **History** | Per-folder restore; resume or seed local transcript |
 | **Models** | Picker + `-m` respawn; grounded model id in prompts |
 | **Permissions** | UI ask/allow + optional Execute auto-allow |
+| **Folder trust** | Banner when Grok skips project hooks / `AGENTS.md` / skills; **Trust folder** restarts with `--trust` |
 | **Updates** | CLI (`grok update --check`) + extension (GitHub Releases) |
 | **ACP** | `initialize`, `session/*`, `fs/*`, `terminal/*`, permissions |
 
@@ -33,7 +34,7 @@
 
 1. **VS Code** 1.90+ (or compatible)  
 2. **Grok Build CLI** installed and authenticated — [x.ai/cli](https://x.ai/cli)  
-   - `grok --version` — **1.0.62 or newer recommended** (tested with 1.0.62 stable, tested up to **1.0.66 alpha**; older 1.0.x works with a warning banner)  
+   - `grok --version` — **1.0.67 or newer recommended** (tested with **1.0.67 stable**; older 1.0.x works with a warning banner)  
 3. **Node.js** 18+ only if you build from source  
 
 ## Install
