@@ -8,6 +8,7 @@
 |----------|------------|--------|
 | [INSTALL_VSIX.md](./INSTALL_VSIX.md) | Nutzer | **Installation: Stores (demnächst) + Schritt für Schritt von VSIX** |
 | [USER_GUIDE.md](./USER_GUIDE.md) | Nutzer | Bedienung, Beispiele, alle Settings, Befehle, Tastenkürzel |
+| [USER_GUIDE.md §8.1](./USER_GUIDE.md#81-datenschutz--datenerhebung) | Nutzer | Datenschutz / Datenerhebung (keine Telemetrie) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Entwickler | Hybrid-ACP-Design |
 | [MULTI_AGENT.md](./MULTI_AGENT.md) | Nutzer / Entwickler | Sub-Agent-Monitoring |
 | [TEST_CONCEPT.md](./TEST_CONCEPT.md) | QA / Entwickler | Testmatrix |

@@ -394,6 +394,17 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 
 ---
 
+## 8.1 Privacy / data collection
+
+Deutsch: [../de/USER_GUIDE.md §8.1](../de/USER_GUIDE.md#81-datenschutz--datenerhebung)
+
+- **No telemetry.** The extension itself sends no telemetry and collects no usage data.
+- **Chats, prompts and files** are processed by the locally installed Grok CLI (`grok agent stdio`), under your own xAI / Grok account and [xAI's terms](https://x.ai/legal). The extension only passes your prompts and the context you attach (files, selection, images) to that local process. The CLI also runs its own update check (`grok update --check`).
+- **Update check (manual VSIX installs only):** the extension asks the GitHub Releases API (`api.github.com`) for a newer version. Store installs (VS Code Marketplace / Open VSX) skip it. Turn it off with `grokBuild.checkExtensionUpdates: false`.
+- **GitHub token:** the optional `grokBuild.githubToken`, or an existing VS Code GitHub sign-in, is sent only to `api.github.com` for that check (e.g. for a private repo) and is used nowhere else.
+- **Local storage:** chat history stays on your machine in VS Code's extension storage (`globalState`).
+- **VS Code telemetry** is governed by VS Code's own settings (`telemetry.telemetryLevel`), not by this extension.
+
 ## 9. Troubleshooting
 
 | Symptom | What to try |

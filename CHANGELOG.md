@@ -18,6 +18,7 @@ Store preparation for the VS Code Marketplace and Open VSX (not published yet) (
 - `CHANGELOG.md` is now included in the VSIX; internal docs (`TEST_CONCEPT`, `SCROLL_TEST_PROMPT`, QA reports, screenshots), test files, the icon source and `.github/` are excluded.
 
 ### Docs
+- Privacy / Data collection section in README and USER_GUIDE §8.1 (EN/DE): no telemetry, chats go through the local Grok CLI under the user's xAI account, GitHub Releases check only for manual VSIX installs, `grokBuild.githubToken` only sent to `api.github.com` (Open VSX Publisher Agreement §6).
 - README install section rewritten: VS Code Marketplace / Open VSX (coming soon) plus manual VSIX install as the alternative; same in `docs/en` and `docs/de` (INSTALL_VSIX, USER_GUIDE). Trademark / affiliation note added to README and the EN/DE docs: not affiliated with or endorsed by xAI; Grok is a trademark of xAI.
 
 ## 0.3.3 – 2026-10-22

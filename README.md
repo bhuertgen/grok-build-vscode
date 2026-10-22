@@ -177,6 +177,17 @@ npm run test:integration # real Extension Host
 npm run test:all
 ```
 
+## Privacy / Data collection
+
+- **No telemetry.** The extension itself sends no telemetry and collects no usage data.
+- **Chats, prompts and files** are processed by the locally installed Grok CLI (`grok agent stdio`), under your own xAI / Grok account and [xAI's terms](https://x.ai/legal). The extension only passes your prompts and the context you attach (files, selection, images) to that local process. The CLI also runs its own update check (`grok update --check`).
+- **Update check (manual VSIX installs only):** the extension asks the GitHub Releases API (`api.github.com`) for a newer version. Store installs (VS Code Marketplace / Open VSX) skip it. Turn it off with `grokBuild.checkExtensionUpdates: false`.
+- **GitHub token:** the optional `grokBuild.githubToken`, or an existing VS Code GitHub sign-in, is sent only to `api.github.com` for that check (e.g. for a private repo) and is used nowhere else.
+- **Local storage:** chat history stays on your machine in VS Code's extension storage.
+- **VS Code telemetry** is governed by VS Code's own settings (`telemetry.telemetryLevel`), not by this extension.
+
+Details: [docs/en/USER_GUIDE.md §8.1](docs/en/USER_GUIDE.md#81-privacy--data-collection) · [DE](docs/de/USER_GUIDE.md#81-datenschutz--datenerhebung)
+
 ## Security
 
 - No API keys in this repository.  

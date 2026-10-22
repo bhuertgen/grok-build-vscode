@@ -8,6 +8,7 @@
 |----------|----------|----------|
 | [INSTALL_VSIX.md](./INSTALL_VSIX.md) | Users | **Install: stores (coming soon) + step-by-step VSIX install** |
 | [USER_GUIDE.md](./USER_GUIDE.md) | Users | Usage, examples, all settings, commands, keyboard shortcuts |
+| [USER_GUIDE.md §8.1](./USER_GUIDE.md#81-privacy--data-collection) | Users | Privacy / data collection (no telemetry) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Developers | Hybrid ACP design |
 | [MULTI_AGENT.md](./MULTI_AGENT.md) | Users / devs | Sub-agent monitoring |
 | [TEST_CONCEPT.md](./TEST_CONCEPT.md) | QA / devs | Test matrix |
