@@ -1,5 +1,5 @@
 /**
- * Agent Client Protocol (ACP) v1 types used by Grok Build for VS Code.
+ * Agent Client Protocol (ACP) v1 types used by the VS Code Client for Grok Build.
  * Based on https://agentclientprotocol.com/protocol/v1/schema
  */
 

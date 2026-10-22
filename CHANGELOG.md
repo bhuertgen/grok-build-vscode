@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+Store preparation for the VS Code Marketplace and Open VSX (not published yet) (#60).
+
+### Changed
+- New name: **VS Code Client for Grok Build (Unofficial)**, marked as preview. The publisher is now `bhu`, so the extension id becomes **`bhu.grok-build-vscode`** (was `bhuertgen.grok-build-vscode`). VS Code treats this as a new extension: uninstall the old VSIX (≤ 0.3.3) to avoid two copies; settings (`grokBuild.*`) carry over, local chat history does not.
+- New icon (violet rounded square with a `>_` prompt and a sparkle) replaces the xAI Grok logo everywhere: store icon, activity bar / view icon (monochrome `currentColor` SVG), editor tab and the chat header / empty state. The old logo files are removed from the package.
+- Marketplace metadata: dark gallery banner, keywords, the "Programming Languages" category is removed.
+- The GitHub release update check now runs only for manual VSIX installs. Store builds (packaged with `GROK_BUILD_DISTRIBUTION=store`) and gallery installs skip it; the editor updates them. New setting `grokBuild.checkExtensionUpdates` (default `true`) turns it off for VSIX installs too.
+
+### Added
+- Publish workflow (`.github/workflows/publish.yml`): on a published GitHub release (or manual run) it builds, lints, runs unit and smoke tests and packages the store VSIX, then publishes to Open VSX (`OVSX_PAT`) and the VS Code Marketplace (`VSCE_PAT`) after approval in the protected `publish` environment. A store is skipped when its secret is missing.
+- Unit tests for the update-check gating (`tests/distribution.test.mjs`) and smoke checks for the store packaging (icon, metadata, `.vscodeignore`, workflow).
+
+### Packaging
+- `CHANGELOG.md` is now included in the VSIX; internal docs (`TEST_CONCEPT`, `SCROLL_TEST_PROMPT`, QA reports, screenshots), test files, the icon source and `.github/` are excluded.
+
+### Docs
+- Privacy / Data collection section in README and USER_GUIDE §8.1 (EN/DE): no telemetry, chats go through the local Grok CLI under the user's xAI account, GitHub Releases check only for manual VSIX installs, `grokBuild.githubToken` only sent to `api.github.com` (Open VSX Publisher Agreement §6).
+- README install section rewritten: VS Code Marketplace / Open VSX (coming soon) plus manual VSIX install as the alternative; same in `docs/en` and `docs/de` (INSTALL_VSIX, USER_GUIDE). Trademark / affiliation note added to README and the EN/DE docs: not affiliated with or endorsed by xAI; Grok is a trademark of xAI.
+
 ## 0.3.3 – 2026-10-22
 
 ### Added

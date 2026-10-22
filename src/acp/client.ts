@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpTransport } from './transport';
+import { getInstalledExtensionVersion } from '../util/extensionUpdate';
 import { ClientHandlers } from './handlers';
 import {
   ACP_PROTOCOL_VERSION,
@@ -163,9 +164,8 @@ export class AcpClient extends EventEmitter {
       },
       clientInfo: {
         name: 'grok-build-vscode',
-        title: 'Grok Build for VS Code',
-        version: vscode.extensions.getExtension('grok-build.grok-build-vscode')
-          ?.packageJSON?.version ?? '0.1.0',
+        title: 'VS Code Client for Grok Build (Unofficial)',
+        version: getInstalledExtensionVersion(),
       },
     });
 

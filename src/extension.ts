@@ -38,7 +38,7 @@ export async function activate(
 ): Promise<void> {
   const log = getLogger();
   const cliStatus = getCliStatus();
-  log.info('Activating Grok Build for VS Code (hybrid ACP client)');
+  log.info('Activating VS Code Client for Grok Build (hybrid ACP client)');
 
   const store = new SessionStore(context.globalState);
   const edits = new EditController();
@@ -203,7 +203,7 @@ export async function activate(
     100
   );
   status.command = 'grokBuild.openChat';
-  // Status bar: codicons only support built-in set; brand mark lives in activity bar (media/icon.svg)
+  // Status bar: codicons only support built-in set; brand mark lives in activity bar (media/activitybar.svg)
   status.text = '$(globe) Grok';
   status.tooltip = 'Open Grok Build (ACP → grok agent stdio)';
   status.show();

@@ -751,7 +751,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const logoOnDisk = vscode.Uri.joinPath(
       this.extensionUri,
       'media',
-      'grok.svg'
+      'logo.svg'
     );
     const logoUri = webview.asWebviewUri(logoOnDisk);
 

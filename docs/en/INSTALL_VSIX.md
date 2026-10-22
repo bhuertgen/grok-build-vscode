@@ -2,10 +2,22 @@
 
 **Language:** English · Deutsch: [../de/INSTALL_VSIX.md](../de/INSTALL_VSIX.md)
 
-> **Not affiliated with xAI.** Community extension (publisher: `bhuertgen`).  
-> Agent logic, safety, and tools stay in the **official** Grok Build CLI; this extension is only the VS Code ACP client.
+> **Unofficial community extension.** Not affiliated with, sponsored by, or endorsed by xAI. Grok is a trademark of xAI; the name is used only to describe compatibility with the official Grok Build CLI.  
+> Extension id: `bhu.grok-build-vscode` (publisher `bhu`). Agent logic, safety, and tools stay in the **official** Grok Build CLI; this extension is only the VS Code ACP client.
 
-This extension is **not** on the official VS Code Marketplace.  
+## Store install (coming soon)
+
+The extension is **not published yet** on the VS Code Marketplace or Open VSX. Once it is:
+
+- **VS Code Marketplace:** Extensions view (`Ctrl+Shift+X`) → search **Grok Build** (or `bhu.grok-build-vscode`) → **Install**; terminal: `code --install-extension bhu.grok-build-vscode`.
+- **Open VSX** (VSCodium, Cursor, Windsurf, Gitpod, …): search **Grok Build** in the Extensions view, or open https://open-vsx.org/extension/bhu/grok-build-vscode.
+
+Store installs update automatically and do not run the GitHub release check. Until then, or for pre-release builds and offline machines, use the **manual VSIX install** below.
+
+> **Upgrading from an earlier VSIX (publisher `bhuertgen`, ≤ 0.3.3)?** The publisher changed to `bhu`, so VS Code treats the new build as a different extension. Uninstall the old **Grok Build for VS Code** entry first.
+
+## Manual VSIX install
+
 You get a **`.vsix` file** (an install package) and install it **manually** in the **Visual Studio Code desktop app**.
 
 > **Important:** “Install from VSIX” does **not** appear in Marketplace search results.  
@@ -180,7 +192,7 @@ cursor --install-extension C:\Users\You\Downloads\grok-build-vscode-x.y.z.vsix
 
 1. Open Extensions: **`Ctrl+Shift+X`**.
 2. Search: **`Grok Build`** (or filter **Installed**).
-3. You should see **Grok Build for VS Code** as **Installed**.
+3. You should see **VS Code Client for Grok Build (Unofficial)** as **Installed**.
 4. Command Palette → run **`Grok Build: Open Chat`**.
 5. Optional: **Grok** icon on the Activity Bar.
 
@@ -206,7 +218,7 @@ If missing: command **Grok Build: Setup CLI…** or https://x.ai/cli
 | Only web Marketplace | Browser, not desktop VS Code | Launch the **VS Code app** |
 | Nothing after install | Window not reloaded | Command Palette → **Developer: Reload Window** |
 | Extension installed, chat wants CLI | CLI missing / not on PATH | `grok --version`, then Setup CLI |
-| Update later | No Marketplace auto-update | Download newer `.vsix` and install again |
+| Update later | Manual VSIX installs do not auto-update | The chat header shows a hint when a newer GitHub Release exists; download the newer `.vsix` and install again |
 | Wrong file | Source zip instead of VSIX | Check Release **Assets** again |
 
 ---

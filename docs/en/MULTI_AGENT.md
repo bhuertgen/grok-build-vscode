@@ -1,4 +1,4 @@
-# Multi-Agent Monitoring (Grok Build for VS Code)
+# Multi-Agent Monitoring (VS Code Client for Grok Build)
 
 **Language:** English · Deutsch: [../de/MULTI_AGENT.md](../de/MULTI_AGENT.md)
 

@@ -155,7 +155,7 @@ async function showInstallPanel(
     content: [
       `# ${install.title}`,
       '',
-      'Grok Build for VS Code is a **hybrid ACP client**.',
+      'VS Code Client for Grok Build (unofficial) is a **hybrid ACP client**.',
       'It does **not** reimplement the agent — it talks to the official CLI:',
       '',
       '```',

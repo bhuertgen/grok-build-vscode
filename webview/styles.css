@@ -98,12 +98,7 @@ html, body {
   width: 16px;
   height: 16px;
   display: block;
-  filter: brightness(0) invert(0.88);
-  opacity: 0.95;
-}
-
-body.vscode-light .brand-logo {
-  filter: brightness(0) invert(0.18);
+  border-radius: 3px;
 }
 
 .brand-name {
@@ -619,12 +614,8 @@ body.vscode-light .brand-logo {
   height: 48px;
   margin: 0 auto 16px;
   display: block;
-  filter: brightness(0) invert(0.55);
+  border-radius: 10px;
   opacity: 0.9;
-}
-
-body.vscode-light .empty-state .empty-logo {
-  filter: brightness(0) invert(0.45);
 }
 
 .empty-state h2 {

@@ -39,6 +39,7 @@ await esbuild.build({
     grokFolderTrust: 'src/util/grokFolderTrust.ts',
     restoreNotices: 'src/util/restoreNotices.ts',
     transport: 'src/acp/transport.ts',
+    distribution: 'src/util/distribution.ts',
   },
   outdir: outDir,
   // sessionStore (and its logger/config imports) get a tiny vscode stub

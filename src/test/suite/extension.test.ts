@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import * as vscode from 'vscode';
 
-const EXTENSION_ID = 'bhuertgen.grok-build-vscode';
+const EXTENSION_ID = 'bhu.grok-build-vscode';
 
 const REQUIRED_COMMANDS = [
   'grokBuild.openChat',

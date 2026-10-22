@@ -1,12 +1,15 @@
+# Dev / build inputs (the bundle in dist/ is what ships)
 .vscode/**
 .vscode-test/**
 .vscode-test-workspace/**
+.github/**
 src/**
 webview/**
 node_modules/**
 dist-test/**
 tests/**
 scripts/**
+assets/**
 errors/**
 .gitignore
 .eslintrc*
@@ -19,11 +22,35 @@ start-prompt.txt
 erweiterung1-prompt.txt
 *.vsix
 .git/**
-docs/**
+package-lock.json
+
+# Markdown: ship README, CHANGELOG, LICENSE and the user docs only.
+# vsce applies `!` includes after all excludes, so list user docs explicitly
+# (internal docs such as TEST_CONCEPT / SCROLL_TEST_PROMPT / QA reports stay out).
 **/*.md
 !README.md
-!docs/README.md
-!docs/en/**
-!docs/de/**
+!CHANGELOG.md
 !LICENSE
-package-lock.json
+!docs/README.md
+!docs/en/README.md
+!docs/en/USER_GUIDE.md
+!docs/en/INSTALL_VSIX.md
+!docs/en/MULTI_AGENT.md
+!docs/en/ARCHITECTURE.md
+!docs/de/README.md
+!docs/de/USER_GUIDE.md
+!docs/de/INSTALL_VSIX.md
+!docs/de/MULTI_AGENT.md
+!docs/de/ARCHITECTURE.md
+
+# Internal docs, QA material and screenshots (not needed at runtime)
+docs/**/TEST_CONCEPT*
+docs/**/SCROLL_TEST_PROMPT*
+docs/**/QA*
+**/*QA_REPORT*
+**/*qa-report*
+docs/**/screenshots/**
+docs/**/*.png
+docs/**/*.jpg
+docs/**/*.gif
+**/*.test.*

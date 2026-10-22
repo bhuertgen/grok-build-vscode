@@ -1,9 +1,10 @@
-# User Guide — Grok Build for VS Code
+# User Guide — VS Code Client for Grok Build (Unofficial)
 
 Complete usage, examples, and every configuration option.  
 Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.md](./MULTI_AGENT.md).
 
-> **Not affiliated with xAI.** Agent logic, safety, and tools live in the **Grok Build CLI** (`grok agent stdio`). This extension is the native VS Code ACP client.
+> **Unofficial community extension.** Not affiliated with, sponsored by, or endorsed by xAI. Grok is a trademark of xAI; the name is used only to describe compatibility with the official Grok Build CLI.  
+> Agent logic, safety, and tools live in the **Grok Build CLI** (`grok agent stdio`). This extension is the native VS Code ACP client.
 
 **Language:** English · Deutsch: [../de/USER_GUIDE.md](../de/USER_GUIDE.md)
 
@@ -21,8 +22,9 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 
 ### Install the extension
 
-The extension is **not** in Marketplace search. You install a **local `.vsix` file**.  
-**Full walkthrough (recommended):** **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+Extension id: **`bhu.grok-build-vscode`**. **Full walkthrough:** **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+
+**Store (coming soon):** once published, install from the **VS Code Marketplace** or **Open VSX** — Extensions view → search **Grok Build** → **Install**. Store installs update automatically. Until then, install a **local `.vsix` file** (A below).
 
 **A) Release — easiest path (Command Palette)**
 
@@ -190,7 +192,7 @@ The resolved card shows the decision (**Allowed**, **Allowed always**, **Rejecte
 ### 4.7 CLI / extension updates
 
 - On start: `grok update --check --json` → **CLI update** banner + status bar.  
-- Extension: GitHub Releases for `grokBuild.updateRepo` → **Extension update** banner.  
+- Extension: GitHub Releases for `grokBuild.updateRepo` → **Extension update** banner. Only for manual VSIX installs (`grokBuild.checkExtensionUpdates`); Marketplace / Open VSX installs are updated by the editor and never check GitHub.  
 - Commands: **Check Grok CLI Status**, **Update Grok CLI**.
 
 ---
@@ -358,6 +360,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| `checkExtensionUpdates` | `true` | GitHub release check for manual VSIX installs (store builds never check) |
 | `updateRepo` | `bhuertgen/grok-build-vscode` | GitHub `owner/repo` for extension releases |
 | `githubToken` | `""` | Optional token (private); prefer VS Code GitHub sign-in |
 | `checkPrereleaseUpdates` | `false` | Include pre-releases |
@@ -391,6 +394,17 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 
 ---
 
+## 8.1 Privacy / data collection
+
+Deutsch: [../de/USER_GUIDE.md §8.1](../de/USER_GUIDE.md#81-datenschutz--datenerhebung)
+
+- **No telemetry.** The extension itself sends no telemetry and collects no usage data.
+- **Chats, prompts and files** are processed by the locally installed Grok CLI (`grok agent stdio`), under your own xAI / Grok account and [xAI's terms](https://x.ai/legal). The extension only passes your prompts and the context you attach (files, selection, images) to that local process. The CLI also runs its own update check (`grok update --check`).
+- **Update check (manual VSIX installs only):** the extension asks the GitHub Releases API (`api.github.com`) for a newer version. Store installs (VS Code Marketplace / Open VSX) skip it. Turn it off with `grokBuild.checkExtensionUpdates: false`.
+- **GitHub token:** the optional `grokBuild.githubToken`, or an existing VS Code GitHub sign-in, is sent only to `api.github.com` for that check (e.g. for a private repo) and is used nowhere else.
+- **Local storage:** chat history stays on your machine in VS Code's extension storage (`globalState`).
+- **VS Code telemetry** is governed by VS Code's own settings (`telemetry.telemetryLevel`), not by this extension.
+
 ## 9. Troubleshooting
 
 | Symptom | What to try |
@@ -405,7 +419,7 @@ grok [top-level flags…] agent --no-leader -m <model> [agent flags…] stdio
 | Agent names wrong model | UI system line / chip is authoritative |
 | `@` empty | Workspace needs files |
 | Scroll jitter | Current build; [SCROLL_TEST_PROMPT.md](./SCROLL_TEST_PROMPT.md) |
-| No extension update banner | Need a newer GitHub Release than installed version; private repos need GitHub sign-in |
+| No extension update banner | Need a newer GitHub Release than installed version; private repos need GitHub sign-in; store installs and `checkExtensionUpdates: false` never show it |
 
 ---
 
@@ -440,7 +454,7 @@ Related docs:
 
 - MCP: CLI loads its own config; extension passes an empty MCP list into `session/new` by default.  
 - Sub-agents: tool timeline / status strip only (no per-subagent editor tabs).  
-- Install: primarily **VSIX / GitHub Releases**.  
+- Install: **VSIX / GitHub Releases** today; VS Code Marketplace and Open VSX listings are coming soon.  
 - Voice input: not implemented.  
 
 ---

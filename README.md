@@ -1,4 +1,4 @@
-# Grok Build for VS Code
+# VS Code Client for Grok Build (Unofficial)
 
 > **Deutsch:** [docs/de/README.md](docs/de/README.md) — full documentation in German (same content as English).
 
@@ -8,7 +8,7 @@
 - Each chat session owns its **own** `grok agent stdio` process.
 - VS Code supplies UI, context, multi-session, diffs, history, and editor integration.
 
-> **Not affiliated with xAI.** Planning, tools, MCP, sub-agents, and safety stay in the official Rust CLI.
+> **Unofficial community project.** Not affiliated with, sponsored by, or endorsed by xAI. "Grok" and "Grok Build" are trademarks of xAI and are used here only to describe compatibility with the official Grok Build CLI. Planning, tools, MCP, sub-agents, and safety stay in the official CLI.
 
 **User guide:** [English](docs/en/USER_GUIDE.md) · [Deutsch](docs/de/USER_GUIDE.md)  
 **Docs index:** [docs/README.md](docs/README.md) (`docs/en/` + `docs/de/`)  
@@ -27,7 +27,7 @@
 | **Models** | Picker + `-m` respawn; grounded model id in prompts |
 | **Permissions** | UI ask/allow + optional Execute auto-allow |
 | **Folder trust** | Banner when Grok skips project hooks / `AGENTS.md` / skills; **Trust folder** restarts with `--trust` |
-| **Updates** | CLI (`grok update --check`) + extension (GitHub Releases) |
+| **Updates** | CLI (`grok update --check`) + extension (store auto-update, or GitHub Releases check for manual VSIX installs) |
 | **ACP** | `initialize`, `session/*`, `fs/*`, `terminal/*`, permissions |
 
 ## Prerequisites
@@ -39,30 +39,41 @@
 
 ## Install
 
-### From GitHub Release (recommended)
+Extension id: **`bhu.grok-build-vscode`**. Step-by-step guide (EN/DE): [docs/en/INSTALL_VSIX.md](docs/en/INSTALL_VSIX.md) · [docs/de/INSTALL_VSIX.md](docs/de/INSTALL_VSIX.md)
 
-**Not** in the Marketplace search. You install a **local `.vsix` file**.  
-Full walkthrough with screenshots-in-text (EN/DE):  
-[docs/en/INSTALL_VSIX.md](docs/en/INSTALL_VSIX.md) · [**docs/de/INSTALL_VSIX.md**](docs/de/INSTALL_VSIX.md)
+### From the VS Code Marketplace (coming soon)
 
-1. [Releases](https://github.com/bhuertgen/grok-build-vscode/releases) → download **`grok-build-vscode-….vsix`** (not “Source code”).  
-2. **Easiest install (recommended):**  
-   - Press **`Ctrl+Shift+P`** (Mac: **`Cmd+Shift+P`**) — Command Palette  
-   - Type **`VSIX`**  
-   - Run **Extensions: Install from VSIX…**  
-     - German VS Code: **Erweiterungen: Von VSIX installieren…**  
-   - Pick the downloaded `.vsix` → Install → **Reload** if asked  
+> Not published yet. This section applies once the first store release is live.
 
-**Alternative UI path:** **`Ctrl+Shift+X`** (Extensions) → top row next to the search box click **`…`** → **Install from VSIX…** / **Von VSIX installieren…**.  
-That entry is **not** inside the Marketplace result list.
+1. Open **Extensions** (`Ctrl+Shift+X`, Mac: `Cmd+Shift+X`).
+2. Search for **Grok Build** (or `bhu.grok-build-vscode`) and click **Install**.
 
-**Terminal:**
+Or from a terminal: `code --install-extension bhu.grok-build-vscode`
+
+### From Open VSX (coming soon)
+
+> Not published yet. For VSCodium, Cursor, Windsurf, Gitpod and other editors that use [Open VSX](https://open-vsx.org/).
+
+Search for **Grok Build** in the editor's Extensions view, or open `https://open-vsx.org/extension/bhu/grok-build-vscode` once it is published.
+
+Store installs are updated by the editor automatically; the built-in GitHub release check is disabled for them.
+
+### Manual VSIX install (alternative)
+
+Use this for pre-release builds, offline machines, or until the store listings are live.
+
+1. [Releases](https://github.com/bhuertgen/grok-build-vscode/releases) → download **`grok-build-vscode-….vsix`** (not "Source code").
+2. Press **`Ctrl+Shift+P`** (Mac: **`Cmd+Shift+P`**) → run **Extensions: Install from VSIX…** (German UI: **Erweiterungen: Von VSIX installieren…**) → pick the file → **Reload** if asked.
+   Alternative: Extensions view → **`…`** menu (next to the search box) → **Install from VSIX…**.
+3. Or from a terminal:
 
 ```bash
 code --install-extension path/to/grok-build-vscode-x.y.z.vsix
 ```
 
-Replace `x.y.z` with the version you downloaded.
+Manual VSIX installs check GitHub Releases for newer versions and show a hint in the chat header (turn off with `grokBuild.checkExtensionUpdates`).
+
+> Installed an earlier VSIX (publisher `bhuertgen`, versions ≤ 0.3.3)? The publisher changed to `bhu`, so VS Code treats the new build as a different extension. Uninstall the old **Grok Build for VS Code** entry first to avoid two copies.
 
 ### Build locally
 
@@ -121,7 +132,8 @@ More examples and **every setting**: [docs/en/USER_GUIDE.md](docs/en/USER_GUIDE.
 | `grokBuild.autoAllowInExecuteMode` | `true` | Auto-allow tools in Execute (avoids hidden permission stalls) |
 | `grokBuild.alwaysApprove` | `false` | CLI `--always-approve` |
 | `grokBuild.cliPermissionMode` | `""` | CLI `--permission-mode`; `plan` starts sessions in **Plan** (really plan mode from CLI 1.0.65) |
-| `grokBuild.updateRepo` | `bhuertgen/grok-build-vscode` | Extension update checks |
+| `grokBuild.checkExtensionUpdates` | `true` | GitHub release check (manual VSIX installs only; store installs never check) |
+| `grokBuild.updateRepo` | `bhuertgen/grok-build-vscode` | Repo for extension update checks |
 | `grokBuild.logLevel` | `info` | Output channel **Grok Build** |
 
 **Trust the workspace** for writes/tools. First-run recommendations: [INSTALL_VSIX §7](docs/en/INSTALL_VSIX.md#7-recommended-settings-after-install) · [DE](docs/de/INSTALL_VSIX.md#7-empfohlene-settings-nach-der-installation).
@@ -165,6 +177,17 @@ npm run test:integration # real Extension Host
 npm run test:all
 ```
 
+## Privacy / Data collection
+
+- **No telemetry.** The extension itself sends no telemetry and collects no usage data.
+- **Chats, prompts and files** are processed by the locally installed Grok CLI (`grok agent stdio`), under your own xAI / Grok account and [xAI's terms](https://x.ai/legal). The extension only passes your prompts and the context you attach (files, selection, images) to that local process. The CLI also runs its own update check (`grok update --check`).
+- **Update check (manual VSIX installs only):** the extension asks the GitHub Releases API (`api.github.com`) for a newer version. Store installs (VS Code Marketplace / Open VSX) skip it. Turn it off with `grokBuild.checkExtensionUpdates: false`.
+- **GitHub token:** the optional `grokBuild.githubToken`, or an existing VS Code GitHub sign-in, is sent only to `api.github.com` for that check (e.g. for a private repo) and is used nowhere else.
+- **Local storage:** chat history stays on your machine in VS Code's extension storage.
+- **VS Code telemetry** is governed by VS Code's own settings (`telemetry.telemetryLevel`), not by this extension.
+
+Details: [docs/en/USER_GUIDE.md §8.1](docs/en/USER_GUIDE.md#81-privacy--data-collection) · [DE](docs/de/USER_GUIDE.md#81-datenschutz--datenerhebung)
+
 ## Security
 
 - No API keys in this repository.  
@@ -177,12 +200,16 @@ npm run test:all
 
 - MCP: CLI loads its own user/global MCP config; extension passes an empty MCP list into `session/new` by default.  
 - Sub-agents: monitored via tool timeline / status strip (no per-subagent editor tabs).  
-- Install path: primarily **VSIX / GitHub Releases** (Marketplace optional later).  
+- Install path: **VSIX / GitHub Releases** today; VS Code Marketplace and Open VSX listings are coming soon.  
 - Session resume needs CLI `session/resume` (or load); otherwise local history + new agent process.  
 
 ## License
 
 MIT
+
+## Trademarks
+
+This is an independent, unofficial community extension. It is not affiliated with, sponsored by, or endorsed by xAI. Grok is a trademark of xAI. All other trademarks belong to their respective owners.
 
 ## References
 

@@ -265,6 +265,7 @@ if (bundle.status !== 0) {
       'tests/grokFolderTrust.test.mjs',
       'tests/restoreNotices.test.mjs',
       'tests/transport.test.mjs',
+      'tests/distribution.test.mjs',
     ],
     {
       encoding: 'utf8',
@@ -310,6 +311,45 @@ if (srcBlob.includes("compatLevel") || read('webview/main.js').includes('compatL
     ok(`live grok --version → ${raw.slice(0, 80)}`);
   } else {
     warn('live grok CLI', `exit ${live.status}: ${(live.stderr || live.stdout || '').slice(0, 200)}`);
+  }
+}
+
+// ── Store packaging (icon, branding, .vscodeignore, publish workflow) ─────
+console.log('\nStore packaging');
+{
+  const pkg = JSON.parse(read('package.json'));
+  const icon = exists(pkg.icon ?? '') ? fs.readFileSync(path.join(root, pkg.icon)) : null;
+  const isPng = icon && icon.subarray(1, 4).toString('latin1') === 'PNG';
+  if (isPng && icon.readUInt32BE(16) >= 128 && icon.readUInt32BE(20) === icon.readUInt32BE(16) && icon[25] === 6) {
+    ok(`icon ${pkg.icon} is square RGBA PNG ${icon.readUInt32BE(16)}px`);
+  } else {
+    fail('package icon is a square RGBA PNG >= 128px', String(pkg.icon));
+  }
+  const legacyLogos = ['media/grok.svg', 'media/icon.svg'].filter(exists);
+  if (legacyLogos.length === 0) ok('old xAI/Grok logo files removed');
+  else fail('old xAI/Grok logo files removed', legacyLogos.join(', '));
+  const viewIcon = pkg.contributes?.viewsContainers?.activitybar?.[0]?.icon;
+  if (viewIcon && exists(viewIcon) && /currentColor/.test(read(viewIcon))) ok(`activity bar icon ${viewIcon} uses currentColor`);
+  else fail('activity bar icon uses currentColor', String(viewIcon));
+  if (pkg.publisher === 'bhu' && /Unofficial/.test(pkg.displayName ?? '') && pkg.preview === true && pkg.galleryBanner?.theme === 'dark') {
+    ok(`store metadata: ${pkg.publisher}.${pkg.name} "${pkg.displayName}" preview`);
+  } else {
+    fail('store metadata (publisher bhu, Unofficial displayName, preview, galleryBanner)');
+  }
+  if (!(pkg.categories ?? []).includes('Programming Languages')) ok('no "Programming Languages" category');
+  else fail('no "Programming Languages" category');
+  const vsi = read('.vscodeignore');
+  if (/^!CHANGELOG\.md$/m.test(vsi) && /TEST_CONCEPT/.test(vsi) && /SCROLL_TEST_PROMPT/.test(vsi)) ok('.vscodeignore ships CHANGELOG, drops internal docs');
+  else fail('.vscodeignore ships CHANGELOG, drops internal docs');
+  if (/Grok is a trademark of xAI/.test(read('README.md'))) ok('README trademark note');
+  else fail('README trademark note');
+  // Active location, or the staged draft until it is moved (needs a workflow-scoped token).
+  const wfPath = ['.github/workflows/publish.yml', '.github/workflow-drafts/publish.yml'].find(exists);
+  const wf = wfPath ? read(wfPath) : '';
+  if (/environment:\s*(?:\n\s*name:\s*)?publish/.test(wf) && /OVSX_PAT/.test(wf) && /VSCE_PAT/.test(wf) && /GROK_BUILD_DISTRIBUTION:\s*store/.test(wf)) {
+    ok('publish workflow: environment publish, OVSX_PAT, VSCE_PAT, store build flag');
+  } else {
+    fail('publish workflow: environment publish, OVSX_PAT, VSCE_PAT, store build flag');
   }
 }
 
