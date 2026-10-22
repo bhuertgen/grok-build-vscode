@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Docs
+- The extension is live on the VS Code Marketplace and Open VSX: README, INSTALL_VSIX and USER_GUIDE (EN/DE) make the store install the primary path (VS Code → Marketplace, Cursor / VSCodium / Windsurf → Open VSX, search `bhu.grok-build-vscode`), keep the manual VSIX install as an alternative, and drop the "coming soon" markers; README gets Marketplace (vsmarketplacebadges.dev; the shields.io Marketplace badge is retired) and Open VSX (shields.io) version badges (#60).
+
 ## 0.4.0 – 2026-10-22
 
 Store preparation for the VS Code Marketplace and Open VSX (#60, PR #61).

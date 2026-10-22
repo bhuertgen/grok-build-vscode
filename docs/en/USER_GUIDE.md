@@ -24,7 +24,9 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 
 Extension id: **`bhu.grok-build-vscode`**. **Full walkthrough:** **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
 
-**Store (coming soon):** once published, install from the **VS Code Marketplace** or **Open VSX** — Extensions view → search **Grok Build** → **Install**. Store installs update automatically. Until then, install a **local `.vsix` file** (A below).
+**Store (recommended):** VS Code installs from the [**VS Code Marketplace**](https://marketplace.visualstudio.com/items?itemName=bhu.grok-build-vscode); Cursor, VSCodium, Windsurf and Gitpod install from [**Open VSX**](https://open-vsx.org/extension/bhu/grok-build-vscode). Extensions view → search **`bhu.grok-build-vscode`** → **Install**. Store installs update automatically.
+
+**Alternative:** install a **local `.vsix` file** (A below), e.g. offline or for a specific version.
 
 **A) Release — easiest path (Command Palette)**
 
@@ -454,7 +456,7 @@ Related docs:
 
 - MCP: CLI loads its own config; extension passes an empty MCP list into `session/new` by default.  
 - Sub-agents: tool timeline / status strip only (no per-subagent editor tabs).  
-- Install: **VSIX / GitHub Releases** today; VS Code Marketplace and Open VSX listings are coming soon.  
+- Install: VS Code Marketplace and Open VSX; manual VSIX from GitHub Releases as an alternative.  
 - Voice input: not implemented.  
 
 ---

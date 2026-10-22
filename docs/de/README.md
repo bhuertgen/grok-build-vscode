@@ -6,7 +6,7 @@
 
 | Dokument | Zielgruppe | Inhalt |
 |----------|------------|--------|
-| [INSTALL_VSIX.md](./INSTALL_VSIX.md) | Nutzer | **Installation: Stores (demnächst) + Schritt für Schritt von VSIX** |
+| [INSTALL_VSIX.md](./INSTALL_VSIX.md) | Nutzer | **Installation: VS Code Marketplace / Open VSX + Schritt für Schritt von VSIX** |
 | [USER_GUIDE.md](./USER_GUIDE.md) | Nutzer | Bedienung, Beispiele, alle Settings, Befehle, Tastenkürzel |
 | [USER_GUIDE.md §8.1](./USER_GUIDE.md#81-datenschutz--datenerhebung) | Nutzer | Datenschutz / Datenerhebung (keine Telemetrie) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Entwickler | Hybrid-ACP-Design |
