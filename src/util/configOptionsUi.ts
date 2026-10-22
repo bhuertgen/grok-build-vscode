@@ -210,3 +210,141 @@ export function upsertEffortCurrent(
   });
   return list;
 }
+
+/** One entry of Grok's `_x.ai/models/update` catalog. */
+export interface GrokModelEntry {
+  modelId: string;
+  name?: string;
+  description?: string;
+  _meta?: {
+    supportsReasoningEffort?: boolean;
+    reasoningEffort?: string;
+    reasoningEfforts?: Array<{
+      id?: string;
+      value?: string;
+      label?: string;
+      description?: string;
+      default?: boolean;
+    }>;
+    [k: string]: unknown;
+  };
+}
+
+/** Params of `_x.ai/models/update` (process-wide, no sessionId). */
+export interface GrokModelsUpdate {
+  currentModelId?: string;
+  availableModels?: GrokModelEntry[];
+}
+
+/**
+ * Refresh the model and Effort options from Grok's `_x.ai/models/update`
+ * catalog (P2). On a cold start `session/new` returns a fallback catalog
+ * without reasoning efforts and no `model_changed` follows, so the Effort
+ * chip stayed missing until the next session; this notification carries
+ * the real catalog.
+ *
+ * - Model option: choices = available models, current = `currentModelId`
+ *   (or the existing current value if `currentModelId` is missing but valid).
+ * - Effort option: choices from the current model's `reasoningEfforts`.
+ *   A still-valid current value is kept (user override), otherwise the
+ *   model's `reasoningEffort`, otherwise the choice flagged `default`.
+ *   Removed when the current model does not support reasoning effort.
+ * - Other options are kept unchanged. Returns `undefined` → nothing to do.
+ */
+export function applyModelsUpdate(
+  options: ConfigOptionLike[] | undefined | null,
+  update: GrokModelsUpdate | undefined | null
+): { options: ConfigOptionLike[]; modelId?: string } | undefined {
+  const models = (update?.availableModels ?? []).filter(
+    (m) => m && typeof m.modelId === 'string' && m.modelId.trim()
+  );
+  if (!models.length) {
+    return undefined;
+  }
+  const list = options?.length ? options.map((o) => ({ ...o })) : [];
+  const modelIdx = list.findIndex((o) => isModelConfigOption(o));
+  const prevModel = modelIdx >= 0 ? list[modelIdx] : undefined;
+  const prevModelValue =
+    typeof prevModel?.currentValue === 'string' ? prevModel.currentValue : undefined;
+  const ids = models.map((m) => m.modelId);
+  const announced = update?.currentModelId?.trim();
+  const currentId =
+    announced && ids.includes(announced)
+      ? announced
+      : prevModelValue && ids.includes(prevModelValue)
+        ? prevModelValue
+        : announced || ids[0];
+
+  const modelOpt: ConfigOptionLike = {
+    ...(prevModel ?? {}),
+    id: prevModel?.id ?? 'model',
+    name: prevModel?.name ?? 'Model',
+    category: prevModel?.category ?? 'model',
+    type: 'select',
+    currentValue: currentId,
+    options: models.map((m) => ({
+      value: m.modelId,
+      name: m.name?.trim() || m.modelId,
+      ...(m.description ? { description: m.description } : {}),
+    })),
+  };
+  if (modelIdx >= 0) {
+    list[modelIdx] = modelOpt;
+  } else {
+    list.unshift(modelOpt);
+  }
+
+  const entry = models.find((m) => m.modelId === currentId);
+  const meta = entry?._meta;
+  const effortChoices: ConfigOptionChoice[] = [];
+  let defaultEffort: string | undefined;
+  for (const e of meta?.reasoningEfforts ?? []) {
+    const value = String(e?.value ?? e?.id ?? '').trim();
+    if (!value || effortChoices.some((c) => c.value === value)) {
+      continue;
+    }
+    effortChoices.push({
+      value,
+      name: e.label?.trim() || value,
+      ...(e.description ? { description: e.description } : {}),
+    });
+    if (e.default) {
+      defaultEffort = value;
+    }
+  }
+  const effortIdx = list.findIndex((o) => !isModelConfigOption(o) && isEffortConfigOption(o));
+  const supports = meta?.supportsReasoningEffort !== false && effortChoices.length > 0;
+  if (!supports) {
+    if (effortIdx >= 0 && entry && meta?.supportsReasoningEffort === false) {
+      list.splice(effortIdx, 1);
+    }
+    return { options: list, modelId: currentId };
+  }
+  const prevEffort = effortIdx >= 0 ? list[effortIdx] : undefined;
+  const prevEffortValue =
+    typeof prevEffort?.currentValue === 'string' ? prevEffort.currentValue : undefined;
+  const has = (v: string | undefined): v is string =>
+    !!v && effortChoices.some((c) => c.value === v);
+  const effortValue = has(prevEffortValue)
+    ? prevEffortValue
+    : has(meta?.reasoningEffort)
+      ? meta!.reasoningEffort!
+      : has(defaultEffort)
+        ? defaultEffort
+        : effortChoices[0].value;
+  const effortOpt: ConfigOptionLike = {
+    ...(prevEffort ?? {}),
+    id: prevEffort?.id ?? 'reasoning_effort',
+    name: prevEffort?.name ?? 'Reasoning Effort',
+    category: prevEffort?.category ?? 'thought_level',
+    type: 'select',
+    currentValue: effortValue,
+    options: effortChoices,
+  };
+  if (effortIdx >= 0) {
+    list[effortIdx] = effortOpt;
+  } else {
+    list.push(effortOpt);
+  }
+  return { options: list, modelId: currentId };
+}

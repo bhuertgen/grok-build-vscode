@@ -380,6 +380,15 @@ export class AcpClient extends EventEmitter {
       this.emit('elicitationComplete', id);
       return;
     }
+    // Grok's process-wide model catalog (no sessionId). On a cold start
+    // session/new returns a fallback catalog without reasoning efforts; this
+    // notification carries the real one (P2, CLI 1.0.62+).
+    if (n.method === '_x.ai/models/update' || n.method === 'x.ai/models/update') {
+      if (n.params && typeof n.params === 'object') {
+        this.emit('modelsUpdate', n.params);
+      }
+      return;
+    }
     this.log.debug('Unhandled notification', n.method);
   }
 

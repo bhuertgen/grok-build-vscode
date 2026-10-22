@@ -77,8 +77,10 @@ import {
   sliceLines,
 } from '../util/fileRangeMention';
 import {
+  applyModelsUpdate,
   retainConfigOptions,
   upsertEffortCurrent,
+  type GrokModelsUpdate,
 } from '../util/configOptionsUi';
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
 import { pushNotice } from '../util/restoreNotices';
@@ -1510,6 +1512,24 @@ export class SessionManager extends EventEmitter {
         );
         this.emitChange(localId);
       }
+    });
+    client.on('modelsUpdate', (update: GrokModelsUpdate) => {
+      if (this.clients.get(localId) !== client) {
+        return;
+      }
+      const state = this.sessions.get(localId);
+      if (!state) {
+        return;
+      }
+      const res = applyModelsUpdate(state.configOptions, update);
+      if (!res) {
+        return;
+      }
+      state.configOptions = res.options as SessionConfigOption[];
+      if (res.modelId) {
+        state.model = res.modelId;
+      }
+      this.emitChange(localId);
     });
     client.on('error', (err: Error) => {
       this.log.error(`ACP client error [${localId}]`, err);
