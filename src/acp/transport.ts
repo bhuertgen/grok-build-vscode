@@ -25,6 +25,9 @@ export class AcpTransport extends EventEmitter {
   private pending = new Map<number | string, Pending>();
   private buffer = '';
   private closed = false;
+  /** Set by dispose(): the process is ours to stop, its exit is expected. */
+  private disposed = false;
+  private killTimer?: NodeJS.Timeout;
   private readonly log = getLogger();
 
   constructor(private readonly proc: ChildProcessWithoutNullStreams) {
@@ -33,6 +36,10 @@ export class AcpTransport extends EventEmitter {
     proc.stderr.setEncoding('utf8');
 
     proc.stdout.on('data', (chunk: string) => this.onStdout(chunk));
+    // EPIPE after the agent exited must not become an uncaught stream error.
+    proc.stdin.on?.('error', (err) => {
+      this.log.debug('Agent stdin error', err);
+    });
     proc.stderr.on('data', (chunk: string) => {
       const text = chunk.trim();
       if (text) {
@@ -47,6 +54,19 @@ export class AcpTransport extends EventEmitter {
     });
     proc.on('close', (code, signal) => {
       this.closed = true;
+      if (this.killTimer) {
+        clearTimeout(this.killTimer);
+        this.killTimer = undefined;
+      }
+      if (this.disposed) {
+        // Expected exit after dispose() (session closed, model switch,
+        // restart). The CLI needs ~2.5 s to run its SessionEnd hooks, so it
+        // often exits after a replacement process is already up: do not
+        // report it as a disconnect of the live session.
+        this.log.info(`Agent process exited after dispose code=${code} signal=${signal}`);
+        this.emit('exited', code, signal);
+        return;
+      }
       this.log.info(`Agent process closed code=${code} signal=${signal}`);
       this.emit('close', code, signal);
       this.failAll(
@@ -130,14 +150,45 @@ export class AcpTransport extends EventEmitter {
     this.write(msg);
   }
 
-  dispose(): void {
+  /**
+   * Stop the agent. Closes stdin and sends SIGTERM; Grok exits gracefully on
+   * either (SessionEnd hooks run, ~2.5 s on 1.0.67). A SIGKILL follows only
+   * if the process is still alive after `forceKillAfterMs`.
+   */
+  dispose(forceKillAfterMs = 10_000): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    const alreadyClosed = this.closed;
+    this.closed = true;
     this.failAll(new Error('Transport disposed'));
+    if (alreadyClosed) {
+      return;
+    }
+    try {
+      this.proc.stdin.end();
+    } catch {
+      /* ignore */
+    }
     try {
       if (!this.proc.killed) {
         this.proc.kill();
       }
     } catch {
       /* ignore */
+    }
+    if (forceKillAfterMs > 0) {
+      this.killTimer = setTimeout(() => {
+        this.killTimer = undefined;
+        try {
+          this.log.warn('Agent process did not exit after SIGTERM; sending SIGKILL');
+          this.proc.kill('SIGKILL');
+        } catch {
+          /* ignore */
+        }
+      }, forceKillAfterMs);
+      this.killTimer.unref?.();
     }
   }
 
@@ -172,6 +223,9 @@ export class AcpTransport extends EventEmitter {
   }
 
   private dispatch(msg: JsonRpcMessage): void {
+    if (this.disposed) {
+      return; // late output of a process we already let go of
+    }
     if ('id' in msg && msg.id !== undefined && msg.id !== null && !('method' in msg)) {
       // Response (success or error)
       const pending = this.pending.get(msg.id);

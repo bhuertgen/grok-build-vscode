@@ -1494,6 +1494,11 @@ export class SessionManager extends EventEmitter {
       this.onSessionUpdate(localId, n);
     });
     client.on('disconnected', () => {
+      // A replaced client (model switch, restart) must not mark the session
+      // of its successor as disconnected.
+      if (this.clients.get(localId) !== client) {
+        return;
+      }
       const state = this.sessions.get(localId);
       if (state && state.status === 'ready') {
         state.status = 'idle';
