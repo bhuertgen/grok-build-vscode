@@ -1,9 +1,10 @@
-# Benutzerhandbuch — Grok Build for VS Code
+# Benutzerhandbuch — VS Code Client for Grok Build (Unofficial)
 
 Vollständige Bedienung, Beispiele und alle Einstellungen.  
 Architektur: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-Agent: [MULTI_AGENT.md](./MULTI_AGENT.md).
 
-> **Nicht offiziell von xAI.** Agent-Logik, Safety und Tools liegen im **Grok Build CLI** (`grok agent stdio`). Diese Extension ist der native VS-Code-ACP-Client.
+> **Inoffizielle Community-Extension.** Nicht mit xAI verbunden, nicht von xAI gesponsert oder unterstützt. Grok ist eine Marke von xAI; der Name beschreibt nur die Kompatibilität mit dem offiziellen Grok Build CLI.  
+> Agent-Logik, Safety und Tools liegen im **Grok Build CLI** (`grok agent stdio`). Diese Extension ist der native VS-Code-ACP-Client.
 
 **Sprache:** Deutsch · English: [../en/USER_GUIDE.md](../en/USER_GUIDE.md)  
 **UI der Extension:** Englisch (einzelne Statusmeldungen werden bei deutscher VS-Code-Sprache lokalisiert, siehe §4.10).
@@ -22,8 +23,9 @@ Architektur: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-Agent: [MULTI_AGENT.m
 
 ### Extension installieren
 
-Die Extension liegt **nicht** in der Marketplace-Suche. Du installierst eine **lokale `.vsix`-Datei**.  
-**Ausführliche Anleitung (empfohlen):** **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+Extension-ID: **`bhu.grok-build-vscode`**. **Ausführliche Anleitung:** **[INSTALL_VSIX.md](./INSTALL_VSIX.md)**
+
+**Store (demnächst):** nach der Veröffentlichung aus dem **VS Code Marketplace** oder von **Open VSX** installieren — Erweiterungen → **Grok Build** suchen → **Installieren**. Store-Installationen aktualisieren sich automatisch. Bis dahin installierst du eine **lokale `.vsix`-Datei** (A unten).
 
 **A) Release — einfachster Weg (Befehlspalette)**
 
@@ -192,7 +194,7 @@ Die beantwortete Card zeigt die Entscheidung (**Allowed**, **Allowed always**, *
 ### 4.7 CLI- / Extension-Updates
 
 - Beim Start: `grok update --check --json` → Banner **CLI update** + Statusbar.  
-- Extension: GitHub Releases von `grokBuild.updateRepo` → Banner **Extension update**.  
+- Extension: GitHub Releases von `grokBuild.updateRepo` → Banner **Extension update**. Nur bei manueller VSIX-Installation (`grokBuild.checkExtensionUpdates`); Installationen aus Marketplace / Open VSX aktualisiert der Editor, sie prüfen GitHub nie.  
 - Commands: **Check Grok CLI Status**, **Update Grok CLI**.
 
 ---
@@ -360,6 +362,7 @@ Auch in der Installationsanleitung: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-em
 
 | Setting | Default | Beschreibung |
 |---------|---------|--------------|
+| `checkExtensionUpdates` | `true` | GitHub-Release-Prüfung für manuelle VSIX-Installationen (Store-Builds prüfen nie) |
 | `updateRepo` | `bhuertgen/grok-build-vscode` | GitHub `owner/repo` für Extension-Releases |
 | `githubToken` | `""` | Optionaler Token (privat); besser VS-Code-GitHub-Anmeldung |
 | `checkPrereleaseUpdates` | `false` | Pre-Releases einbeziehen |
@@ -407,7 +410,7 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 | Agent nennt falsches Modell | UI-Systemzeile / Chip ist maßgeblich |
 | `@` leer | Workspace braucht Dateien |
 | Scroll-Ruckeln | Aktueller Build; [SCROLL_TEST_PROMPT.md](./SCROLL_TEST_PROMPT.md) |
-| Kein Extension-Update-Banner | Es braucht ein neueres GitHub-Release als die installierte Version; private Repos brauchen GitHub-Anmeldung |
+| Kein Extension-Update-Banner | Es braucht ein neueres GitHub-Release als die installierte Version; private Repos brauchen GitHub-Anmeldung; Store-Installationen und `checkExtensionUpdates: false` zeigen ihn nie |
 
 ---
 
@@ -442,7 +445,7 @@ Weitere Docs:
 
 - MCP: Die CLI lädt ihre eigene Config; die Extension übergibt standardmäßig eine leere MCP-Liste an `session/new`.  
 - Sub-Agents: nur Tool-Timeline / Statusleiste (keine Editor-Tabs pro Sub-Agent).  
-- Installation: vor allem **VSIX / GitHub Releases**.  
+- Installation: heute **VSIX / GitHub Releases**; Einträge im VS Code Marketplace und auf Open VSX folgen demnächst.  
 - Spracheingabe: nicht implementiert.  
 
 ---

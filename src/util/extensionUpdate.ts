@@ -6,6 +6,11 @@ import * as https from 'node:https';
 import * as vscode from 'vscode';
 import { getLogger } from './logger';
 import { compareVersions, extractVersionToken } from '../cli/updateCheck';
+import {
+  BUILD_DISTRIBUTION,
+  decideExtensionUpdateCheck,
+  isGalleryInstall,
+} from './distribution';
 
 export interface ExtensionUpdateInfo {
   checked: boolean;
@@ -16,14 +21,21 @@ export interface ExtensionUpdateInfo {
   vsixUrl?: string;
   message?: string;
   error?: string;
+  /** True when the check was intentionally not run (store build / gallery install / setting off). */
+  skipped?: boolean;
 }
 
 const EXT_IDS = [
+  'bhu.grok-build-vscode',
   'bhuertgen.grok-build-vscode',
   'grok-build.grok-build-vscode',
 ];
 
-function getExtensionPackage(): { version?: string; repository?: unknown } {
+function getExtensionPackage(): {
+  version?: string;
+  repository?: unknown;
+  __metadata?: unknown;
+} {
   for (const id of EXT_IDS) {
     const ext = vscode.extensions.getExtension(id);
     if (ext?.packageJSON) {
@@ -119,6 +131,22 @@ async function getGithubToken(): Promise<string | undefined> {
 export async function checkExtensionUpdate(): Promise<ExtensionUpdateInfo> {
   const log = getLogger();
   const currentVersion = getInstalledExtensionVersion();
+  const decision = decideExtensionUpdateCheck({
+    distribution: BUILD_DISTRIBUTION,
+    galleryInstall: isGalleryInstall(getExtensionPackage()),
+    settingEnabled: vscode.workspace
+      .getConfiguration('grokBuild')
+      .get<boolean>('checkExtensionUpdates', true),
+  });
+  if (!decision.check) {
+    return {
+      checked: false,
+      skipped: true,
+      updateAvailable: false,
+      currentVersion,
+      message: `Extension update check skipped (${decision.reason})`,
+    };
+  }
   const repo = resolveUpdateRepo();
   const includePrerelease = vscode.workspace
     .getConfiguration('grokBuild')

@@ -43,7 +43,7 @@ export class EditorChatPanel {
       ],
     };
 
-    const icon = vscode.Uri.joinPath(extensionUri, 'media', 'icon.svg');
+    const icon = vscode.Uri.joinPath(extensionUri, 'media', 'logo.svg');
     this.panel.iconPath = { light: icon, dark: icon };
 
     // Adapt WebviewPanel → WebviewView surface for ChatViewProvider

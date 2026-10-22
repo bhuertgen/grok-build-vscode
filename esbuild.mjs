@@ -18,7 +18,7 @@ function copyWebview() {
   }
 }
 
-/** Ensure media assets (Grok logo) are available next to the extension */
+/** Ensure media assets (extension logo) are available next to the extension */
 function copyMedia() {
   const srcDir = path.join('media');
   const destDir = path.join(outDir, 'media');
@@ -45,6 +45,11 @@ const ctx = await esbuild.context({
   logLevel: 'info',
   define: {
     'process.env.NODE_ENV': production ? '"production"' : '"development"',
+    // Set to "store" by .github/workflows/publish.yml for Marketplace / Open VSX
+    // packages; disables the GitHub Releases update check (src/util/distribution.ts).
+    __GROK_BUILD_DISTRIBUTION__: JSON.stringify(
+      process.env.GROK_BUILD_DISTRIBUTION || 'vsix'
+    ),
   },
   plugins: [
     {

@@ -1396,7 +1396,7 @@
       const cli = state.cli || {};
       const logoSrc = document.getElementById('brandLogo')?.getAttribute('src') || '';
       const logoHtml = logoSrc
-        ? `<img class="empty-logo" src="${logoSrc}" alt="Grok" width="40" height="40" />`
+        ? `<img class="empty-logo" src="${logoSrc}" alt="" width="40" height="40" />`
         : '';
       if (!cli.ready && !cli.checking) {
         empty.innerHTML = `

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+  <!-- Monochrome ">_" prompt + sparkle. VS Code masks/recolors activity-bar icons; currentColor keeps it theme-neutral elsewhere. -->
+  <path d="M3.5 6.5 10.5 12 3.5 17.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8.5 20h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M17.5 1.5C17.9 4.6 18.9 5.6 22 6 18.9 6.4 17.9 7.4 17.5 10.5 17.1 7.4 16.1 6.4 13 6 16.1 5.6 17.1 4.6 17.5 1.5Z" fill="currentColor"/>
+</svg>

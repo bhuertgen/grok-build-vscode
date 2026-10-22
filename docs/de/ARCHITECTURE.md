@@ -1,4 +1,4 @@
-# Architektur — Grok Build for VS Code (Hybrid)
+# Architektur — VS Code Client for Grok Build (Hybrid)
 
 **Sprache:** Deutsch · English: [../en/ARCHITECTURE.md](../en/ARCHITECTURE.md)
 
@@ -89,7 +89,8 @@ src/
     modelCatalog.ts            # ~/.grok/models_cache.json
     chatFormat.ts / cwd.ts     # Chat-Formatierung, Pfad-Normalisierung
     fileWriter.ts              # gemeinsamer Schreibpfad für Diffs
-    extensionUpdate.ts         # Prüfung der GitHub Releases
+    extensionUpdate.ts         # Prüfung der GitHub Releases (nur manuelle VSIX-Installation)
+    distribution.ts            # Build-Flag store|vsix; überspringt die Release-Prüfung bei Store-Builds
     workspaceTrust.ts          # Helfer für den Restricted Mode
     grokFolderTrust.ts         # Grok trusted_folders.toml + Erkennung von Projekt-Hooks/-Regeln/-Skills/-MCP
     restoreNotices.ts          # pro Chat eine Restore-Meldung je Art (#52)
@@ -97,7 +98,7 @@ src/
 webview/                       # Theme-fähige Chat-UI
 tests/                         # Unit-Tests mit node --test
 scripts/                       # Smoke-Check, Test-Bundles
-media/
+media/                         # icon.png (Store-Icon), logo.svg (farbig, Webview/Tab), activitybar.svg (mono)
 docs/                          # en/ + de/ (gleicher Inhalt in beiden Sprachen)
 ```
 

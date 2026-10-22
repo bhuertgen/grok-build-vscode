@@ -1,9 +1,9 @@
 {
   "name": "grok-build-vscode",
-  "displayName": "Grok Build for VS Code",
-  "description": "Unofficial community extension (not affiliated with xAI). Hybrid ACP client: native VS Code UI over the official Grok Build CLI (grok agent stdio). Multi-session, plan/execute, diffs, context.",
+  "displayName": "VS Code Client for Grok Build (Unofficial)",
+  "description": "Unofficial community extension, not affiliated with or endorsed by xAI. Native VS Code chat UI for the official Grok Build CLI (ACP over `grok agent stdio`): multi-session, plan/execute, diffs, context.",
   "version": "0.3.3",
-  "publisher": "bhuertgen",
+  "publisher": "bhu",
   "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
@@ -11,17 +11,18 @@
   "categories": [
     "AI",
     "Chat",
-    "Programming Languages",
     "Other"
   ],
   "keywords": [
     "grok",
     "grok-build",
+    "grok-cli",
     "xai",
     "ai",
     "agent",
     "acp",
-    "coding-agent"
+    "coding-agent",
+    "chat"
   ],
   "activationEvents": [
     "onStartupFinished",
@@ -29,6 +30,10 @@
   ],
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#2a1a6e",
+    "theme": "dark"
+  },
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
@@ -41,7 +46,7 @@
         {
           "id": "grok-build",
           "title": "Grok Build",
-          "icon": "media/icon.svg"
+          "icon": "media/activitybar.svg"
         }
       ]
     },
@@ -51,7 +56,7 @@
           "type": "webview",
           "id": "grokBuild.chatView",
           "name": "Grok Build",
-          "icon": "media/icon.svg",
+          "icon": "media/activitybar.svg",
           "contextualTitle": "Grok Build"
         }
       ]
@@ -523,6 +528,11 @@
           "default": 50,
           "description": "Maximum number of sessions to keep in local history."
         },
+        "grokBuild.checkExtensionUpdates": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Check GitHub Releases for a newer extension VSIX (manual VSIX installs only). Builds from the VS Code Marketplace / Open VSX never run this check; the editor updates them."
+        },
         "grokBuild.updateRepo": {
           "type": "string",
           "default": "bhuertgen/grok-build-vscode",
@@ -585,7 +595,7 @@
     "package": "vsce package --no-dependencies",
     "lint": "tsc -p ./ --noEmit",
     "test:bundle": "node scripts/build-test-bundle.mjs",
-    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs tests/cliPath.test.mjs tests/cliRecovery.test.mjs tests/locale.test.mjs tests/textSlice.test.mjs tests/permissionKind.test.mjs tests/pathScope.test.mjs tests/outsideAccess.test.mjs tests/panelRevive.test.mjs tests/openTabs.test.mjs tests/grokFolderTrust.test.mjs tests/restoreNotices.test.mjs tests/transport.test.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs tests/cliPath.test.mjs tests/cliRecovery.test.mjs tests/locale.test.mjs tests/textSlice.test.mjs tests/permissionKind.test.mjs tests/pathScope.test.mjs tests/outsideAccess.test.mjs tests/panelRevive.test.mjs tests/openTabs.test.mjs tests/grokFolderTrust.test.mjs tests/restoreNotices.test.mjs tests/transport.test.mjs tests/distribution.test.mjs",
     "test:integration:bundle": "node scripts/build-integration-tests.mjs",
     "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
     "test": "npm run test:unit",
@@ -610,5 +620,6 @@
   "bugs": {
     "url": "https://github.com/bhuertgen/grok-build-vscode/issues"
   },
-  "homepage": "https://github.com/bhuertgen/grok-build-vscode#readme"
+  "homepage": "https://github.com/bhuertgen/grok-build-vscode#readme",
+  "preview": true
 }
