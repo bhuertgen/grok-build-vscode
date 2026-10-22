@@ -11,7 +11,7 @@ Store preparation for the VS Code Marketplace and Open VSX (not published yet) (
 - The GitHub release update check now runs only for manual VSIX installs. Store builds (packaged with `GROK_BUILD_DISTRIBUTION=store`) and gallery installs skip it; the editor updates them. New setting `grokBuild.checkExtensionUpdates` (default `true`) turns it off for VSIX installs too.
 
 ### Added
-- Publish workflow (staged as `.github/workflow-drafts/publish.yml`, to be moved to `.github/workflows/`): on a published GitHub release (or manual run) it builds, lints, runs unit and smoke tests and packages the store VSIX, then publishes to Open VSX (`OVSX_PAT`) and the VS Code Marketplace (`VSCE_PAT`) after approval in the protected `publish` environment. A store is skipped when its secret is missing.
+- Publish workflow (`.github/workflows/publish.yml`): on a published GitHub release (or manual run) it builds, lints, runs unit and smoke tests and packages the store VSIX, then publishes to Open VSX (`OVSX_PAT`) and the VS Code Marketplace (`VSCE_PAT`) after approval in the protected `publish` environment. A store is skipped when its secret is missing.
 - Unit tests for the update-check gating (`tests/distribution.test.mjs`) and smoke checks for the store packaging (icon, metadata, `.vscodeignore`, workflow).
 
 ### Packaging
