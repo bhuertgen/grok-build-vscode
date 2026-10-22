@@ -17,7 +17,7 @@ Architektur: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-Agent: [MULTI_AGENT.m
 1. **VS Code** ≥ 1.90 (oder kompatibel, z. B. Cursor)  
 2. **Grok Build CLI** installiert und eingeloggt  
    - Docs: https://x.ai/cli  
-   - Prüfen: `grok --version` — **1.0.62 oder neuer empfohlen** (getestet mit 1.0.62 stable, bis **1.0.66 alpha**); ältere 1.0.x laufen mit Warnbanner  
+   - Prüfen: `grok --version` — **1.0.67 oder neuer empfohlen** (getestet mit **1.0.67 stable**); ältere 1.0.x laufen mit Warnbanner  
 3. Optional zum Entwickeln: **Node.js** ≥ 18  
 
 ### Extension installieren
@@ -187,6 +187,8 @@ Noch keine Dateien schreiben.
 
 Die beantwortete Card zeigt die Entscheidung (**Allowed**, **Allowed always**, **Rejected**, **Cancelled**; bei deutscher VS-Code-Sprache **Erlaubt**, **Immer erlaubt**, **Abgelehnt**, **Abgebrochen**). Write-Freigaben für eine binäre oder nicht lesbare Datei (CLI ≥ 1.0.54) zeigen statt eines Diffs das Badge **unreadable – no preview** („nicht lesbar – keine Vorschau“).
 
+**Git-Worktrees (CLI ≥ 1.0.67):** Öffnest du einen Git-Worktree als Workspace-Ordner (siehe #15), wendet Grok dort auch die gespeicherten **Always-allow**-Antworten des Haupt-Checkouts an (Befehle, MCP-Tools, Web-Fetch-Domains); gespeicherte **Never-allow**-Antworten gelten ohnehin und haben Vorrang. Antworten im Worktree bleiben im Worktree. Um die Always-allow-Antworten des Haupt-Checkouts aus Worktrees herauszuhalten, `worktree_inherits_main_approvals = false` unter `[features]` in `~/.grok/config.toml` setzen (oder `GROK_WORKTREE_INHERITS_MAIN_APPROVALS=false`).
+
 ### 4.7 CLI- / Extension-Updates
 
 - Beim Start: `grok update --check --json` → Banner **CLI update** + Statusbar.  
@@ -204,6 +206,7 @@ Bietet die CLI `configOptions` (select oder boolean) an, zeigt der Chat-Header e
 - Unbekannte Optionstypen werden ausgeblendet.
 - `grokBuild.reasoningEffort` bleibt der Prozess-Default für die nächste Session (CLI `--reasoning-effort`) und wird vom Chip nicht überschrieben.
 - Bietet der Agent keine Extra-Optionen an, erscheint kein Chip.
+- Die Effort-Auswahl folgt dem aktuellen Modell. Bei einem kalten CLI-Start kann `session/new` eine Ersatz-Modellliste ohne Efforts liefern; der Chip erscheint, sobald Grok seinen echten Katalog schickt (`_x.ai/models/update`), ohne neue Session. Ein Modell ohne Reasoning-Effort zeigt keinen Effort-Chip.
 
 ## 4.9 `@datei#start-end`
 
@@ -221,8 +224,25 @@ Bietet die CLI `configOptions` (select oder boolean) an, zeigt der Chat-Header e
 | ℹ️ *Turn stopped by hook (`<hook>`): <Grund>* | Ein CLI-Hook hat den Turn mit `continue: false` beendet (CLI ≥ 1.0.60). Erscheint statt `(cancelled)` oder nichts. Die Hook-ID wird gekürzt (`project/stop:pre_tool_use[0]…` → `project/stop`). |
 | **unreadable – no preview** | Eine Write-Freigabe betrifft eine binäre/nicht lesbare Datei (CLI ≥ 1.0.54); es wird kein Diff versucht. |
 | Hinweis auf `grok update` | `cliPermissionMode: plan` mit einer CLI älter als 1.0.65 (die Session startet in `defaultMode`). |
+| **Session resumed** / **Local history loaded** | Ein gespeicherter Chat wurde wiederhergestellt. Nach der letzten Nachricht steht von jeder Zeile höchstens eine, auch nach mehreren Reloads (#52). |
+| **Folder trusted for Grok** | Du hast **Trust folder** gewählt; siehe §4.11. |
 
 Bei deutscher VS-Code-Sprache werden Hook-Stopp-Zeile, Unreadable-Badge und Permission-Entscheidungen lokalisiert („Turn durch Hook beendet“, „nicht lesbar – keine Vorschau“, „Erlaubt“ / „Immer erlaubt“ / „Abgelehnt“ / „Abgebrochen“); alle anderen UI-Texte sind Englisch.
+
+## 4.11 Grok-Ordnervertrauen (Projekt-Hooks, -Regeln, -Skills)
+
+Grok CLI lädt **Hooks**, **Projektregeln** (`AGENTS.md`, `CLAUDE.md`, `.grok/rules/` …), **Projekt-Skills** (`.grok/skills/` …) und **Projekt-MCP-Server** (`.mcp.json`, `.grok/config.toml`) eines Projekts nur aus einem Ordner, dem es vertraut. Über ACP gibt es keinen Trust-Dialog: In einem nicht vertrauten Ordner werden diese Dateien **still übersprungen**. Deine Hooks und Regeln auf Benutzerebene (`~/.grok/…`) gelten weiter.
+
+Hat der Workspace-Ordner solche Dateien und vertraut Grok ihm nicht, zeigt der Chat ein gelbes Banner **Grok ignores project settings in "<Ordner>"** mit dem, was gefunden wurde, z. B. *hooks (.grok/hooks/pre.json), project rules (AGENTS.md)*.
+
+- **Trust folder** (nur in einem vertrauenswürdigen VS-Code-Workspace) fragt nach Bestätigung (**Trust and Restart Agent**) und startet dann die Agents des Ordners mit dem Top-Level-Flag `--trust` neu (`grok --trust agent … stdio`). Grok speichert die Entscheidung in `~/.grok/trusted_folders.toml` (bzw. `$GROK_HOME`), spätere Starts brauchen kein Flag. Ein Chat mit Verlauf behält ihn (die Agent-Session wird fortgesetzt): Projekt-Hooks und MCP-Server sind sofort aktiv, Projektregeln und Skills werden beim Start eines Chats gelesen – für sie einen neuen Chat (**+**) öffnen. Ein leerer Chat bekommt eine frische Agent-Session mit allem geladen. Laufende Chats werden nicht unterbrochen. Im Chat erscheint eine Zeile **Folder trusted for Grok**.
+- Im **Restricted Mode** hat das Banner keinen Button **Trust folder**: zuerst dem Workspace in VS Code vertrauen.
+- **Dismiss** blendet das Banner für diesen Ordner aus (pro Workspace gemerkt). Der Befehl **Grok Build: Trust Folder for Grok CLI** bleibt verfügbar.
+- Eine Freigabe deckt Unterordner desselben Git-Repositorys ab; ein verschachtelter Git-Checkout braucht eine eigene. Home-Verzeichnis und Dateisystem-Wurzel sind bei Grok nicht gesperrt.
+- Kein Banner, wenn das Ordnervertrauen in der CLI abgeschaltet ist (`GROK_FOLDER_TRUST=0` oder `[folder_trust] enabled = false` in `~/.grok/config.toml`).
+- Widerrufen: den Eintrag des Ordners aus `~/.grok/trusted_folders.toml` löschen (oder `/hooks-trust` in der Grok-TUI).
+
+Vertraue nur Ordnern, deren Hooks und MCP-Server du geprüft hast: Hooks führen Shell-Befehle aus.
 
 ## 5. Befehle (Befehlspalette: „Grok Build“)
 
@@ -242,6 +262,7 @@ Bei deutscher VS-Code-Sprache werden Hook-Stopp-Zeile, Unreadable-Badge und Perm
 | Apply / Reject / Apply All Edits | Diffs, wenn angeboten |
 | Show Diff | Diff anzeigen |
 | Check / Setup / Update CLI | CLI-Verwaltung |
+| Trust Folder for Grok CLI | Agent mit `--trust` neu starten, damit Grok Projekt-Hooks, -Regeln, -Skills und MCP-Server lädt (§4.11) |
 | Focus Chat Input | Eingabe fokussieren |
 
 ### Tastenkürzel
@@ -295,7 +316,7 @@ Auch in der Installationsanleitung: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-em
 |---------|---------|---------------|
 | `defaultModel` | `""` | `-m` / `--model` (leer = CLI-Default) |
 | `reasoningEffort` | `""` | `--reasoning-effort` (Default für **neue** Sessions). Bietet der Agent eine Effort-/Config-Option an, überschreibt der Chip im Chat-Header den Wert **für die laufende Session** per ACP `session/set_config_option`, ohne dieses Setting zu ändern. |
-| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`), Top-Level-Flag. **`plan`:** laut CLI-Changelog startet der Agent ab CLI **1.0.65** wirklich im Plan-Modus; neue Sessions starten dann auch in der UI in **Plan** (überschreibt `defaultMode`), Tool-Aufrufe werden also abgefragt statt automatisch erlaubt. Grok meldet den Modus nicht über ACP, daher leitet die UI ihn aus diesem Setting und der CLI-Version ab. Ältere CLIs starten im Default-Modus; der Chat zeigt einen Hinweis auf `grok update`. Wird nicht übergeben, wenn `alwaysApprove` an ist. |
+| `cliPermissionMode` | `""` | `--permission-mode` (`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`), Top-Level-Flag. **`plan`:** laut CLI-Changelog startet der Agent ab CLI **1.0.65** wirklich im Plan-Modus; neue Sessions starten dann auch in der UI in **Plan** (überschreibt `defaultMode`), Tool-Aufrufe werden also abgefragt statt automatisch erlaubt. Grok meldet den Modus nicht über ACP, daher leitet die UI ihn aus diesem Setting und der CLI-Version ab. Ältere CLIs starten im Default-Modus; der Chat zeigt einen Hinweis auf `grok update`. **`auto`:** Grok prüft Tool-Aufrufe und führt Routinearbeit ohne Rückfrage aus; einen Aufruf, den es nicht automatisch erlaubt, zeigt der Chat als normale Permission-Card. Seit CLI **1.0.64** läuft ein Shell-Befehl nur dann ohne Rückfrage, wenn **jeder** Teilbefehl (jeder Teil einer `&&`-, `;`- oder `|`-Kette) einer Allowlist-Regel entspricht; Regeln lesen Wörter wie bash (Quotes, Escapes). Verkettete Befehle fragen daher öfter nach als vorher. Wird nicht übergeben, wenn `alwaysApprove` an ist. |
 | `alwaysApprove` | `false` | `--always-approve` |
 | `maxTurns` | `null` | `--max-turns` |
 | `noSubagents` | `false` | `--no-subagents` |
@@ -353,7 +374,7 @@ Effektive Form (vereinfacht):
 grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 ```
 
-- **Top-Level-Flags** stehen **vor** `agent`: `--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`. `grok agent` lehnt sie mit `unexpected argument` ab (#37).
+- **Top-Level-Flags** stehen **vor** `agent`: `--trust` (nur nach **Trust folder**, §4.11), `--permission-mode`, `--max-turns`, `--no-subagents`, `--no-plan`, `--disable-web-search`, `--sandbox`, `--tools`, `--disallowed-tools`, `--rules`. `grok agent` lehnt sie mit `unexpected argument` ab (#37).
 - **Agent-Flags** stehen **zwischen** `agent` und `stdio` (nicht nach `stdio`): `-m`, `--reasoning-effort`, `--always-approve`, `--no-leader`, `--debug` sowie `extraCliArgs`.  
 - `--no-leader`: ein Prozess pro Session, damit `-m` greift.  
 - Logs: Output-Kanal **Grok Build** → `Starting agent: …`.
@@ -366,6 +387,7 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 |-------|-----------|
 | **History** | Lokal in VS Code `globalState`, pro Workspace-`cwd` |
 | **Trust** | Restricted Mode → Banner. Schreibende Permissions (ACP-Kind `edit`, `delete`, `move`, `execute`; bei Kind `other` ein Titel mit write/edit/create/delete/move/rename) werden automatisch abgelehnt, und der Trust-Dialog öffnet sich. Lesen, Suchen und Fetch werden **nicht** abgelehnt und lösen keinen Dialog aus. Dateischreibzugriffe des Agents (`fs/write_text_file`) scheitern mit klarer Fehlermeldung, bis du dem Ordner vertraust |
+| **Grok-Ordnervertrauen** | Getrennt vom VS-Code-Workspace-Trust: Grok selbst überspringt Projekt-Hooks, -Regeln, -Skills und MCP-Server in Ordnern, denen es nicht vertraut. Banner + **Trust folder** (§4.11) |
 | **Auth** | Nur CLI (`grok` Login); keine Keys im Repo |
 | **Außerhalb des Workspace** | Dateizugriffe des Agents über die Extension (ACP `fs/read_text_file`, `fs/write_text_file`) sind auf die geöffneten Workspace-Ordner beschränkt (alle Ordner eines Multi-Root-Workspace; ohne geöffneten Ordner das Agent-`cwd`). `..` und Symlinks werden vorher aufgelöst; Windows-Pfade werden ohne Groß-/Kleinschreibung verglichen. Jeder andere Pfad öffnet ein Modal „Grok wants to read / write to a file outside the workspace.“ mit dem aufgelösten Pfad: **Allow once** (diese Anfrage; erneutes Lesen derselben Datei in der nächsten Minute fragt nicht nochmal, Schreiben bleibt einmalig), **Allow for this session** (dieser Pfad, bis der Agent neu startet; eine Schreibfreigabe deckt auch Lesen ab) oder **Cancel** = ablehnen; der Agent erhält dann einen klaren Fehler, und im Output **Grok Build** steht eine Warnung. Lesen einer nicht existierenden Datei außerhalb des Workspace scheitert ohne Dialog mit „nicht gefunden“ (die CLI liest eine neue Datei vor dem Schreiben). Das gilt auch in vertrauenswürdigen Workspaces. Befehle, die die CLI selbst ausführt (Shell-Tools), sind nicht erfasst; dort greifen CLI-Permission-Prompt und Sandbox |
 
@@ -379,6 +401,8 @@ grok [Top-Level-Flags…] agent --no-leader -m <model> [Agent-Flags…] stdio
 | Banner „Invalid grokBuild.cliPath“ | **Open Setting** klicken, Pfad korrigieren oder leeren |
 | Chat-Tab lädt nach **Don't Trust** neu | Erwartet: VS Code startet den Extension Host neu, wenn ein lokaler Ordner von Trusted auf Restricted Mode wechselt. Grok ersetzt seinen Editor-Tab durch einen frischen (gleiche Sessions, Restricted-Mode-Banner). Erneutes Vertrauen braucht keinen Neustart. Bleibt ein veralteter Tab übrig, schließen oder **Developer: Reload Window** ausführen |
 | Keine Writes | Workspace **vertrauen** |
+| `AGENTS.md`, Projekt-Hooks oder Skills werden ignoriert | Grok vertraut dem Ordner nicht: **Trust folder** im Banner oder **Grok Build: Trust Folder for Grok CLI** (§4.11) |
+| Kein Effort-Chip | Das aktuelle Modell hat keinen Reasoning-Effort, oder die CLI hat ihren Modellkatalog noch nicht geschickt (kalter Start); er erscheint ohne neue Session (§4.8) |
 | Modellwechsel „hängt“ | „Switching model…“; 45 s Timeout; Output **Grok Build** prüfen |
 | Agent nennt falsches Modell | UI-Systemzeile / Chip ist maßgeblich |
 | `@` leer | Workspace braucht Dateien |

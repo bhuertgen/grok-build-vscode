@@ -377,7 +377,16 @@
             "plan"
           ],
           "default": "",
-          "description": "CLI --permission-mode (agent tool policy, passed as top-level flag before `agent`). Empty = CLI default. `plan`: from Grok CLI 1.0.65 the agent really starts in plan mode and new sessions show Plan in the UI (older CLIs start in the default mode). Separate from UI permission prompts below."
+          "description": "CLI --permission-mode (agent tool policy, passed as top-level flag before `agent`). Empty = CLI default. `plan`: from Grok CLI 1.0.65 the agent really starts in plan mode and new sessions show Plan in the UI (older CLIs start in the default mode). `auto`: Grok auto-allows routine tool calls and shows a permission card for the rest; since CLI 1.0.64 a shell command runs without a prompt only if every sub-command (each part of a `&&`, `;` or `|` chain) matches an allowlist rule, so chained commands prompt more often. Separate from UI permission prompts below.",
+          "enumDescriptions": [
+            "CLI default",
+            "Ask before edits and commands",
+            "Auto-accept file edits",
+            "Classifier auto-allows routine calls; since CLI 1.0.64 every sub-command of a shell chain must match the allowlist",
+            "Deny whatever would need a prompt",
+            "Approve everything (passed as --always-approve)",
+            "Plan only (real plan start from CLI 1.0.65)"
+          ]
         },
         "grokBuild.alwaysApprove": {
           "type": "boolean",
