@@ -70,6 +70,12 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "grokBuild.trustFolderForGrok",
+        "title": "Trust Folder for Grok CLI (load project hooks, rules, skills)",
+        "category": "Grok Build",
+        "icon": "$(shield)"
+      },
+      {
         "command": "grokBuild.openInEditor",
         "title": "Open in Editor (middle)",
         "category": "Grok Build",

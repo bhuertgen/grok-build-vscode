@@ -91,7 +91,7 @@ export class AcpClient extends EventEmitter {
   /**
    * @param options.model  Preferred model id → injected as `grok agent -m <id> stdio`
    */
-  async connect(options?: { model?: string }): Promise<InitializeResponse> {
+  async connect(options?: { model?: string; trustFolder?: boolean }): Promise<InitializeResponse> {
     if (this.isConnected) {
       return {
         protocolVersion: ACP_PROTOCOL_VERSION,
@@ -104,7 +104,7 @@ export class AcpClient extends EventEmitter {
 
     const cfg = getConfig();
     const model = (options?.model ?? cfg.defaultModel)?.trim() || undefined;
-    const args = buildAgentArgs(cfg.cliArgs, model);
+    const args = buildAgentArgs(cfg.cliArgs, model, options?.trustFolder === true);
     // Same resolution as CLI detection (#41): explicit path only, no fallback.
     const cliPath = resolveSpawnCliPath(cfg.cliPath, getCliStatus().detection);
     if (!isDefaultCliPath(cfg.cliPath)) {
@@ -409,8 +409,12 @@ export class AcpClient extends EventEmitter {
  * Important: always pass `--no-leader` unless the user opted into leader mode.
  * Shared leader processes ignore per-spawn `-m` and stay on the default model.
  */
-export function buildAgentArgs(cliArgs: string[], model?: string): string[] {
-  return buildAgentArgsFromConfig(getConfig(), cliArgs, model);
+export function buildAgentArgs(
+  cliArgs: string[],
+  model?: string,
+  trustFolder = false
+): string[] {
+  return buildAgentArgsFromConfig({ ...getConfig(), trustFolder }, cliArgs, model);
 }
 
 export type { SessionUpdate, StopReason, SessionModeState, SessionConfigOption };
