@@ -1,23 +1,23 @@
 # Changelog
 
-## Unreleased
+## 0.3.3 – 2026-10-22
 
 ### Added
-- Banner when Grok CLI ignores the project's hooks, rules (`AGENTS.md` …), skills or MCP servers because it does not trust the workspace folder. Over ACP Grok skips them silently. The banner lists what was found; **Trust folder** (only in a trusted VS Code workspace, with a confirmation) restarts the folder's agents with the top-level `--trust` flag, and Grok saves the grant in `~/.grok/trusted_folders.toml`. Open chats keep their conversation (project hooks and MCP apply right away, rules and skills in new chats); empty chats start fresh. **Dismiss** hides it per folder. New command **Grok Build: Trust Folder for Grok CLI** (#53).
+- Banner when Grok CLI ignores the project's hooks, rules (`AGENTS.md` …), skills or MCP servers because it does not trust the workspace folder. Over ACP Grok skips them silently. The banner lists what was found; **Trust folder** (only in a trusted VS Code workspace, with a confirmation) restarts the folder's agents with the top-level `--trust` flag, and Grok saves the grant in `~/.grok/trusted_folders.toml`. Open chats keep their conversation (project hooks and MCP apply right away, rules and skills in new chats); empty chats start fresh. **Dismiss** hides it per folder. New command **Grok Build: Trust Folder for Grok CLI** (#53, PR #59).
 
 ### Compatibility
-- Tested with Grok CLI **1.0.67 stable**. The recommended soft floor is raised from 1.0.62 to **1.0.67**, following the policy "soft floor = latest tested stable": 1.0.67 brings the real plan start (1.0.65), the stricter `auto` allowlist (1.0.64) and folder trust for project hooks. Older 1.0.x keep working with a dismissable warning banner; hard floor stays 1.0.0 (#54).
-- `--trust` and `--add-dir` are known top-level-only flags and are placed before `agent` (#53, #21).
+- Tested with Grok CLI **1.0.67 stable**. The recommended soft floor is raised from 1.0.62 to **1.0.67**, following the policy "soft floor = latest tested stable": 1.0.67 brings the real plan start (1.0.65), the stricter `auto` allowlist (1.0.64) and folder trust for project hooks. Older 1.0.x keep working with a dismissable warning banner; hard floor stays 1.0.0 (#54, PR #59).
+- `--trust` and `--add-dir` are known top-level-only flags and are placed before `agent` (#53, #21, PR #59).
 
 ### Fixed
-- The **Effort** chip now appears after a cold CLI start. `session/new` can return a fallback model list without reasoning efforts; the extension now handles Grok's `_x.ai/models/update` catalog and refreshes the Model and Effort options from it (a still-valid effort choice is kept) (#55).
-- After a model switch or another agent restart, the old process exiting ~2.5 s later (Grok runs its SessionEnd hooks first) no longer marks the new session as disconnected with "Agent process disconnected". A process exit after an intentional shutdown is now expected; shutdown closes stdin, sends SIGTERM and only sends SIGKILL after 10 s (#58).
-- Restored chats no longer pile up "Session resumed", "Local history loaded" and plan-mode hint lines on every reload; a chat keeps at most one of each after its last message, and existing stacks are cleaned up on the next restore (#52).
+- The **Effort** chip now appears after a cold CLI start. `session/new` can return a fallback model list without reasoning efforts; the extension now handles Grok's `_x.ai/models/update` catalog and refreshes the Model and Effort options from it (a still-valid effort choice is kept) (#55, PR #59).
+- After a model switch or another agent restart, the old process exiting ~2.5 s later (Grok runs its SessionEnd hooks first) no longer marks the new session as disconnected with "Agent process disconnected". A process exit after an intentional shutdown is now expected; shutdown closes stdin, sends SIGTERM and only sends SIGKILL after 10 s (#58, PR #59).
+- Restored chats no longer pile up "Session resumed", "Local history loaded" and plan-mode hint lines on every reload; a chat keeps at most one of each after its last message, and existing stacks are cleaned up on the next restore (#52, PR #59).
 
 ### Docs
-- `cliPermissionMode: auto`: since CLI 1.0.64 a shell command runs without a prompt only if every sub-command matches the allowlist (setting description + USER_GUIDE EN/DE) (#56).
-- Git worktrees: Grok 1.0.67 applies the main checkout's saved "always allow" answers in worktrees; opt out with `[features] worktree_inherits_main_approvals = false` (USER_GUIDE EN/DE, #15 context) (#57).
-- USER_GUIDE §4.11 (folder trust), §4.8 (Effort after models update), ARCHITECTURE and TEST_CONCEPT (T-F07, T-M08) updated in EN and DE.
+- `cliPermissionMode: auto`: since CLI 1.0.64 a shell command runs without a prompt only if every sub-command matches the allowlist (setting description + USER_GUIDE EN/DE) (#56, PR #59).
+- Git worktrees: Grok 1.0.67 applies the main checkout's saved "always allow" answers in worktrees; opt out with `[features] worktree_inherits_main_approvals = false` (USER_GUIDE EN/DE, #15 context) (#57, PR #59).
+- USER_GUIDE §4.11 (folder trust), §4.8 (Effort after models update), ARCHITECTURE and TEST_CONCEPT (T-F07, T-M08) updated in EN and DE (PR #59).
 
 ## 0.3.2 – 2026-10-21
 
