@@ -1,5 +1,8 @@
 # VS Code Client for Grok Build (Unofficial)
 
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/bhu.grok-build-vscode.svg?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=bhu.grok-build-vscode)
+[![Open VSX](https://img.shields.io/open-vsx/v/bhu/grok-build-vscode?label=Open%20VSX)](https://open-vsx.org/extension/bhu/grok-build-vscode)
+
 > **Deutsch:** [docs/de/README.md](docs/de/README.md) — full documentation in German (same content as English).
 
 **Hybrid architecture:** native Visual Studio Code UX on top of the official **xAI Grok Build CLI** via the [Agent Client Protocol](https://agentclientprotocol.com/) (`grok agent stdio`).
@@ -41,26 +44,22 @@
 
 Extension id: **`bhu.grok-build-vscode`**. Step-by-step guide (EN/DE): [docs/en/INSTALL_VSIX.md](docs/en/INSTALL_VSIX.md) · [docs/de/INSTALL_VSIX.md](docs/de/INSTALL_VSIX.md)
 
-### From the VS Code Marketplace (coming soon)
-
-> Not published yet. This section applies once the first store release is live.
+### VS Code: VS Code Marketplace (recommended)
 
 1. Open **Extensions** (`Ctrl+Shift+X`, Mac: `Cmd+Shift+X`).
-2. Search for **Grok Build** (or `bhu.grok-build-vscode`) and click **Install**.
+2. Search for **`bhu.grok-build-vscode`** and click **Install**.
 
-Or from a terminal: `code --install-extension bhu.grok-build-vscode`
+Or open the [Marketplace page](https://marketplace.visualstudio.com/items?itemName=bhu.grok-build-vscode), or run `code --install-extension bhu.grok-build-vscode`.
 
-### From Open VSX (coming soon)
+### Cursor, VSCodium, Windsurf, Gitpod: Open VSX
 
-> Not published yet. For VSCodium, Cursor, Windsurf, Gitpod and other editors that use [Open VSX](https://open-vsx.org/).
-
-Search for **Grok Build** in the editor's Extensions view, or open `https://open-vsx.org/extension/bhu/grok-build-vscode` once it is published.
+These editors install from [Open VSX](https://open-vsx.org/extension/bhu/grok-build-vscode): Extensions view → search **`bhu.grok-build-vscode`** → **Install** (e.g. `cursor --install-extension bhu.grok-build-vscode`, `codium --install-extension bhu.grok-build-vscode`).
 
 Store installs are updated by the editor automatically; the built-in GitHub release check is disabled for them.
 
 ### Manual VSIX install (alternative)
 
-Use this for pre-release builds, offline machines, or until the store listings are live.
+Use this for offline machines, a specific version, or editors without store access.
 
 1. [Releases](https://github.com/bhuertgen/grok-build-vscode/releases) → download **`grok-build-vscode-….vsix`** (not "Source code").
 2. Press **`Ctrl+Shift+P`** (Mac: **`Cmd+Shift+P`**) → run **Extensions: Install from VSIX…** (German UI: **Erweiterungen: Von VSIX installieren…**) → pick the file → **Reload** if asked.
@@ -200,7 +199,7 @@ Details: [docs/en/USER_GUIDE.md §8.1](docs/en/USER_GUIDE.md#81-privacy--data-co
 
 - MCP: CLI loads its own user/global MCP config; extension passes an empty MCP list into `session/new` by default.  
 - Sub-agents: monitored via tool timeline / status strip (no per-subagent editor tabs).  
-- Install path: **VSIX / GitHub Releases** today; VS Code Marketplace and Open VSX listings are coming soon.  
+- Install path: VS Code Marketplace and Open VSX; manual VSIX from GitHub Releases as an alternative.  
 - Session resume needs CLI `session/resume` (or load); otherwise local history + new agent process.  
 
 ## License

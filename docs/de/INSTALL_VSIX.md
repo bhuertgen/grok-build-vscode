@@ -1,18 +1,16 @@
-# Installation aus VSIX — ausführliche Anleitung
+# Installation — ausführliche Anleitung (Marketplace, Open VSX, VSIX)
 
 **Sprache:** Deutsch · English: [../en/INSTALL_VSIX.md](../en/INSTALL_VSIX.md)
 
 > **Inoffizielle Community-Extension.** Nicht mit xAI verbunden, nicht von xAI gesponsert oder unterstützt. Grok ist eine Marke von xAI; der Name beschreibt nur die Kompatibilität mit dem offiziellen Grok Build CLI.  
 > Extension-ID: `bhu.grok-build-vscode` (Publisher `bhu`). Agent-Logik, Safety und Tools liegen im **offiziellen** Grok Build CLI; diese Extension ist nur der VS-Code-ACP-Client.
 
-## Installation aus einem Store (demnächst)
+## Installation aus einem Store (empfohlen)
 
-Die Extension ist im VS Code Marketplace und auf Open VSX **noch nicht veröffentlicht**. Sobald sie verfügbar ist:
+- **VS Code → VS Code Marketplace:** Erweiterungen (`Strg+Umschalt+X`, Mac: `Cmd+Shift+X`) → **`bhu.grok-build-vscode`** suchen → **Installieren**. Seite: https://marketplace.visualstudio.com/items?itemName=bhu.grok-build-vscode · Terminal: `code --install-extension bhu.grok-build-vscode`.
+- **Cursor, VSCodium, Windsurf, Gitpod → Open VSX:** Erweiterungsansicht → **`bhu.grok-build-vscode`** suchen → **Installieren**. Seite: https://open-vsx.org/extension/bhu/grok-build-vscode · Terminal z. B. `cursor --install-extension bhu.grok-build-vscode` oder `codium --install-extension bhu.grok-build-vscode`.
 
-- **VS Code Marketplace:** Erweiterungen (`Strg+Umschalt+X`) → **Grok Build** (oder `bhu.grok-build-vscode`) suchen → **Installieren**; Terminal: `code --install-extension bhu.grok-build-vscode`.
-- **Open VSX** (VSCodium, Cursor, Windsurf, Gitpod, …): in der Erweiterungsansicht **Grok Build** suchen oder https://open-vsx.org/extension/bhu/grok-build-vscode öffnen.
-
-Store-Installationen aktualisieren sich automatisch und führen keine GitHub-Release-Prüfung aus. Bis dahin, oder für Vorabversionen und Rechner ohne Internet, nutze die **manuelle VSIX-Installation** unten.
+Store-Installationen aktualisieren sich automatisch und führen keine GitHub-Release-Prüfung aus. Für Rechner ohne Internet, eine bestimmte Version oder Editoren ohne Store-Zugang nutze die **manuelle VSIX-Installation** unten.
 
 > **Upgrade von einer früheren VSIX (Publisher `bhuertgen`, ≤ 0.3.3)?** Der Publisher ist jetzt `bhu`, daher behandelt VS Code den neuen Build als andere Extension. Deinstalliere zuerst den alten Eintrag **Grok Build for VS Code**.
 

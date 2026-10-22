@@ -22,7 +22,7 @@ docs/
 
 | Topic | English | German |
 |-------|---------|--------|
-| **Install (stores coming soon, VSIX step-by-step)** | [en/INSTALL_VSIX.md](./en/INSTALL_VSIX.md) | [de/INSTALL_VSIX.md](./de/INSTALL_VSIX.md) |
+| **Install (Marketplace / Open VSX, VSIX step-by-step)** | [en/INSTALL_VSIX.md](./en/INSTALL_VSIX.md) | [de/INSTALL_VSIX.md](./de/INSTALL_VSIX.md) |
 | User guide (all settings, shortcuts) | [en/USER_GUIDE.md](./en/USER_GUIDE.md) | [de/USER_GUIDE.md](./de/USER_GUIDE.md) |
 | Architecture | [en/ARCHITECTURE.md](./en/ARCHITECTURE.md) | [de/ARCHITECTURE.md](./de/ARCHITECTURE.md) |
 | Multi-agent | [en/MULTI_AGENT.md](./en/MULTI_AGENT.md) | [de/MULTI_AGENT.md](./de/MULTI_AGENT.md) |

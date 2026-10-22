@@ -1,18 +1,16 @@
-# Install from VSIX — detailed guide
+# Install — detailed guide (Marketplace, Open VSX, VSIX)
 
 **Language:** English · Deutsch: [../de/INSTALL_VSIX.md](../de/INSTALL_VSIX.md)
 
 > **Unofficial community extension.** Not affiliated with, sponsored by, or endorsed by xAI. Grok is a trademark of xAI; the name is used only to describe compatibility with the official Grok Build CLI.  
 > Extension id: `bhu.grok-build-vscode` (publisher `bhu`). Agent logic, safety, and tools stay in the **official** Grok Build CLI; this extension is only the VS Code ACP client.
 
-## Store install (coming soon)
+## Store install (recommended)
 
-The extension is **not published yet** on the VS Code Marketplace or Open VSX. Once it is:
+- **VS Code → VS Code Marketplace:** Extensions view (`Ctrl+Shift+X`, Mac: `Cmd+Shift+X`) → search **`bhu.grok-build-vscode`** → **Install**. Page: https://marketplace.visualstudio.com/items?itemName=bhu.grok-build-vscode · terminal: `code --install-extension bhu.grok-build-vscode`.
+- **Cursor, VSCodium, Windsurf, Gitpod → Open VSX:** Extensions view → search **`bhu.grok-build-vscode`** → **Install**. Page: https://open-vsx.org/extension/bhu/grok-build-vscode · terminal e.g. `cursor --install-extension bhu.grok-build-vscode` or `codium --install-extension bhu.grok-build-vscode`.
 
-- **VS Code Marketplace:** Extensions view (`Ctrl+Shift+X`) → search **Grok Build** (or `bhu.grok-build-vscode`) → **Install**; terminal: `code --install-extension bhu.grok-build-vscode`.
-- **Open VSX** (VSCodium, Cursor, Windsurf, Gitpod, …): search **Grok Build** in the Extensions view, or open https://open-vsx.org/extension/bhu/grok-build-vscode.
-
-Store installs update automatically and do not run the GitHub release check. Until then, or for pre-release builds and offline machines, use the **manual VSIX install** below.
+Store installs update automatically and do not run the GitHub release check. For offline machines, a specific version, or editors without store access, use the **manual VSIX install** below.
 
 > **Upgrading from an earlier VSIX (publisher `bhuertgen`, ≤ 0.3.3)?** The publisher changed to `bhu`, so VS Code treats the new build as a different extension. Uninstall the old **Grok Build for VS Code** entry first.
 
