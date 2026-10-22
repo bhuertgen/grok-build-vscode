@@ -2,7 +2,7 @@
   "name": "grok-build-vscode",
   "displayName": "VS Code Client for Grok Build (Unofficial)",
   "description": "Unofficial community extension, not affiliated with or endorsed by xAI. Native VS Code chat UI for the official Grok Build CLI (ACP over `grok agent stdio`): multi-session, plan/execute, diffs, context.",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "publisher": "bhu",
   "license": "MIT",
   "engines": {

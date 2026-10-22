@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 – 2026-10-22
 
-Store preparation for the VS Code Marketplace and Open VSX (not published yet) (#60).
+Store preparation for the VS Code Marketplace and Open VSX (#60, PR #61).
 
 ### Changed
 - New name: **VS Code Client for Grok Build (Unofficial)**, marked as preview. The publisher is now `bhu`, so the extension id becomes **`bhu.grok-build-vscode`** (was `bhuertgen.grok-build-vscode`). VS Code treats this as a new extension: uninstall the old VSIX (≤ 0.3.3) to avoid two copies; settings (`grokBuild.*`) carry over, local chat history does not.
