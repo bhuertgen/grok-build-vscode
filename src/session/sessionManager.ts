@@ -81,6 +81,7 @@ import {
   upsertEffortCurrent,
 } from '../util/configOptionsUi';
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
+import { pushNotice } from '../util/restoreNotices';
 import { clearStaleStartErrors } from '../util/cliRecovery';
 
 /**
@@ -2344,7 +2345,8 @@ export class SessionManager extends EventEmitter {
   }
 
   private pushSystem(state: SessionState, content: string): void {
-    state.messages.push({
+    // Restore notices replace trailing copies of the same kind (#52).
+    pushNotice(state.messages, {
       id: newMsgId('sys'),
       role: 'system',
       content,
