@@ -227,7 +227,7 @@ Die Extension steuert das **Grok Build CLI**. Ohne CLI erscheint z. B. „CLI 
 grok --version
 ```
 
-Empfohlen ist **1.0.67 oder neuer** (getestet mit **1.0.67 stable**); ältere 1.0.x-Versionen laufen mit Warnbanner.
+Empfohlen ist **1.0.70 oder neuer** (getestet mit **1.0.70 stable**); ältere 1.0.x-Versionen laufen mit Warnbanner.
 
 Fehlt die CLI: Befehl **Grok Build: Setup CLI…** in VS Code oder die offizielle CLI-Doku: https://x.ai/cli
 

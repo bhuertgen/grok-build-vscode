@@ -60,7 +60,7 @@ src/
     onboard.ts                 # Erststart-Wizard, Installationshilfe
     cliStatus.ts               # gemeinsamer CLI-Status (Statusbar + Webview)
     cliRefresh.ts              # Neuerkennung bei Änderung von grokBuild.cliPath
-    compat.ts / semver.ts      # Versionsgrenzen (soft 1.0.67, hard 1.0.0), Banner
+    compat.ts / semver.ts      # Versionsgrenzen (soft 1.0.70, hard 1.0.0), Banner
     updateCheck.ts             # grok update --check --json
     grokTrust.ts               # Banner für Grok-Ordnervertrauen + Ablauf "Trust folder" (vscode-Anbindung)
   session/
@@ -108,7 +108,7 @@ Endnutzer-Dokumentation: [USER_GUIDE.md](./USER_GUIDE.md).
 
 1. Beim Aktivieren → `ensureCliReady()` (erkennt `grok --version`).
 2. Fehlt sie → Modal: Installationsanleitung, Befehl kopieren, Pfad setzen, erneut versuchen, überspringen.
-3. Versionsprüfung gegen die Grenzen: empfohlen **1.0.67** (getestet mit **1.0.67 stable**), ältere 1.0.x → Warnbanner.
+3. Versionsprüfung gegen die Grenzen: empfohlen **1.0.70** (getestet mit **1.0.70 stable**), ältere 1.0.x → Warnbanner.
 4. Eine Änderung von `grokBuild.cliPath` startet die Erkennung neu (debounced): Header-Version, Kompatibilitätsbanner und Update-Check folgen der neuen Binary ohne Fenster-Reload.
 5. Commands: **Check Grok CLI Status**, **Setup CLI…**, **Update Grok CLI**
 6. Fehler beim Session-Start zeigen klare Hybrid-Modus-Meldungen (nicht „AI failed“).

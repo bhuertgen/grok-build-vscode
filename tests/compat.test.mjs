@@ -47,29 +47,29 @@ describe('assessCliCompat', () => {
     assert.match(a.message, /too old/i);
   });
 
-  it('1.0.67+ is ok (tested stable)', () => {
-    for (const v of ['grok 1.0.67 (2fe064390d07) [stable]', '1.0.68', '1.1.0']) {
+  it('1.0.70+ is ok (tested stable)', () => {
+    for (const v of ['grok 1.0.70 [stable]', '1.0.71', '1.1.0']) {
       const a = assessCliCompat({ detected: true, rawVersion: v });
       assert.equal(a.level, 'ok', v);
       assert.equal(a.usable, true);
       assert.equal(shouldShowCompatBanner(a.level), false);
-      assert.match(a.message, /≥ 1\.0\.67/);
+      assert.match(a.message, /≥ 1\.0\.70/);
     }
   });
 
-  it('soft floor follows the latest tested stable: 1.0.67', () => {
-    assert.equal(CLI_SOFT_MIN, '1.0.67');
-    assert.equal(CLI_TESTED_WITH, '1.0.67');
+  it('soft floor follows the latest tested stable: 1.0.70', () => {
+    assert.equal(CLI_SOFT_MIN, '1.0.70');
+    assert.equal(CLI_TESTED_WITH, '1.0.70');
     assert.equal(CLI_HARD_MIN, '1.0.0');
   });
 
-  it('1.0.0..1.0.66 is usable with soft warning recommending 1.0.67', () => {
-    for (const v of ['1.0.0', '1.0.52', '1.0.62', 'grok 1.0.66 (858cb4f88f75) [alpha]', '1.0.66-alpha.1']) {
+  it('1.0.0..1.0.69 is usable with soft warning recommending 1.0.70', () => {
+    for (const v of ['1.0.0', '1.0.52', '1.0.62', '1.0.67', 'grok 1.0.69 [alpha]', '1.0.69']) {
       const a = assessCliCompat({ detected: true, rawVersion: v });
       assert.equal(a.level, 'soft_warn', v);
       assert.equal(a.usable, true, v);
       assert.equal(shouldShowCompatBanner(a.level), true, v);
-      assert.match(a.message, /≥ 1\.0\.67 is recommended/, v);
+      assert.match(a.message, /≥ 1\.0\.70 is recommended/, v);
     }
   });
 
@@ -85,7 +85,7 @@ describe('assessCliCompat', () => {
 
   it('floors target CLI 1.0.x era', () => {
     assert.equal(CLI_HARD_MIN, '1.0.0');
-    assert.equal(CLI_SOFT_MIN, '1.0.67');
+    assert.equal(CLI_SOFT_MIN, '1.0.70');
   });
 
   it('soft_warn when below soft but above hard', () => {

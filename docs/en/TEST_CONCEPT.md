@@ -49,7 +49,7 @@ A single agent can take all three roles in sequence.
 | P03 | Missing CLI → banner + setup |
 | P04 | Activation / openChat / openInEditor / sidebar |
 | P05 | Changing `grokBuild.cliPath` re-detects the CLI without a window reload |
-| P06 | CLI compatibility banner (recommended ≥ 1.0.67, tested with 1.0.67 stable) |
+| P06 | CLI compatibility banner (recommended ≥ 1.0.70, tested with 1.0.70 stable) |
 
 ### 2.2 Session & history
 
@@ -178,8 +178,8 @@ Format per case:
 
 #### T-P06 — Compatibility banner  
 - **Dim:** U  
-- **Steps:** run with CLI 1.0.67 stable; optionally with an older 1.0.x (e.g. 1.0.62)  
-- **Pass:** no banner for ≥ 1.0.67; older 1.0.x shows a warning banner but works  
+- **Steps:** run with CLI 1.0.70 stable; optionally with an older 1.0.x (e.g. 1.0.67)  
+- **Pass:** no banner for ≥ 1.0.70; older 1.0.x shows a warning banner but works  
 
 ---
 

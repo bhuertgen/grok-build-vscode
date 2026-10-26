@@ -12,21 +12,24 @@ export const CLI_HARD_MIN = '1.0.0';
  * Below this (but ≥ hard) → soft warning banner; extension still usable.
  * Raised independently when a newer 1.x patch becomes the recommended baseline.
  * Policy: the soft floor is the latest tested stable.
- * 1.0.67 (tested stable, 2026-10-22: unit + smoke + ACP probe green):
- * `--permission-mode plan` really starts in plan mode (1.0.65), stricter
- * per-subcommand allowlist for `--permission-mode auto` (1.0.64), folder
- * trust for project hooks/rules/skills/MCP with the top-level `--trust`
- * flag, `_x.ai/models/update` with per-model reasoning efforts.
+ * 1.0.70 (tested stable, 2026-10-23: first stable after 1.0.67; unit +
+ * smoke + ACP probe green, no ACP breakage — agent flags and
+ * initialize/session/new warm responses identical):
+ * Earlier floor 1.0.67 (2026-10-22): `--permission-mode plan` really starts
+ * in plan mode (1.0.65), stricter per-subcommand allowlist for
+ * `--permission-mode auto` (1.0.64), folder trust for project
+ * hooks/rules/skills/MCP with the top-level `--trust` flag,
+ * `_x.ai/models/update` with per-model reasoning efforts.
  * Earlier floor 1.0.62: write approvals mark binary/unreadable files as
  * "unreadable" (1.0.54), hooks returning `continue:false` end the turn with
  * `cancellationCategory: "HookStopped"` (1.0.60).
  * Earlier floor 1.0.52: GROK_MEMORY env (old --no-memory flag rejected),
  * multi-select elicitation (1.0.51), `cancelled` tool status (1.0.50).
  */
-export const CLI_SOFT_MIN = '1.0.67';
+export const CLI_SOFT_MIN = '1.0.70';
 
 /** Newest CLI this release was tested with (shown in docs, not enforced). */
-export const CLI_TESTED_WITH = '1.0.67';
+export const CLI_TESTED_WITH = '1.0.70';
 
 export type CliCompatLevel =
   | 'ok'

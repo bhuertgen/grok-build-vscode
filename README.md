@@ -37,7 +37,7 @@
 
 1. **VS Code** 1.90+ (or compatible)  
 2. **Grok Build CLI** installed and authenticated — [x.ai/cli](https://x.ai/cli)  
-   - `grok --version` — **1.0.67 or newer recommended** (tested with **1.0.67 stable**; older 1.0.x works with a warning banner)  
+   - `grok --version` — **1.0.70 or newer recommended** (tested with **1.0.70 stable**; older 1.0.x works with a warning banner)  
 3. **Node.js** 18+ only if you build from source  
 
 ## Install
@@ -194,6 +194,10 @@ Details: [docs/en/USER_GUIDE.md §8.1](docs/en/USER_GUIDE.md#81-privacy--data-co
 - Optional `grokBuild.githubToken` is local-only for private release checks.  
 - Chat history lives in VS Code `globalState` on the user machine.  
 - Prefer a **trusted** workspace for writes and tools.
+
+## Troubleshooting
+
+- **CLI experiments:** `GROK_DISABLE_EXPERIMENTS` (or `[experiments] enabled = false` in `~/.grok/config.toml`) disables all `[[experiments]]`. The extension does not set this; `grok agent stdio` inherits the variable. More: [USER_GUIDE §9](docs/en/USER_GUIDE.md#9-troubleshooting) · [DE](docs/de/USER_GUIDE.md#9-fehlerbehebung).
 
 ## Known limitations
 
