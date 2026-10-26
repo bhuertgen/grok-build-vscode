@@ -139,11 +139,11 @@ describe('CliStatus snapshot with invalid cliPath', () => {
   it('fixing the path clears the error state without reload', () => {
     const s = new CliStatus();
     s.setDetection({ ok: false, cliPath: '/nope/grok', invalidPath: true, error: 'x' });
-    s.setDetection({ ok: true, cliPath: 'grok', configuredPath: 'grok', version: 'grok 1.0.67 (2fe064390d07) [stable]' });
+    s.setDetection({ ok: true, cliPath: 'grok', configuredPath: 'grok', version: 'grok 1.0.70 [stable]' });
     const snap = s.snapshot;
     assert.equal(snap.ready, true);
     assert.equal(snap.invalidCliPath, false);
     assert.equal(snap.showCompatBanner, false);
-    assert.match(snap.version, /1\.0\.67/);
+    assert.match(snap.version, /1\.0\.70/);
   });
 });

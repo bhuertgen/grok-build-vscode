@@ -18,7 +18,7 @@ Architektur: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-Agent: [MULTI_AGENT.m
 1. **VS Code** ≥ 1.90 (oder kompatibel, z. B. Cursor)  
 2. **Grok Build CLI** installiert und eingeloggt  
    - Docs: https://x.ai/cli  
-   - Prüfen: `grok --version` — **1.0.67 oder neuer empfohlen** (getestet mit **1.0.67 stable**); ältere 1.0.x laufen mit Warnbanner  
+   - Prüfen: `grok --version` — **1.0.70 oder neuer empfohlen** (getestet mit **1.0.70 stable**); ältere 1.0.x laufen mit Warnbanner  
 3. Optional zum Entwickeln: **Node.js** ≥ 18  
 
 ### Extension installieren
@@ -424,6 +424,7 @@ English: [../en/USER_GUIDE.md §8.1](../en/USER_GUIDE.md#81-privacy--data-collec
 | `@` leer | Workspace braucht Dateien |
 | Scroll-Ruckeln | Aktueller Build; [SCROLL_TEST_PROMPT.md](./SCROLL_TEST_PROMPT.md) |
 | Kein Extension-Update-Banner | Es braucht ein neueres GitHub-Release als die installierte Version; private Repos brauchen GitHub-Anmeldung; Store-Installationen und `checkExtensionUpdates: false` zeigen ihn nie |
+| CLI-Experiments ändern das Agent-Verhalten | `GROK_DISABLE_EXPERIMENTS` (oder `[experiments] enabled = false` in `~/.grok/config.toml`) schaltet alle `[[experiments]]` ab. Die Extension setzt das nicht; `grok agent stdio` erbt die Variable |
 
 ---
 
