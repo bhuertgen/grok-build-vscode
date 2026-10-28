@@ -1,49 +1,51 @@
 #!/usr/bin/env python3
-"""Regenerate media/icon.png (128x128, packaged) and assets/icon-256.png (repo only) from assets/icon-source.jpg.
+"""Regenerate raster icons from media/logo.svg.
 
-The source is a JPG of a violet rounded square on a white background. We crop to
-the square's bounding box and apply an anti-aliased rounded-corner alpha mask so
-everything outside the square is transparent.
+media/logo.svg is the source of truth: a violet rounded square, a white ">_"
+prompt, and a custom stylized G set in from the top-right corner. Running
+this script rewrites:
 
-Usage: python3 scripts/build-icon.py   (requires Pillow + numpy)
+- media/icon.png          128x128 RGBA (packaged store icon)
+- assets/icon-256.png     256x256 RGBA (repo only)
+- assets/icon-source.jpg  1024x1024 RGB on white (derived preview, not an input)
+
+media/activitybar.svg is the monochrome activity-bar mark. It uses the same G
+paths with currentColor and is maintained by hand.
+
+Requires: Pillow and CairoSVG (libcairo).
+Usage: python3 scripts/build-icon.py
 """
+import io
 from pathlib import Path
 
-import numpy as np
-from PIL import Image, ImageDraw
+import cairosvg
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "assets" / "icon-source.jpg"
-# Corner radius as a fraction of the square's side (measured from the source: ~190px / 930px).
-RADIUS_FRAC = 0.204
-# Pull the mask in slightly so no white JPG fringe survives at the edge.
-INSET_FRAC = 0.004
-SS = 4  # supersampling factor for the mask
+SVG = ROOT / "media" / "logo.svg"
+SOURCE_SIZE = 1024
+
+
+def render(size: int) -> Image.Image:
+    png = cairosvg.svg2png(url=str(SVG), output_width=size, output_height=size)
+    return Image.open(io.BytesIO(png)).convert("RGBA")
 
 
 def main() -> None:
-    img = Image.open(SRC).convert("RGB")
-    a = np.asarray(img).astype(int)
-    non_white = a.min(axis=2) < 200
-    ys, xs = np.where(non_white)
-    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
-    side = max(x1 - x0, y1 - y0) + 1
-    sq = img.crop((x0, y0, x0 + side, y0 + side))
+    for size, dest in (
+        (128, ROOT / "media" / "icon.png"),
+        (256, ROOT / "assets" / "icon-256.png"),
+    ):
+        image = render(size)
+        image.save(dest, optimize=True)
+        print("wrote", dest, image.size, image.mode)
 
-    for size, dest in ((128, ROOT / "media" / "icon.png"), (256, ROOT / "assets" / "icon-256.png")):
-        big = size * SS
-        mask = Image.new("L", (big, big), 0)
-        inset = INSET_FRAC * big
-        ImageDraw.Draw(mask).rounded_rectangle(
-            (inset, inset, big - 1 - inset, big - 1 - inset),
-            radius=RADIUS_FRAC * big,
-            fill=255,
-        )
-        mask = mask.resize((size, size), Image.LANCZOS)
-        out = sq.resize((size, size), Image.LANCZOS).convert("RGBA")
-        out.putalpha(mask)
-        out.save(dest, optimize=True)
-        print("wrote", dest, out.size)
+    master = render(SOURCE_SIZE)
+    flat = Image.new("RGB", master.size, (255, 255, 255))
+    flat.paste(master, mask=master.getchannel("A"))
+    dest = ROOT / "assets" / "icon-source.jpg"
+    flat.save(dest, quality=95, subsampling=0, optimize=True)
+    print("wrote", dest, flat.size, flat.mode)
 
 
 if __name__ == "__main__":
