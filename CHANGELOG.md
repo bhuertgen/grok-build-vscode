@@ -1,13 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 – 2026-10-28
+
+Store republish so the VS Code Marketplace and Open VSX listings pick up the live install text, plus a G-mark icon (#66). No behavior change in the agent client.
+
+### Changed
+- Icon: the four-point sparkle (it read as a Gemini-style mark) is replaced by a custom stylized **G** (not the official xAI / Grok logo). The violet rounded square and the white `>_` prompt stay. The G sits in from the top-right corner so a circular crop still contains it. Store icon, activity bar (monochrome `currentColor`), editor tab, and chat header all use it.
+- Version **0.4.1**. The packaged README is the live install text already on main: Marketplace and Open VSX are the primary paths, with manual VSIX as the alternative. The 0.4.0 store packages were built before that docs fix, so their listings still showed the old "coming soon" / "Not published yet" copy.
 
 ### Compatibility
 - Tested with Grok CLI **1.0.70 stable** (2026-10-23, first stable after 1.0.67). The recommended soft floor is raised from 1.0.67 to **1.0.70**, following the policy "soft floor = latest tested stable". Live ACP checks show no breakage (agent flags identical; `initialize` / `session/new` warm responses identical: models grok-4.7 / 4.7-build-fast / 4.6 / 4.5, reasoning efforts xhigh/high/medium/low, modes null). Older 1.0.x keep working with a dismissable warning banner; hard floor stays 1.0.0.
 
 ### Docs
 - Troubleshooting: `GROK_DISABLE_EXPERIMENTS` (or `[experiments] enabled = false` in `~/.grok/config.toml`) disables all `[[experiments]]`. The extension does not set it; `grok agent stdio` inherits the variable (README, USER_GUIDE EN/DE §9).
-- The extension is live on the VS Code Marketplace and Open VSX: README, INSTALL_VSIX and USER_GUIDE (EN/DE) make the store install the primary path (VS Code → Marketplace, Cursor / VSCodium / Windsurf → Open VSX, search `bhu.grok-build-vscode`), keep the manual VSIX install as an alternative, and drop the "coming soon" markers; README gets Marketplace (vsmarketplacebadges.dev; the shields.io Marketplace badge is retired) and Open VSX (shields.io) version badges (#60).
+- The extension is live on the VS Code Marketplace and Open VSX: README, INSTALL_VSIX and USER_GUIDE (EN/DE) make the store install the primary path (VS Code → Marketplace, Cursor / VSCodium / Windsurf → Open VSX, search `bhu.grok-build-vscode`), keep the manual VSIX install as an alternative, and drop the pre-launch store markers; README gets Marketplace (vsmarketplacebadges.dev; the shields.io Marketplace badge is retired) and Open VSX (shields.io) version badges (#60, #66).
 
 ## 0.4.0 – 2026-10-22
 
