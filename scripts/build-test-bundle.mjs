@@ -11,6 +11,9 @@ fs.mkdirSync(outDir, { recursive: true });
 await esbuild.build({
   entryPoints: {
     chatFormat: 'src/util/chatFormat.ts',
+    messageLinks: 'src/util/messageLinks.ts',
+    assistantPath: 'src/util/assistantPath.ts',
+    forgeRemote: 'src/util/forgeRemote.ts',
     cwd: 'src/util/cwd.ts',
     agentArgs: 'src/util/agentArgs.ts',
     modelCatalog: 'src/util/modelCatalog.ts',

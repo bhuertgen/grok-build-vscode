@@ -80,6 +80,7 @@ Ein einzelner Agent kann alle drei Rollen nacheinander übernehmen.
 | U09 | Keine doppelte User-Nachricht (kein Echo) |
 | U10 | Durch Hook beendeter Turn zeigt eine Info-Zeile („Turn stopped by hook“) |
 | U11 | Tastenkürzel (`Ctrl+Shift+G`-Akkorde, `Alt+K`, `Escape`) |
+| U12 | Dateipfade und `#123` in Groks Antworten sind klickbar |
 
 ### 2.4 Kontext (`@`, `+`, Commands)
 
@@ -205,6 +206,12 @@ Format je Fall:
 - **Vorbedingung:** ein CLI-Hook, der `continue: false` liefert (CLI ≥ 1.0.60)  
 - **Schritte:** Prompt senden, der den Hook auslöst  
 - **Pass:** kursive Info-Zeile „ℹ️ Turn durch Hook beendet (`<hook>`): <Grund>“ bei deutscher VS-Code-Sprache (sonst „Turn stopped by hook“); **nicht** `(cancelled)` und nicht stumm  
+
+#### T-U12 — Klickbare Pfade und `#123`
+- **Dim:** U
+- **Vorbedingung:** eine Datei in der Sandbox (`echo hi > src/hello.ts` — vorher `src/` anlegen) und ein GitHub-`origin`-Remote, wenn der PR-Link geprüft werden soll
+- **Schritte:** Grok bitten, `src/hello.ts:1` und `#1` in der Antwort zu nennen (oder ein wiederhergestelltes Transkript, das beides enthält). Den Pfad anklicken. `#1` anklicken, wenn ein Remote gesetzt ist.
+- **Pass:** der Editor öffnet `src/hello.ts` in Zeile 1. `#1` öffnet die Issue-/PR-Seite der Forge. Ein nacktes `README.md`, eine Version `1.0.72` und ein Markdown-`https`-Link werden keine Datei-Links; der https-Link öffnet weiter im Browser. Ohne Git-Remote bleibt `#1` normaler Text. Ein fehlender Pfad zeigt **File not found**.
 
 #### T-U11 — Tastenkürzel  
 - **Dim:** U  

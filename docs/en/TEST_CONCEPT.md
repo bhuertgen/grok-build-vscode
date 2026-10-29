@@ -80,6 +80,7 @@ A single agent can take all three roles in sequence.
 | U09 | No duplicated user message (no echo) |
 | U10 | Hook-stopped turn shows an info line ("Turn stopped by hook") |
 | U11 | Keyboard shortcuts (`Ctrl+Shift+G` chords, `Alt+K`, `Escape`) |
+| U12 | File paths and `#123` in Grok's answers are clickable |
 
 ### 2.4 Context (`@`, `+`, commands)
 
@@ -205,6 +206,12 @@ Format per case:
 - **Precondition:** a CLI hook that returns `continue: false` (CLI ≥ 1.0.60)  
 - **Steps:** send a prompt that triggers the hook  
 - **Pass:** italic info line "ℹ️ Turn stopped by hook (`<hook>`): <reason>" (German VS Code locale: "Turn durch Hook beendet"); **not** `(cancelled)` and not silence  
+
+#### T-U12 — Clickable paths and `#123`
+- **Dim:** U
+- **Precondition:** a file in the sandbox (`echo hi > src/hello.ts` — create `src/` first) and a GitHub `origin` remote if you want the PR link
+- **Steps:** ask Grok to mention `src/hello.ts:1` and `#1` in the answer (or paste a restored transcript that contains them). Click the path. Click `#1` when a remote is set.
+- **Pass:** the editor opens `src/hello.ts` on line 1. `#1` opens the forge issue/PR page. A bare `README.md`, a version `1.0.72`, and a markdown `https` link are not turned into file links; the https link still opens in the browser. With no git remote, `#1` stays plain text. A missing path shows **File not found**.
 
 #### T-U11 — Keyboard shortcuts  
 - **Dim:** U  

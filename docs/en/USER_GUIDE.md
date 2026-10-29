@@ -246,6 +246,16 @@ When the workspace folder has such files and Grok does not trust it, the chat sh
 
 Only trust folders whose hooks and MCP servers you have reviewed: hooks run shell commands.
 
+## 4.12 Clickable paths and pull requests
+
+In **Grok's answers** (your own messages stay plain text):
+
+- A path that looks like a file is a link: `src/cli/compat.ts`, `./README.md`, `../docs/en/USER_GUIDE.md`, `src/cli/compat.ts:42`, `src/cli/compat.ts:42:7`. Click it to open the file. With a line (and optional column) the editor selects that position; lines and columns start at 1. `path:10-20` selects that line range.
+- The file has to exist. A relative path is resolved against the open workspace folders (first match). An absolute path, including one outside the workspace, opens when that file exists. Otherwise the editor shows **File not found**.
+- These stay plain text: a bare name (`README.md`), a package version (`1.0.72`, `lodash@4.17.21`), a URL, and a markdown `[label](https://…)` link. Those https links still open in the browser.
+- `#123` opens that issue or pull request when the workspace has a git remote (GitHub, GitLab, Bitbucket, or a similar forge; read once from `origin`, otherwise the first remote). With no remote, `#123` stays plain text. GitHub-style remotes use `/issues/123` (GitHub sends pull requests there). GitLab remotes use `/-/issues/123`.
+- Subagent and task ids are not links.
+
 ## 5. Commands (Command Palette: “Grok Build”)
 
 | Command | Purpose |

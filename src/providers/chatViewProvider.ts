@@ -1,11 +1,14 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as vscode from 'vscode';
 import { getGrokTrustMonitor } from '../cli/grokTrust';
 import type { SessionManager, SessionState } from '../session/sessionManager';
 import type { EditController } from '../edits/editController';
 import { ContextPicker } from '../context/contextPicker';
 import { getLogger } from '../util/logger';
-import { getConfig } from '../util/config';
+import { getConfig, getWorkspaceCwd } from '../util/config';
+import { resolveAssistantFile } from '../util/assistantPath';
+import { loadForgeIssueTemplate } from '../util/forgeRemote';
 import { permissionModeLabel } from '../session/sessionManager';
 import {
   getTrustBannerMessage,
@@ -33,6 +36,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly log = getLogger();
   private readonly picker = new ContextPicker();
   private redirectingToEditor = false;
+  /** `https://host/owner/repo/issues/{n}` when the workspace git remote parses. */
+  private forgeIssueTemplate: string | null = null;
+  private forgeCwd: string | null = null;
+  private forgeLoad: Promise<void> | null = null;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -185,6 +192,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     if (!this.view) {
       return;
     }
+    this.refreshForgeTemplate();
     const sessions = this.sessions.listSessions().map((s) => this.serialize(s));
     const active = this.sessions.getActive();
     const pendingEdits = this.edits.listPending(active?.localId);
@@ -219,7 +227,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       grokTrust: getGrokTrustMonitor()?.bannerState() ?? null,
       /** Project-scoped chat history (Claude Code–style resume list) */
       history: this.sessions.listHistoryForWorkspace(40),
+      /** `#123` in assistant text → this URL with `{n}` replaced. Null = no remote. */
+      forgeIssueTemplate: this.forgeIssueTemplate,
     });
+  }
+
+  /** Read `origin` (or the first remote) once per workspace cwd. */
+  private refreshForgeTemplate(): void {
+    let cwd = '';
+    try {
+      cwd = getWorkspaceCwd();
+    } catch {
+      return;
+    }
+    if (!cwd || (this.forgeCwd === cwd && this.forgeLoad)) {
+      return;
+    }
+    this.forgeCwd = cwd;
+    this.forgeLoad = loadForgeIssueTemplate(cwd)
+      .then((tpl) => {
+        if (this.forgeCwd !== cwd) {
+          return;
+        }
+        const next = tpl ?? null;
+        if (next === this.forgeIssueTemplate) {
+          return;
+        }
+        this.forgeIssueTemplate = next;
+        this.pushState();
+      })
+      .catch((err) => {
+        this.log.debug('forge remote lookup failed', err);
+      });
   }
 
   private serialize(s: SessionState) {
@@ -252,6 +291,63 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       seedHistoryOnNextPrompt: !!s.seedHistoryOnNextPrompt,
       contextNoticeDismissed: !!s.contextNoticeDismissed,
     };
+  }
+
+  /**
+   * Open a path clicked in an assistant message. Relative paths are resolved
+   * against workspace folders; absolute paths open anywhere the file exists.
+   * Missing files show a short message instead of creating a buffer.
+   */
+  private async openAssistantPath(msg: { [key: string]: unknown }): Promise<void> {
+    const raw = typeof msg.path === 'string' ? msg.path.trim() : '';
+    if (!raw || raw.length > 1024 || /[\0\r\n]/.test(raw)) {
+      return;
+    }
+    const line = positiveInt(msg.line);
+    const column = positiveInt(msg.column);
+    const endLine = positiveInt(msg.endLine);
+    const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+    if (!roots.length) {
+      roots.push(getWorkspaceCwd());
+    }
+    const fsPath = resolveAssistantFile(raw, {
+      roots,
+      homedir: os.homedir(),
+      isFile: isRegularFile,
+    });
+    if (!fsPath) {
+      void vscode.window.showInformationMessage(`File not found: ${clipPath(raw)}`);
+      return;
+    }
+    try {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath));
+      const editor = await vscode.window.showTextDocument(doc, {
+        preview: true,
+        preserveFocus: false,
+      });
+      if (line == null) {
+        return;
+      }
+      const maxLine = Math.max(0, doc.lineCount - 1);
+      const line0 = Math.min(maxLine, line - 1);
+      if (column != null) {
+        const col0 = Math.min(doc.lineAt(line0).text.length, column - 1);
+        const pos = new vscode.Position(line0, col0);
+        editor.selection = new vscode.Selection(pos, pos);
+        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+        return;
+      }
+      const end0 =
+        endLine != null ? Math.min(maxLine, Math.max(line0, endLine - 1)) : line0;
+      const endCol = doc.lineAt(end0).text.length;
+      const start = new vscode.Position(line0, 0);
+      const end = new vscode.Position(end0, endCol);
+      editor.selection = new vscode.Selection(start, end);
+      editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter);
+    } catch (err) {
+      this.log.warn('openAssistantPath failed', err);
+      void vscode.window.showInformationMessage(`Could not open: ${clipPath(raw)}`);
+    }
   }
 
   private settingsSnapshot() {
@@ -447,6 +543,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
         break;
       }
+
+      case 'openAssistantPath':
+        await this.openAssistantPath(msg);
+        break;
 
       case 'applyModel': {
         const id =
@@ -745,6 +845,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const scriptOnDisk =
       tryUri(distWebview, 'main.js') ?? tryUri(fallbackWebview, 'main.js')!;
 
+    const linksOnDisk =
+      tryUri(distWebview, 'messageLinks.js') ??
+      tryUri(fallbackWebview, 'messageLinks.js');
+    const linksScript = linksOnDisk
+      ? `<script src="${webview.asWebviewUri(linksOnDisk).toString()}"></script>`
+      : '';
+
     const styleUri = webview.asWebviewUri(styleOnDisk);
     const scriptUri = webview.asWebviewUri(scriptOnDisk);
 
@@ -773,6 +880,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     html = html
       .replace(/\{\{cspSource\}\}/g, webview.cspSource)
       .replace(/\{\{styleUri\}\}/g, styleUri.toString())
+      .replace(/\{\{linksScript\}\}/g, linksScript)
       .replace(/\{\{scriptUri\}\}/g, scriptUri.toString())
       .replace(/\{\{logoUri\}\}/g, logoUri.toString())
       .replace(/\{\{fontSize\}\}/g, String(fontSize))
@@ -854,6 +962,31 @@ function extractToolIo(t: {
     output = output.slice(0, 8000) + '\n…';
   }
   return { input, output };
+}
+
+function positiveInt(v: unknown): number | undefined {
+  const n =
+    typeof v === 'number'
+      ? v
+      : typeof v === 'string' && /^\d+$/.test(v)
+        ? Number(v)
+        : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > 1_000_000) {
+    return undefined;
+  }
+  return n;
+}
+
+function clipPath(raw: string): string {
+  return raw.length > 180 ? `${raw.slice(0, 179)}…` : raw;
+}
+
+function isRegularFile(p: string): boolean {
+  try {
+    return fs.statSync(p).isFile();
+  } catch {
+    return false;
+  }
 }
 
 function tryUri(base: vscode.Uri, file: string): vscode.Uri | undefined {

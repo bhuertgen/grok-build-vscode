@@ -94,6 +94,8 @@
     cli: { ready: true, checking: false },
     processCount: 0,
     history: [],
+    /** https://host/owner/repo/issues/{n} or null when no git remote is known */
+    forgeIssueTemplate: null,
     settings: {
       permissionMode: 'ask',
       permissionLabel: 'Ask',
@@ -1265,9 +1267,9 @@
     ) {
       return true;
     }
-    const html = formatMarkdown(
-      m.role === 'user' ? m.content || '' : cleaned
-    );
+    const html = formatMarkdown(m.role === 'user' ? m.content || '' : cleaned, {
+      linkify: m.role === 'agent',
+    });
     if (!html.trim() && !(m.images && m.images.length) && !m.streaming) {
       return true;
     }
@@ -1276,7 +1278,8 @@
 
   /** Stable structure key (ids/roles/flags) — excludes message text content. */
   function timelineStructureSig(sessionId, timeline) {
-    const parts = [String(sessionId || '')];
+    // Forge URL arrives after the first paint; include it so `#123` relinks.
+    const parts = [String(sessionId || ''), String(state.forgeIssueTemplate || '')];
     for (const item of timeline) {
       if (item.type === 'tool-group') {
         const ids = (item.tools || []).map((t) => t.id).join(',');
@@ -1365,7 +1368,7 @@
           m.role === 'user'
             ? m.content || ''
             : sanitizeMessageContent(m.content || '');
-        body.innerHTML = formatMarkdown(cleaned);
+        body.innerHTML = formatMarkdown(cleaned, { linkify: m.role === 'agent' });
         body.classList.add('streaming-cursor');
       } else if (m.role === 'thought') {
         const body = el.querySelector('.thought-row-body');
@@ -1546,9 +1549,9 @@
 
       const body = document.createElement('div');
       body.className = 'body' + (m.streaming ? ' streaming-cursor' : '');
-      const html = formatMarkdown(
-        m.role === 'user' ? m.content || '' : cleaned
-      );
+      const html = formatMarkdown(m.role === 'user' ? m.content || '' : cleaned, {
+        linkify: m.role === 'agent',
+      });
       body.innerHTML = html;
       div.appendChild(body);
 
@@ -1819,11 +1822,75 @@
     return text;
   }
 
-  function formatMarkdown(src) {
+  /**
+   * Assistant text only: file paths and `#123` become controls.
+   * Spans come from GrokMessageLinks (src/util/messageLinks.ts), which skips
+   * fenced code, bare URLs, and markdown https links so those links are not
+   * wrapped a second time. Placeholders are swapped back to HTML after escape.
+   */
+  function renderMessageLink(hit) {
+    if (!hit) {
+      return '';
+    }
+    if (hit.kind === 'pr') {
+      const tpl =
+        typeof state.forgeIssueTemplate === 'string' ? state.forgeIssueTemplate : '';
+      const api = typeof GrokMessageLinks !== 'undefined' ? GrokMessageLinks : null;
+      const n = String(hit.number);
+      if (
+        !api ||
+        typeof api.isSafeIssueTemplate !== 'function' ||
+        !api.isSafeIssueTemplate(tpl) ||
+        !/^\d{1,7}$/.test(n)
+      ) {
+        return escapeHtml(hit.text);
+      }
+      return `<a href="${escapeHtml(tpl.replace('{n}', n))}" rel="noreferrer">${escapeHtml(hit.text)}</a>`;
+    }
+    const path = String(hit.path || '');
+    if (!path) {
+      return escapeHtml(hit.text || '');
+    }
+    let attrs = `type="button" class="path-link" data-path="${escapeHtml(path)}"`;
+    if (Number.isInteger(hit.line) && hit.line > 0) {
+      attrs += ` data-line="${hit.line}"`;
+    }
+    if (Number.isInteger(hit.column) && hit.column > 0) {
+      attrs += ` data-col="${hit.column}"`;
+    }
+    if (Number.isInteger(hit.endLine) && hit.endLine > 0) {
+      attrs += ` data-end-line="${hit.endLine}"`;
+    }
+    return `<button ${attrs}>${escapeHtml(hit.text || path)}</button>`;
+  }
+
+  function applyMessageLinkPlaceholders(src, linkify) {
+    const api = typeof GrokMessageLinks !== 'undefined' ? GrokMessageLinks : null;
+    if (!linkify || !api || typeof api.findMessageLinks !== 'function') {
+      return { text: src, slots: [] };
+    }
+    const hits = api.findMessageLinks(src) || [];
+    const slots = [];
+    let text = src;
+    for (let i = hits.length - 1; i >= 0; i--) {
+      const hit = hits[i];
+      const token = `\uE000${slots.length}\uE001`;
+      slots.push(hit);
+      text = text.slice(0, hit.start) + token + text.slice(hit.end);
+    }
+    return { text, slots };
+  }
+
+  function formatMarkdown(src, opts) {
     if (!src) {
       return '';
     }
-    let text = escapeHtml(sanitizeMessageContent(src));
+    const prepared = applyMessageLinkPlaceholders(
+      sanitizeMessageContent(src),
+      !!(opts && opts.linkify)
+    );
+    const slots = prepared.slots;
+    let text = escapeHtml(prepared.text);
 
     // Fenced code blocks
     text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
@@ -1877,9 +1944,15 @@
       })
       .filter(Boolean);
     // Collapse adjacent hrs that landed in separate parts
-    return parts
+    let html = parts
       .join('')
       .replace(/(?:<hr class="md-hr" \/>)+/g, '<hr class="md-hr" />');
+    if (slots.length) {
+      html = html.replace(/\uE000(\d+)\uE001/g, (_, n) =>
+        renderMessageLink(slots[Number(n)])
+      );
+    }
+    return html;
   }
 
   function escapeHtml(s) {
@@ -3279,9 +3352,24 @@
     renderChips();
   });
 
-  // Open external links in browser
+  // Path buttons open in the editor; https links open in the browser.
   document.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href]');
+    const t = e.target;
+    if (!t || !t.closest) {
+      return;
+    }
+    const pathBtn = t.closest('button.path-link');
+    if (pathBtn) {
+      e.preventDefault();
+      post('openAssistantPath', {
+        path: pathBtn.dataset.path || '',
+        line: pathBtn.dataset.line ? Number(pathBtn.dataset.line) : undefined,
+        column: pathBtn.dataset.col ? Number(pathBtn.dataset.col) : undefined,
+        endLine: pathBtn.dataset.endLine ? Number(pathBtn.dataset.endLine) : undefined,
+      });
+      return;
+    }
+    const a = t.closest('a[href]');
     if (a && a.href.startsWith('http')) {
       e.preventDefault();
       post('openExternal', { url: a.href });
@@ -3308,6 +3396,7 @@
         state.trustMessage = msg.trustMessage || null;
         state.grokTrust = msg.grokTrust || null;
         state.history = msg.history || [];
+        state.forgeIssueTemplate = msg.forgeIssueTemplate || null;
         if (prevActive !== state.activeId) {
           toolsExpanded = false;
           expandedTools.clear();

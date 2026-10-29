@@ -22,7 +22,7 @@ function grab(name) {
   throw new Error('unbalanced ' + name);
 }
 const formatMarkdown = new Function(
-  ['sanitizeMessageContent', 'formatMarkdown', 'escapeHtml'].map(grab).join('\n') +
+  ['sanitizeMessageContent', 'applyMessageLinkPlaceholders', 'formatMarkdown', 'escapeHtml'].map(grab).join('\n') +
     '\nreturn formatMarkdown;'
 )();
 

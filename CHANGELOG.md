@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- File paths in Grok's answers open in the editor: relative paths under the workspace, `path:line` and `path:line:col` (1-based), and absolute paths that exist outside the workspace. A missing file shows "File not found" instead of an empty editor. `#123` opens that issue or pull request when the workspace git remote is GitHub, GitLab, Bitbucket, or a similar forge (#65).
+
+### Docs
+- USER_GUIDE §4.12 (EN/DE). Subagent and task ids stay plain text.
+
 ## 0.4.1 – 2026-10-28
 
 Store republish so the VS Code Marketplace and Open VSX listings pick up the live install text, plus a G-mark icon (#66). No behavior change in the agent client.

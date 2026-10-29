@@ -21,7 +21,7 @@
 
 | Area | What you get |
 |------|----------------|
-| **Chat UI** | Theme-aware webview, streaming, collapsible tools/thoughts |
+| **Chat UI** | Theme-aware webview, streaming, collapsible tools/thoughts. File paths in Grok's answers open in the editor; `#123` opens the PR when a git remote is known |
 | **Composer** | `+` insert · `/` actions · `@` workspace files |
 | **Multi-session** | Tabs; one CLI process per chat |
 | **Plan / Execute** | UI, commands, keybindings |
@@ -202,7 +202,7 @@ Details: [docs/en/USER_GUIDE.md §8.1](docs/en/USER_GUIDE.md#81-privacy--data-co
 ## Known limitations
 
 - MCP: CLI loads its own user/global MCP config; extension passes an empty MCP list into `session/new` by default.  
-- Sub-agents: monitored via tool timeline / status strip (no per-subagent editor tabs).  
+- Sub-agents: monitored via tool timeline / status strip (no per-subagent editor tabs). Subagent and task ids in answers are not clickable.  
 - Install path: VS Code Marketplace and Open VSX; manual VSIX from GitHub Releases as an alternative.  
 - Session resume needs CLI `session/resume` (or load); otherwise local history + new agent process.  
 

@@ -900,6 +900,35 @@ html, body {
   color: var(--link);
 }
 
+.msg .body button.path-link {
+  display: inline;
+  font: inherit;
+  color: var(--link);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-align: inherit;
+  vertical-align: baseline;
+}
+
+.msg .body button.path-link:hover {
+  color: var(--vscode-textLink-activeForeground, var(--link));
+}
+
+.msg .body button.path-link:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.msg .body code button.path-link {
+  font-family: inherit;
+  font-size: inherit;
+}
+
 .msg .body strong {
   font-weight: 600;
 }
