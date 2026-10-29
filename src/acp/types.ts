@@ -276,7 +276,9 @@ export interface PromptResponse {
   stopReason: StopReason;
   /**
    * Grok extension metadata. CLI ≥ 1.0.60 sets `cancellationCategory: "HookStopped"`
-   * and `cancellationContext: { reason, hook_name }` when a hook ended the turn.
+   * and `cancellationContext: { reason, hook_name }` when a hook ended the turn
+   * with `continue: false`. CLI alpha ≥ 1.0.71 sets `"HookDenied"` the same way
+   * when a fail-closed UserPromptSubmit hook times out or crashes.
    */
   _meta?: Record<string, unknown> & {
     cancellationCategory?: string;

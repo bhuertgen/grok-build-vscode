@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- A prompt blocked because a fail-closed UserPromptSubmit hook timed out or crashed (Grok CLI alpha ≥ 1.0.71, `cancellationCategory: "HookDenied"`) shows an info line ("Prompt blocked because a hook failed"; German VS Code locale: "Prompt blockiert, weil ein Hook fehlgeschlagen ist") with the hook name and the CLI reason, instead of `(cancelled)`. A fail-closed PreToolUse hook does not end the turn: the tool row stays **failed** and its output is the CLI text `Hook denied: …` (#64).
+
 ## 0.4.1 – 2026-10-28
 
 Store republish so the VS Code Marketplace and Open VSX listings pick up the live install text, plus a G-mark icon (#66). No behavior change in the agent client.

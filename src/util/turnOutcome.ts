@@ -9,6 +9,16 @@
  *     _meta: { cancellationCategory: "HookStopped",
  *              cancellationContext: { reason: "…", hook_name: "project/stop:pre_tool_use[0].hooks[0]" } } }
  * The ACP stopReason alone cannot tell this apart from a user cancel.
+ *
+ * CLI alpha ≥ 1.0.71 `failClosed: true`, probed live on 1.0.73 (15470685cfa0):
+ * - A UserPromptSubmit hook that times out or crashes ends the turn with
+ *   stopReason "cancelled" and cancellationCategory "HookDenied" (not
+ *   HookStopped). cancellationContext still carries reason + hook_name, e.g.
+ *   reason "fail-closed hook '<name>' failed: timed out after 1000ms".
+ * - A PreToolUse hook that times out or crashes does not end the turn.
+ *   session/prompt returns stopReason "end_turn" with no cancellationCategory.
+ *   The denial is a tool_call_update { status: "failed", content text
+ *   "Hook denied: …" }, which the tool row already shows.
  */
 
 import { isGermanLocale } from './locale';
@@ -17,6 +27,8 @@ export type TurnEndKind =
   | 'end_turn'
   | 'cancelled'
   | 'hook_stopped'
+  /** failClosed UserPromptSubmit: hook timed out or crashed (CLI alpha ≥ 1.0.71). */
+  | 'hook_denied'
   | 'refusal'
   | 'max_tokens'
   | 'max_turn_requests'
@@ -45,14 +57,25 @@ function normCategory(v: unknown): string {
   return typeof v === 'string' ? v.replace(/[^a-z]/gi, '').toLowerCase() : '';
 }
 
+function hookKind(category: string): 'hook_stopped' | 'hook_denied' | undefined {
+  if (category === 'hookstopped') {
+    return 'hook_stopped';
+  }
+  if (category === 'hookdenied') {
+    return 'hook_denied';
+  }
+  return undefined;
+}
+
 export function classifyTurnEnd(result: PromptResultLike | undefined | null): TurnOutcome {
   const stopReason = str(result?.stopReason);
   const meta = (result?._meta ?? {}) as Record<string, unknown>;
   const category = normCategory(meta.cancellationCategory ?? meta['x.ai/cancellationCategory']);
-  if (category === 'hookstopped') {
+  const kind = hookKind(category);
+  if (kind) {
     const ctx = (meta.cancellationContext ?? {}) as Record<string, unknown>;
     return {
-      kind: 'hook_stopped',
+      kind,
       stopReason,
       hookName: str(ctx.hook_name) ?? str(ctx.hookName),
       reason: str(ctx.reason) ?? str(ctx.stopReason),
@@ -82,11 +105,18 @@ export function shortHookName(name: string | undefined): string | undefined {
 // Re-exported for existing callers; the implementation lives in ./locale (#48).
 export { isGermanLocale };
 
-/** Info line for a hook-stopped turn (markdown, italic). */
+/** Info line for a hook-stopped or fail-closed turn (markdown, italic). */
 export function formatHookStopNotice(outcome: TurnOutcome, lang?: string): string {
   const de = isGermanLocale(lang);
   const hook = shortHookName(outcome.hookName);
-  let text = de ? 'Turn durch Hook beendet' : 'Turn stopped by hook';
+  let text =
+    outcome.kind === 'hook_denied'
+      ? de
+        ? 'Prompt blockiert, weil ein Hook fehlgeschlagen ist'
+        : 'Prompt blocked because a hook failed'
+      : de
+        ? 'Turn durch Hook beendet'
+        : 'Turn stopped by hook';
   if (hook) {
     text += ` (\`${hook}\`)`;
   }
@@ -108,6 +138,7 @@ export function turnEndNotice(
 ): string | undefined {
   switch (outcome.kind) {
     case 'hook_stopped':
+    case 'hook_denied':
       return formatHookStopNotice(outcome, lang);
     case 'cancelled':
       return agentSpoke ? undefined : '_(cancelled)_';
