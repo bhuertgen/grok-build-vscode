@@ -79,6 +79,7 @@ A single agent can take all three roles in sequence.
 | U08 | Plan panel (when the agent sends a plan) |
 | U09 | No duplicated user message (no echo) |
 | U10 | Hook-stopped turn shows an info line ("Turn stopped by hook") |
+| U10b | failClosed UserPromptSubmit shows "Prompt blocked because a hook failed" |
 | U11 | Keyboard shortcuts (`Ctrl+Shift+G` chords, `Alt+K`, `Escape`) |
 
 ### 2.4 Context (`@`, `+`, commands)
@@ -205,6 +206,12 @@ Format per case:
 - **Precondition:** a CLI hook that returns `continue: false` (CLI ≥ 1.0.60)  
 - **Steps:** send a prompt that triggers the hook  
 - **Pass:** italic info line "ℹ️ Turn stopped by hook (`<hook>`): <reason>" (German VS Code locale: "Turn durch Hook beendet"); **not** `(cancelled)` and not silence  
+
+#### T-U10b — failClosed UserPromptSubmit  
+- **Dim:** F, U  
+- **Precondition:** CLI alpha ≥ 1.0.71, a trusted folder, a UserPromptSubmit hook with `"failClosed": true` and a timeout shorter than the command (for example `sleep 30` with `"timeout": 1`)  
+- **Steps:** send any prompt  
+- **Pass:** italic info line "ℹ️ Prompt blocked because a hook failed (`<hook>`): …" (German: "Prompt blockiert, weil ein Hook fehlgeschlagen ist"); **not** `(cancelled)`. A fail-closed PreToolUse hook instead leaves the turn as a normal end and marks that tool row **failed**, with `Hook denied: …` in the expanded output.  
 
 #### T-U11 — Keyboard shortcuts  
 - **Dim:** U  
