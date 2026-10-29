@@ -1031,8 +1031,12 @@ export class SessionManager extends EventEmitter {
       if (notice) {
         this.pushSystem(state, notice);
       }
-      if (outcome.kind === 'hook_stopped') {
-        this.log.info('Turn stopped by hook', outcome.hookName ?? '?', outcome.reason ?? '');
+      if (outcome.kind === 'hook_stopped' || outcome.kind === 'hook_denied') {
+        this.log.info(
+          outcome.kind === 'hook_denied' ? 'Prompt blocked by failed hook' : 'Turn stopped by hook',
+          outcome.hookName ?? '?',
+          outcome.reason ?? ''
+        );
       }
       this.log.info('Prompt finished', localId, result.stopReason);
     } catch (err) {

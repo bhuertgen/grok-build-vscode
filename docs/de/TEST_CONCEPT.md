@@ -79,6 +79,7 @@ Ein einzelner Agent kann alle drei Rollen nacheinander übernehmen.
 | U08 | Plan-Panel (wenn der Agent einen Plan sendet) |
 | U09 | Keine doppelte User-Nachricht (kein Echo) |
 | U10 | Durch Hook beendeter Turn zeigt eine Info-Zeile („Turn stopped by hook“) |
+| U10b | failClosed UserPromptSubmit zeigt „Prompt blockiert, weil ein Hook fehlgeschlagen ist“ |
 | U11 | Tastenkürzel (`Ctrl+Shift+G`-Akkorde, `Alt+K`, `Escape`) |
 | U12 | Dateipfade und `#123` in Groks Antworten sind klickbar |
 
@@ -206,6 +207,12 @@ Format je Fall:
 - **Vorbedingung:** ein CLI-Hook, der `continue: false` liefert (CLI ≥ 1.0.60)  
 - **Schritte:** Prompt senden, der den Hook auslöst  
 - **Pass:** kursive Info-Zeile „ℹ️ Turn durch Hook beendet (`<hook>`): <Grund>“ bei deutscher VS-Code-Sprache (sonst „Turn stopped by hook“); **nicht** `(cancelled)` und nicht stumm  
+
+#### T-U10b — failClosed UserPromptSubmit  
+- **Dim:** F, U  
+- **Vorbedingung:** CLI-Alpha ≥ 1.0.71, vertrauenswürdiger Ordner, UserPromptSubmit-Hook mit `"failClosed": true` und einem Timeout kürzer als der Befehl (z. B. `sleep 30` mit `"timeout": 1`)  
+- **Schritte:** beliebigen Prompt senden  
+- **Pass:** kursive Info-Zeile „ℹ️ Prompt blockiert, weil ein Hook fehlgeschlagen ist (`<hook>`): …“ (sonst „Prompt blocked because a hook failed“); **nicht** `(cancelled)`. Ein fail-closed PreToolUse-Hook beendet den Turn nicht: die Tool-Zeile bleibt **failed**, aufgeklappt steht `Hook denied: …`.  
 
 #### T-U12 — Klickbare Pfade und `#123`
 - **Dim:** U

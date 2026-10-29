@@ -19,6 +19,20 @@ const HOOK_RESULT = {
   },
 };
 
+// Verbatim session/prompt result, CLI 1.0.73 alpha, UserPromptSubmit failClosed timeout.
+const FAIL_CLOSED_PROMPT = {
+  stopReason: 'cancelled',
+  _meta: {
+    sessionId: 's',
+    cancellationCategory: 'HookDenied',
+    cancellationContext: {
+      reason:
+        "fail-closed hook 'global/ups:user_prompt_submit[0].hooks[0]' failed: timed out after 1000ms",
+      hook_name: 'global/ups:user_prompt_submit[0].hooks[0]',
+    },
+  },
+};
+
 describe('classifyTurnEnd', () => {
   it('detects HookStopped from _meta', () => {
     const o = classifyTurnEnd(HOOK_RESULT);
@@ -32,6 +46,22 @@ describe('classifyTurnEnd', () => {
     assert.equal(o.kind, 'hook_stopped');
     assert.equal(o.hookName, undefined);
     assert.equal(o.reason, undefined);
+  });
+  it('detects failClosed UserPromptSubmit as HookDenied', () => {
+    const o = classifyTurnEnd(FAIL_CLOSED_PROMPT);
+    assert.equal(o.kind, 'hook_denied');
+    assert.equal(o.stopReason, 'cancelled');
+    assert.equal(o.hookName, 'global/ups:user_prompt_submit[0].hooks[0]');
+    assert.match(o.reason, /timed out after 1000ms/);
+  });
+  it('accepts hook-denied spelling and does not treat PreToolUse end_turn as a hook stop', () => {
+    const denied = classifyTurnEnd({
+      stopReason: 'cancelled',
+      _meta: { cancellationCategory: 'hook-denied' },
+    });
+    assert.equal(denied.kind, 'hook_denied');
+    // PreToolUse failClosed (CLI 1.0.73): the turn itself still ends end_turn.
+    assert.equal(classifyTurnEnd({ stopReason: 'end_turn', _meta: {} }).kind, 'end_turn');
   });
   it('plain cancelled / end_turn / refusal unchanged', () => {
     assert.equal(classifyTurnEnd({ stopReason: 'cancelled' }).kind, 'cancelled');
@@ -57,6 +87,15 @@ describe('turnEndNotice', () => {
   it('hook stop without context still shows a line', () => {
     assert.equal(formatHookStopNotice({ kind: 'hook_stopped' }, 'en'), 'ℹ️ _Turn stopped by hook_');
     assert.equal(formatHookStopNotice({ kind: 'hook_stopped' }, 'de'), 'ℹ️ _Turn durch Hook beendet_');
+  });
+  it('failClosed prompt block → info line even when the agent was silent', () => {
+    const n = turnEndNotice(classifyTurnEnd(FAIL_CLOSED_PROMPT), false, 'en');
+    assert.equal(
+      n,
+      "ℹ️ _Prompt blocked because a hook failed (`global/ups`): fail-closed hook 'global/ups:user_prompt_submit[0].hooks[0]' failed: timed out after 1000ms_"
+    );
+    const de = turnEndNotice(classifyTurnEnd(FAIL_CLOSED_PROMPT), true, 'de-DE');
+    assert.match(de, /^ℹ️ _Prompt blockiert, weil ein Hook fehlgeschlagen ist \(`global\/ups`\):/);
   });
   it('keeps legacy cancelled / refusal / end_turn behaviour', () => {
     assert.equal(turnEndNotice({ kind: 'cancelled' }, false, 'de'), '_(cancelled)_');

@@ -226,6 +226,7 @@ Bietet die CLI `configOptions` (select oder boolean) an, zeigt der Chat-Header e
 | Zeile / Badge | Wann |
 |---------------|------|
 | ℹ️ *Turn stopped by hook (`<hook>`): <Grund>* | Ein CLI-Hook hat den Turn mit `continue: false` beendet (CLI ≥ 1.0.60). Erscheint statt `(cancelled)` oder nichts. Die Hook-ID wird gekürzt (`project/stop:pre_tool_use[0]…` → `project/stop`). |
+| ℹ️ *Prompt blockiert, weil ein Hook fehlgeschlagen ist (`<hook>`): <Grund>* | Ein `failClosed`-Hook auf UserPromptSubmit ist abgestürzt oder hat das Timeout überschritten (CLI-Alpha ≥ 1.0.71). Der Prompt erreicht das Modell nicht. Ein fail-closed PreToolUse-Hook beendet den Turn nicht: die Tool-Zeile zeigt **failed** und aufgeklappt den CLI-Text `Hook denied: …`. |
 | **unreadable – no preview** | Eine Write-Freigabe betrifft eine binäre/nicht lesbare Datei (CLI ≥ 1.0.54); es wird kein Diff versucht. |
 | Hinweis auf `grok update` | `cliPermissionMode: plan` mit einer CLI älter als 1.0.65 (die Session startet in `defaultMode`). |
 | **Session resumed** / **Local history loaded** | Ein gespeicherter Chat wurde wiederhergestellt. Nach der letzten Nachricht steht von jeder Zeile höchstens eine, auch nach mehreren Reloads (#52). |
