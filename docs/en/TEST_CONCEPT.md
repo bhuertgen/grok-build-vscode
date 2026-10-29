@@ -81,6 +81,7 @@ A single agent can take all three roles in sequence.
 | U10 | Hook-stopped turn shows an info line ("Turn stopped by hook") |
 | U10b | failClosed UserPromptSubmit shows "Prompt blocked because a hook failed" |
 | U11 | Keyboard shortcuts (`Ctrl+Shift+G` chords, `Alt+K`, `Escape`) |
+| U12 | File paths and `#123` in Grok's answers are clickable |
 
 ### 2.4 Context (`@`, `+`, commands)
 
@@ -212,6 +213,12 @@ Format per case:
 - **Precondition:** CLI alpha ≥ 1.0.71, a trusted folder, a UserPromptSubmit hook with `"failClosed": true` and a timeout shorter than the command (for example `sleep 30` with `"timeout": 1`)  
 - **Steps:** send any prompt  
 - **Pass:** italic info line "ℹ️ Prompt blocked because a hook failed (`<hook>`): …" (German: "Prompt blockiert, weil ein Hook fehlgeschlagen ist"); **not** `(cancelled)`. A fail-closed PreToolUse hook instead leaves the turn as a normal end and marks that tool row **failed**, with `Hook denied: …` in the expanded output.  
+
+#### T-U12 — Clickable paths and `#123`
+- **Dim:** U
+- **Precondition:** a file in the sandbox (`echo hi > src/hello.ts` — create `src/` first) and a GitHub `origin` remote if you want the PR link
+- **Steps:** ask Grok to mention `src/hello.ts:1` and `#1` in the answer (or paste a restored transcript that contains them). Click the path. Click `#1` when a remote is set.
+- **Pass:** the editor opens `src/hello.ts` on line 1. `#1` opens the forge issue/PR page. A bare `README.md`, a version `1.0.72`, and a markdown `https` link are not turned into file links; the https link still opens in the browser. With no git remote, `#1` stays plain text. A missing path shows **File not found**.
 
 #### T-U11 — Keyboard shortcuts  
 - **Dim:** U  

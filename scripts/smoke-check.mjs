@@ -89,6 +89,7 @@ console.log('\n2) Artifacts');
 for (const p of [
   'dist/extension.js',
   'dist/webview/main.js',
+  'dist/webview/messageLinks.js',
   'dist/webview/styles.css',
   'dist/webview/index.html',
   'package.json',
@@ -134,6 +135,11 @@ if (exists('tests/scrollStick.test.mjs')) {
   } else {
     fail('test:unit includes scrollStick.test.mjs');
   }
+  if (unitScript.includes('tests/messageLinks.test.mjs')) {
+    ok('test:unit includes messageLinks.test.mjs');
+  } else {
+    fail('test:unit includes messageLinks.test.mjs');
+  }
 }
 const wvMain = read('webview/main.js');
 for (const m of [
@@ -142,6 +148,9 @@ for (const m of [
   'patchStreamingContent',
   'canIncrementalPatch',
   'timelineStructureSig',
+  'openAssistantPath',
+  'GrokMessageLinks',
+  'path-link',
 ]) {
   if (wvMain.includes(m)) {
     ok(`webview has ${m}`);

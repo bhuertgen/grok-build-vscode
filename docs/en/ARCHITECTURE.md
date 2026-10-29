@@ -88,6 +88,9 @@ src/
     memory.ts                  # grokBuild.memory → GROK_MEMORY
     modelCatalog.ts            # ~/.grok/models_cache.json
     chatFormat.ts / cwd.ts     # chat formatting, path normalization
+    messageLinks.ts            # assistant path and #123 detection (also bundled for the webview)
+    assistantPath.ts           # resolve a clicked path to an existing file
+    forgeRemote.ts             # git remote → issue/PR URL template
     fileWriter.ts              # shared apply path for diffs
     extensionUpdate.ts         # GitHub Releases check (manual VSIX installs only)
     distribution.ts            # build flag store|vsix; skips the release check for store builds

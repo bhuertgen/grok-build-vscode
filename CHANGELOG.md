@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+### Added
+- File paths in Grok's answers open in the editor: relative paths under the workspace, `path:line` and `path:line:col` (1-based), and absolute paths that exist outside the workspace. A missing file shows "File not found" instead of an empty editor. `#123` opens that issue or pull request when the workspace git remote is GitHub, GitLab, Bitbucket, or a similar forge (#65).
+
 ### Changed
 - A prompt blocked because a fail-closed UserPromptSubmit hook timed out or crashed (Grok CLI alpha ≥ 1.0.71, `cancellationCategory: "HookDenied"`) shows an info line ("Prompt blocked because a hook failed"; German VS Code locale: "Prompt blockiert, weil ein Hook fehlgeschlagen ist") with the hook name and the CLI reason, instead of `(cancelled)`. A fail-closed PreToolUse hook does not end the turn: the tool row stays **failed** and its output is the CLI text `Hook denied: …` (#64).
+
+### Docs
+- USER_GUIDE §4.12 (EN/DE). Subagent and task ids stay plain text.
 
 ## 0.4.1 – 2026-10-28
 

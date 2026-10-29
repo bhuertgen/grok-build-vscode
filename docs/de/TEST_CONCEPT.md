@@ -81,6 +81,7 @@ Ein einzelner Agent kann alle drei Rollen nacheinander übernehmen.
 | U10 | Durch Hook beendeter Turn zeigt eine Info-Zeile („Turn stopped by hook“) |
 | U10b | failClosed UserPromptSubmit zeigt „Prompt blockiert, weil ein Hook fehlgeschlagen ist“ |
 | U11 | Tastenkürzel (`Ctrl+Shift+G`-Akkorde, `Alt+K`, `Escape`) |
+| U12 | Dateipfade und `#123` in Groks Antworten sind klickbar |
 
 ### 2.4 Kontext (`@`, `+`, Commands)
 
@@ -212,6 +213,12 @@ Format je Fall:
 - **Vorbedingung:** CLI-Alpha ≥ 1.0.71, vertrauenswürdiger Ordner, UserPromptSubmit-Hook mit `"failClosed": true` und einem Timeout kürzer als der Befehl (z. B. `sleep 30` mit `"timeout": 1`)  
 - **Schritte:** beliebigen Prompt senden  
 - **Pass:** kursive Info-Zeile „ℹ️ Prompt blockiert, weil ein Hook fehlgeschlagen ist (`<hook>`): …“ (sonst „Prompt blocked because a hook failed“); **nicht** `(cancelled)`. Ein fail-closed PreToolUse-Hook beendet den Turn nicht: die Tool-Zeile bleibt **failed**, aufgeklappt steht `Hook denied: …`.  
+
+#### T-U12 — Klickbare Pfade und `#123`
+- **Dim:** U
+- **Vorbedingung:** eine Datei in der Sandbox (`echo hi > src/hello.ts` — vorher `src/` anlegen) und ein GitHub-`origin`-Remote, wenn der PR-Link geprüft werden soll
+- **Schritte:** Grok bitten, `src/hello.ts:1` und `#1` in der Antwort zu nennen (oder ein wiederhergestelltes Transkript, das beides enthält). Den Pfad anklicken. `#1` anklicken, wenn ein Remote gesetzt ist.
+- **Pass:** der Editor öffnet `src/hello.ts` in Zeile 1. `#1` öffnet die Issue-/PR-Seite der Forge. Ein nacktes `README.md`, eine Version `1.0.72` und ein Markdown-`https`-Link werden keine Datei-Links; der https-Link öffnet weiter im Browser. Ohne Git-Remote bleibt `#1` normaler Text. Ein fehlender Pfad zeigt **File not found**.
 
 #### T-U11 — Tastenkürzel  
 - **Dim:** U  

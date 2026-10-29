@@ -249,6 +249,16 @@ Hat der Workspace-Ordner solche Dateien und vertraut Grok ihm nicht, zeigt der C
 
 Vertraue nur Ordnern, deren Hooks und MCP-Server du geprüft hast: Hooks führen Shell-Befehle aus.
 
+## 4.12 Klickbare Pfade und Pull Requests
+
+In **Groks Antworten** (deine eigenen Nachrichten bleiben normaler Text):
+
+- Ein Pfad, der wie eine Datei aussieht, ist ein Link: `src/cli/compat.ts`, `./README.md`, `../docs/en/USER_GUIDE.md`, `src/cli/compat.ts:42`, `src/cli/compat.ts:42:7`. Ein Klick öffnet die Datei. Mit Zeile (und optional Spalte) springt der Editor dorthin; Zeilen und Spalten beginnen bei 1. `pfad:10-20` markiert diesen Zeilenbereich.
+- Die Datei muss existieren. Ein relativer Pfad wird gegen die geöffneten Workspace-Ordner aufgelöst (der erste Treffer). Ein absoluter Pfad, auch außerhalb des Workspace, öffnet sich, wenn die Datei existiert. Sonst zeigt der Editor **File not found**.
+- Normaler Text bleiben: ein nackter Name (`README.md`), eine Paketversion (`1.0.72`, `lodash@4.17.21`), eine URL und ein Markdown-Link `[label](https://…)`. Diese https-Links öffnen weiter im Browser.
+- `#123` öffnet das Issue oder den Pull Request, wenn der Workspace ein Git-Remote hat (GitHub, GitLab, Bitbucket oder eine ähnliche Forge; einmal von `origin` gelesen, sonst das erste Remote). Ohne Remote bleibt `#123` normaler Text. GitHub-artige Remotes nutzen `/issues/123` (GitHub leitet Pull Requests dorthin um). GitLab-Remotes nutzen `/-/issues/123`.
+- Subagent- und Task-IDs sind keine Links.
+
 ## 5. Befehle (Befehlspalette: „Grok Build“)
 
 | Command | Zweck |
