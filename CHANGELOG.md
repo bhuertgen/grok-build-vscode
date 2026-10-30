@@ -8,8 +8,12 @@
 ### Changed
 - A prompt blocked because a fail-closed UserPromptSubmit hook timed out or crashed (Grok CLI alpha ≥ 1.0.71, `cancellationCategory: "HookDenied"`) shows an info line ("Prompt blocked because a hook failed"; German VS Code locale: "Prompt blockiert, weil ein Hook fehlgeschlagen ist") with the hook name and the CLI reason, instead of `(cancelled)`. A fail-closed PreToolUse hook does not end the turn: the tool row stays **failed** and its output is the CLI text `Hook denied: …` (#64).
 
+### Fixed
+- Outside-workspace **Allow for this session** stays in effect for that file on Windows when a later read or write uses another spelling of the same path (`\\?\C:\…` or `\\.\C:\…` versus `C:\…`, `/` versus `\`, drive-letter case, trailing dots or spaces). A write that arrives while the dialog is open waits for it: session allow covers that write, **Allow once** still asks for the next write.
+
 ### Docs
 - USER_GUIDE §4.12 (EN/DE). Subagent and task ids stay plain text.
+- USER_GUIDE §8 (EN/DE) and TEST_CONCEPT T-F05: Windows outside-workspace paths that differ only by verbatim prefix, separators, case, or trailing dots/spaces are the same file.
 
 ## 0.4.1 – 2026-10-28
 

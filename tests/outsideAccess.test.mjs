@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { OutsideAccessGrants } = require('../dist-test/outsideAccess.js');
+const { OutsideAccessGrants, coalesceOutsidePrompt } = require('../dist-test/outsideAccess.js');
+const { scopeKey } = require('../dist-test/pathScope.js');
 
 describe('OutsideAccessGrants (#45)', () => {
   it('nothing is allowed by default', () => {
@@ -41,5 +42,99 @@ describe('OutsideAccessGrants (#45)', () => {
     g.clear();
     assert.equal(g.allowed('read', '/w', 1), undefined);
     assert.equal(g.allowed('read', '/r', 1), undefined);
+  });
+
+  it('session allow for a Windows temp path covers every spelling of that file', () => {
+    const spellings = [
+      'C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd',
+      '\\\\?\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd',
+      'C:/Users/HUERTGEN/AppData/Local/Temp/CL-ZOOM.CMD',
+      '//?/C:/Users/huertgen/AppData/Local/Temp/cl-zoom.cmd',
+      '\\\\.\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd',
+      'C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd.',
+    ];
+    const keys = spellings.map((p) => scopeKey(p, 'win32'));
+    const g = new OutsideAccessGrants(1000);
+    assert.equal(g.record('write', keys[0], 'session', 0), true);
+    for (const key of keys) {
+      assert.equal(g.allowed('write', key, 5_000), 'session', key);
+      assert.equal(g.allowed('read', key, 5_000), 'session', key);
+    }
+    const other = scopeKey('C:\\Users\\huertgen\\AppData\\Local\\Temp\\other.cmd', 'win32');
+    assert.equal(g.allowed('write', other, 5_000), undefined);
+  });
+});
+
+describe('coalesceOutsidePrompt', () => {
+  it('session allow covers a write that arrives while the dialog is open', async () => {
+    const g = new OutsideAccessGrants(1000);
+    const inflight = new Map();
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    let asks = 0;
+    const first = coalesceOutsidePrompt(g, inflight, 'write', 'k', async () => {
+      asks += 1;
+      await gate;
+      g.record('write', 'k', 'session', 0);
+      return true;
+    });
+    const second = coalesceOutsidePrompt(g, inflight, 'write', 'k', async () => {
+      asks += 1;
+      return true;
+    });
+    release();
+    assert.equal(await first, true);
+    assert.equal(await second, true);
+    assert.equal(asks, 1);
+  });
+
+  it('Allow once does not cover a second write waiting on the same dialog', async () => {
+    const g = new OutsideAccessGrants(1000);
+    const inflight = new Map();
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    let asks = 0;
+    const first = coalesceOutsidePrompt(g, inflight, 'write', 'k', async () => {
+      asks += 1;
+      await gate;
+      g.record('write', 'k', 'once', 0);
+      return true;
+    });
+    const second = coalesceOutsidePrompt(g, inflight, 'write', 'k', async () => {
+      asks += 1;
+      return true;
+    });
+    release();
+    assert.equal(await first, true);
+    assert.equal(await second, true);
+    assert.equal(asks, 2);
+  });
+
+  it('Allow once grace covers a second read waiting on the same dialog', async () => {
+    const g = new OutsideAccessGrants(1000);
+    const inflight = new Map();
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    let asks = 0;
+    const first = coalesceOutsidePrompt(g, inflight, 'read', 'k', async () => {
+      asks += 1;
+      await gate;
+      g.record('read', 'k', 'once');
+      return true;
+    });
+    const second = coalesceOutsidePrompt(g, inflight, 'read', 'k', async () => {
+      asks += 1;
+      return true;
+    });
+    release();
+    assert.equal(await first, true);
+    assert.equal(await second, true);
+    assert.equal(asks, 1);
   });
 });

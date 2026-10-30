@@ -56,6 +56,80 @@ describe('pathScope: Windows (#45)', () => {
   it('scopeKey normalises', () => {
     assert.equal(scopeKey('C:/Repo/Sub/', 'win32'), 'c:\\repo\\sub');
     assert.equal(scopeKey('C:\\', 'win32'), 'c:\\');
+    assert.equal(scopeKey('\\\\?\\C:\\', 'win32'), 'c:\\');
+  });
+  it('verbatim, device, slash, case, and trailing dot spell the same file', () => {
+    const plain = 'C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd';
+    const key = scopeKey(plain, 'win32');
+    for (const spelling of [
+      'c:\\users\\huertgen\\appdata\\local\\temp\\cl-zoom.cmd',
+      'C:/Users/HUERTGEN/AppData/Local/Temp/CL-ZOOM.CMD',
+      '\\\\?\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd',
+      '//?/C:/Users/huertgen/AppData/Local/Temp/cl-zoom.cmd',
+      '\\\\.\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd',
+      'C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd.',
+      'C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd ',
+      'C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd.\\',
+    ]) {
+      assert.equal(scopeKey(spelling, 'win32'), key, spelling);
+    }
+    assert.equal(
+      scopeKey('\\\\?\\UNC\\server\\share\\cl-zoom.cmd', 'win32'),
+      scopeKey('\\\\server\\share\\cl-zoom.cmd', 'win32')
+    );
+    // A different file in the same Temp folder is not the same grant.
+    assert.notEqual(
+      scopeKey('C:\\Users\\huertgen\\AppData\\Local\\Temp\\other.cmd', 'win32'),
+      key
+    );
+    // \\.\pipe stays a device path; it is not a drive.
+    assert.notEqual(scopeKey('\\\\.\\pipe\\cl-zoom', 'win32'), scopeKey('pipe\\cl-zoom', 'win32'));
+  });
+  it('verbatim prefix does not push a workspace file outside or a temp file inside', () => {
+    assert.equal(isInsideWorkspace('\\\\?\\C:\\repo\\src\\a.ts', ['C:\\repo'], o), true);
+    assert.equal(isInsideWorkspace('//?/C:/REPO/src/a.ts', ['c:\\repo\\'], o), true);
+    assert.equal(isInsideWorkspace('C:\\repo.\\src\\a.ts', ['C:\\repo'], o), true);
+    assert.equal(isInsideWorkspace('\\\\?\\C:\\repo2\\a.ts', ['C:\\repo'], o), false);
+    assert.equal(
+      isInsideWorkspace('C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd', ['C:\\repo'], o),
+      false
+    );
+    assert.equal(
+      isInsideWorkspace('\\\\?\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\cl-zoom.cmd', ['C:\\repo'], o),
+      false
+    );
+    // Trailing-dot stripping must not undo `..` (repo. → repo, then .. leaves the root).
+    assert.equal(isInsideWorkspace('C:\\repo.\\..\\Windows\\win.ini', ['C:\\repo'], o), false);
+  });
+  it('missing file and existing file share a key when realpath returns \\\\?\\', () => {
+    const temp = 'C:\\Users\\huertgen\\AppData\\Local\\Temp';
+    const file = `${temp}\\cl-zoom.cmd`;
+    const asPlain = (p) => p.replace(/\//g, '\\').replace(/^\\\\\?\\/i, '');
+    const realpathMissing = (p) => {
+      if (asPlain(p).toLowerCase() === temp.toLowerCase()) {
+        return `\\\\?\\${temp}`;
+      }
+      throw new Error('ENOENT');
+    };
+    const realpathExists = (p) => {
+      const plain = asPlain(p).toLowerCase();
+      if (plain === file.toLowerCase()) {
+        return `\\\\?\\${file}`;
+      }
+      if (plain === temp.toLowerCase()) {
+        return `\\\\?\\${temp}`;
+      }
+      throw new Error('ENOENT');
+    };
+    const optsMissing = { platform: 'win32', realpath: realpathMissing };
+    const optsExists = { platform: 'win32', realpath: realpathExists };
+    const before = resolveScopePath(file, optsMissing);
+    const after = resolveScopePath(`\\\\?\\${file}`, optsExists);
+    const forward = resolveScopePath('C:/Users/huertgen/AppData/Local/Temp/cl-zoom.cmd', optsExists);
+    assert.equal(scopeKey(before, 'win32'), scopeKey(file, 'win32'));
+    assert.equal(scopeKey(after, 'win32'), scopeKey(file, 'win32'));
+    assert.equal(scopeKey(forward, 'win32'), scopeKey(file, 'win32'));
+    assert.equal(before.includes('?'), false, 'dialog path drops the verbatim prefix');
   });
 });
 
