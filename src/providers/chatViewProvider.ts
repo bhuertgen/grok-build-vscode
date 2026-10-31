@@ -290,6 +290,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       agentContext: s.agentContext ?? 'new',
       seedHistoryOnNextPrompt: !!s.seedHistoryOnNextPrompt,
       contextNoticeDismissed: !!s.contextNoticeDismissed,
+      promptQueue: s.promptQueue ?? [],
     };
   }
 
@@ -458,6 +459,51 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               | undefined,
           }
         );
+        break;
+
+      case 'enqueueFollowUp':
+        await this.sessions.enqueueFollowUp(
+          msg.localId as string,
+          typeof msg.text === 'string' ? msg.text : '',
+          {
+            images: msg.images as
+              | Array<{ mimeType: string; data: string }>
+              | undefined,
+          }
+        );
+        break;
+
+      case 'updateFollowUp':
+        this.sessions.updateFollowUp(
+          msg.localId as string,
+          typeof msg.id === 'string' ? msg.id : '',
+          typeof msg.text === 'string' ? msg.text : ''
+        );
+        break;
+
+      case 'removeFollowUp':
+        this.sessions.removeFollowUp(
+          msg.localId as string,
+          typeof msg.id === 'string' ? msg.id : ''
+        );
+        break;
+
+      case 'holdFollowUp':
+        this.sessions.setFollowUpHold(
+          msg.localId as string,
+          typeof msg.id === 'string' ? msg.id : '',
+          !!msg.held
+        );
+        break;
+
+      case 'sendFollowUpNow':
+        this.sessions.sendFollowUpNow(msg.localId as string, {
+          text: typeof msg.text === 'string' ? msg.text : '',
+          images: msg.images as
+            | Array<{ mimeType: string; data: string }>
+            | undefined,
+          id: typeof msg.id === 'string' ? msg.id : undefined,
+        });
         break;
 
       case 'cancel':
@@ -851,6 +897,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const linksScript = linksOnDisk
       ? `<script src="${webview.asWebviewUri(linksOnDisk).toString()}"></script>`
       : '';
+    const followUpOnDisk =
+      tryUri(distWebview, 'followUp.js') ??
+      tryUri(fallbackWebview, 'followUp.js');
+    const followUpScript = followUpOnDisk
+      ? `<script src="${webview.asWebviewUri(followUpOnDisk).toString()}"></script>`
+      : '';
 
     const styleUri = webview.asWebviewUri(styleOnDisk);
     const scriptUri = webview.asWebviewUri(scriptOnDisk);
@@ -881,6 +933,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       .replace(/\{\{cspSource\}\}/g, webview.cspSource)
       .replace(/\{\{styleUri\}\}/g, styleUri.toString())
       .replace(/\{\{linksScript\}\}/g, linksScript)
+      .replace(/\{\{followUpScript\}\}/g, followUpScript)
       .replace(/\{\{scriptUri\}\}/g, scriptUri.toString())
       .replace(/\{\{logoUri\}\}/g, logoUri.toString())
       .replace(/\{\{fontSize\}\}/g, String(fontSize))

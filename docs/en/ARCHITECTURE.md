@@ -44,6 +44,17 @@ We do **not** reimplement the agent. We get identical behaviour to the terminal 
 
 **CLI → Extension:** `session/update`, `fs/read_text_file`, `fs/write_text_file`, `terminal/*`, `session/request_permission`; Grok extensions `_x.ai/session_notification` (`model_changed`) and `_x.ai/models/update` (model catalog with per-model reasoning efforts, refreshes the Model / Effort chips)
 
+## Mid-turn follow-ups
+
+The CLI TUI default is `[ui] follow_up_behavior = "queue"`: Enter while a turn is running stores the draft, and the next prompt is sent when the turn ends. Send now (Ctrl+Enter / ⌘+Enter) cancels the turn, then sends. This extension does the same on the client (`src/session/followUp.ts`):
+
+- The queue lives in memory on the session (not in chat history). The webview lists it and can edit, remove, or send now a row.
+- `sendPrompt` still throws `Session is busy` for a second concurrent call. Queued prompts go through `enqueueFollowUp` and are delivered by calling `sendPrompt` only after the in-flight turn releases the lock — one `session/prompt` at a time.
+- Stop / Esc / Cancel Current Turn cancel without sending the composer draft. When that turn ends, the next queued item still runs (the CLI keeps the queue across cancel).
+- A row open in the editor is held and is not auto-sent (the CLI's `hold_edit`, done locally).
+
+**Steer is not implemented.** CLI `follow_up_behavior = "steer"` injects at the next tool or model step via the ext-notification `x.ai/queue/interject`. That only works for a prompt the agent has already accepted on its server queue, which is a second in-flight `session/prompt`. We do not open that second prompt, and we do not fake steer by appending text to the streaming answer.
+
 ## Folder structure
 
 ```
@@ -65,6 +76,7 @@ src/
     grokTrust.ts               # Grok folder-trust banner + "Trust folder" flow (vscode glue)
   session/
     sessionManager.ts          # multi-session + process map
+    followUp.ts                # mid-turn follow-up queue (CLI default: queue, not steer)
     sessionStore.ts            # globalState history
   context/
     contextCollector.ts        # auto active file / selection

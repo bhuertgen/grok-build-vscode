@@ -23,6 +23,21 @@ function buildMessageLinks() {
   });
 }
 
+/** Composer queue/send-now decision shared with tests (GrokFollowUp.decideComposerSubmit). */
+function buildFollowUp() {
+  return esbuild.build({
+    entryPoints: ['src/session/followUp.ts'],
+    outfile: path.join(outDir, 'webview', 'followUp.js'),
+    bundle: true,
+    format: 'iife',
+    globalName: 'GrokFollowUp',
+    platform: 'browser',
+    target: 'es2022',
+    minify: production,
+    logLevel: 'silent',
+  });
+}
+
 /** Copy webview static assets next to the bundle */
 function copyWebview() {
   const srcDir = path.join('webview');
@@ -75,6 +90,7 @@ const ctx = await esbuild.context({
           copyMedia();
           if (result.errors.length === 0) {
             await buildMessageLinks();
+            await buildFollowUp();
             // Signal for VS Code background problemMatcher (endsPattern)
             console.log('[watch] build finished, watching for changes...');
           }

@@ -86,6 +86,15 @@ import {
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
 import { pushNotice } from '../util/restoreNotices';
 import { clearStaleStartErrors } from '../util/cliRecovery';
+import {
+  BUSY_ERROR,
+  FollowUpGate,
+  coerceQueuedImages,
+  settleTurn,
+  type FollowUpQueueItem,
+  type QueuedImage,
+  type QueuedPrompt,
+} from './followUp';
 
 /**
  * How much conversation memory the live CLI agent has.
@@ -128,6 +137,11 @@ export interface SessionState {
   seedHistoryOnNextPrompt?: boolean;
   /** User closed the memory banner for this open */
   contextNoticeDismissed?: boolean;
+  /**
+   * Follow-ups typed while a turn is running. Sent one at a time after the
+   * turn ends. Not persisted — a reload drops the queue with the live turn.
+   */
+  promptQueue: FollowUpQueueItem[];
 }
 
 /** Local slash commands always offered (extension UX), even before the agent advertises any. */
@@ -222,6 +236,10 @@ export class SessionManager extends EventEmitter {
   private readonly contextCollector = new ContextCollector();
   /** Debounced persists, one timer per session (a shared timer dropped other tabs' saves) */
   private persistTimers = new Map<string, NodeJS.Timeout>();
+  /** Client-side follow-up queue per session (CLI default: queue, not steer). */
+  private followUps = new Map<string, FollowUpGate>();
+  /** Context chips captured with a queued follow-up, keyed by prompt id. */
+  private queuedContext = new Map<string, Map<string, ContextItem[]>>();
   /** True while bootstrap reopens the saved tabs (do not overwrite the list mid-restore) */
   private restoringTabs = false;
   /** Prevents parallel bootstrap sessions from sidebar + editor webviews */
@@ -438,6 +456,7 @@ export class SessionManager extends EventEmitter {
       status: 'connecting',
       contextItems: [],
       agentContext: 'new',
+      promptQueue: [],
     };
     this.sessions.set(localId, state);
     this.activeLocalId = localId;
@@ -609,6 +628,7 @@ export class SessionManager extends EventEmitter {
       status: 'connecting',
       contextItems: [],
       agentContext: hasLocalHistory ? 'local-only' : 'new',
+      promptQueue: [],
     };
     // Show saved messages immediately (before CLI connects) — Claude Code style
     this.sessions.set(state.localId, state);
@@ -776,6 +796,7 @@ export class SessionManager extends EventEmitter {
     await this.persistNow(state);
     await this.teardownClient(localId);
     this.sessions.delete(localId);
+    this.dropFollowUp(localId);
     this.editController.clearSession(localId);
     if (this.activeLocalId === localId) {
       const remaining = this.listSessions();
@@ -863,29 +884,285 @@ export class SessionManager extends EventEmitter {
     }
   }
 
-  async sendPrompt(
+  /**
+   * Queue a follow-up while this session is busy. When it is idle, send it
+   * immediately (the turn ended between the keypress and this message).
+   * Does not call into a second concurrent `session/prompt`.
+   */
+  async enqueueFollowUp(
     localId: string,
     text: string,
-    extras?: { images?: Array<{ mimeType: string; data: string }> }
+    extras?: { images?: QueuedImage[] }
   ): Promise<void> {
     const state = this.sessions.get(localId);
     if (!state) {
       throw new Error('Session not found');
     }
-    if (state.busy) {
-      throw new Error('Session is busy');
+    const images = coerceQueuedImages(extras?.images);
+    const gate = this.followUpGate(state);
+    if (!gate.busy && !state.busy) {
+      await this.sendPrompt(localId, text, { images });
+      return;
+    }
+    const chips = this.takeContextChips(state);
+    let prompt: QueuedPrompt;
+    try {
+      prompt = gate.enqueue(text, images);
+    } catch (err) {
+      if (chips.length) {
+        state.contextItems = [...chips, ...state.contextItems];
+      }
+      throw err;
+    }
+    this.rememberContext(state.localId, prompt.id, chips);
+    this.syncQueue(state);
+    this.emitChange(localId);
+  }
+
+  updateFollowUp(localId: string, id: string, text: string): void {
+    const state = this.sessions.get(localId);
+    if (!state || !id) {
+      return;
+    }
+    const gate = this.followUpGate(state);
+    if (gate.update(id, text) === 'missing') {
+      return;
+    }
+    this.syncQueue(state);
+    this.emitChange(localId);
+  }
+
+  removeFollowUp(localId: string, id: string): void {
+    const state = this.sessions.get(localId);
+    if (!state || !id) {
+      return;
+    }
+    const gate = this.followUpGate(state);
+    if (!gate.remove(id)) {
+      return;
+    }
+    this.queuedContext.get(localId)?.delete(id);
+    this.syncQueue(state);
+    this.emitChange(localId);
+  }
+
+  /**
+   * A queue row is open in the editor. Drain skips it so the turn ending
+   * does not send a half-edited prompt (CLI `hold_edit`, client-side).
+   */
+  setFollowUpHold(localId: string, id: string, held: boolean): void {
+    const state = this.sessions.get(localId);
+    if (!state || !id) {
+      return;
+    }
+    const gate = this.followUpGate(state);
+    if (!gate.hold(id, held)) {
+      return;
+    }
+    this.syncQueue(state);
+    this.emitChange(localId);
+    if (!held) {
+      this.drainFollowUps(state);
+    }
+  }
+
+  /**
+   * Stop the current turn and send `id`, or the composer draft, or the top
+   * queued row. Idle sessions just send. Does not start a second prompt
+   * until the in-flight turn releases the gate.
+   */
+  sendFollowUpNow(
+    localId: string,
+    opts?: { text?: string; images?: QueuedImage[]; id?: string }
+  ): void {
+    const state = this.sessions.get(localId);
+    if (!state) {
+      throw new Error('Session not found');
+    }
+    const gate = this.followUpGate(state);
+    const decision = gate.armSendNow({
+      text: opts?.text ?? '',
+      images: coerceQueuedImages(opts?.images),
+      id: opts?.id,
+    });
+    if (decision.action === 'ignore') {
+      return;
+    }
+    if (decision.origin === 'draft') {
+      this.rememberContext(state.localId, decision.prompt.id, this.takeContextChips(state));
+    }
+    this.syncQueue(state);
+    this.emitChange(localId);
+    if (decision.action === 'send') {
+      this.launchFollowUp(state, decision.prompt, { allowReconnect: true });
+      return;
+    }
+    this.cancel(state.localId);
+  }
+
+  private followUpGate(state: SessionState): FollowUpGate {
+    let gate = this.followUps.get(state.localId);
+    if (!gate) {
+      gate = new FollowUpGate();
+      this.followUps.set(state.localId, gate);
+    }
+    return gate;
+  }
+
+  private syncQueue(state: SessionState): void {
+    state.promptQueue = this.followUpGate(state).snapshot();
+  }
+
+  private rememberContext(localId: string, promptId: string, chips: ContextItem[]): void {
+    if (!chips.length) {
+      return;
+    }
+    let bag = this.queuedContext.get(localId);
+    if (!bag) {
+      bag = new Map();
+      this.queuedContext.set(localId, bag);
+    }
+    bag.set(promptId, chips);
+  }
+
+  private takeContextChips(state: SessionState): ContextItem[] {
+    if (!state.contextItems.length) {
+      return [];
+    }
+    return state.contextItems.splice(0, state.contextItems.length);
+  }
+
+  private attachQueuedContext(state: SessionState, promptId: string): void {
+    const bag = this.queuedContext.get(state.localId);
+    const chips = bag?.get(promptId);
+    bag?.delete(promptId);
+    if (!chips?.length) {
+      return;
+    }
+    const have = new Set(state.contextItems.map((c) => c.id));
+    state.contextItems = [
+      ...chips.filter((c) => !have.has(c.id)),
+      ...state.contextItems,
+    ];
+  }
+
+  private canDeliver(state: SessionState): boolean {
+    if (state.status !== 'ready') {
+      return false;
+    }
+    return !!this.clients.get(state.localId)?.isConnected;
+  }
+
+  /** Send a prompt the gate already removed. `allowReconnect` is for an explicit send now. */
+  private launchFollowUp(
+    state: SessionState,
+    next: QueuedPrompt,
+    opts?: { allowReconnect?: boolean }
+  ): void {
+    const gate = this.followUpGate(state);
+    if (!opts?.allowReconnect && !this.canDeliver(state)) {
+      gate.unshift(next);
+      this.syncQueue(state);
+      this.emitChange(state.localId);
+      return;
+    }
+    void this.sendPrompt(state.localId, next.text, {
+      images: next.images,
+      queuedId: next.id,
+    }).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      // Rejected only when the turn never reached the agent (busy, not ready).
+      // A prompt the agent actually ran resolves, including turn errors.
+      gate.unshift(next);
+      this.syncQueue(state);
+      this.emitChange(state.localId);
+      this.log.error('Queued follow-up failed', message);
+    });
+  }
+
+  /** Run the next unheld follow-up when nothing is in flight (slash finished, edit closed). */
+  private drainFollowUps(state: SessionState): void {
+    const gate = this.followUpGate(state);
+    if (gate.busy || state.busy) {
+      return;
+    }
+    const next = gate.takeIfIdle();
+    this.syncQueue(state);
+    this.emitChange(state.localId);
+    if (next) {
+      this.launchFollowUp(state, next);
+    }
+  }
+
+  private finishTurn(state: SessionState, dispatched: boolean): void {
+    const gate = this.followUpGate(state);
+    const next = settleTurn(gate, dispatched);
+    state.busy = false;
+    state.updatedAt = Date.now();
+    this.clearPendingPermissions(state.localId);
+    this.syncQueue(state);
+    void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', false);
+    void this.persistNow(state);
+    this.emitChange(state.localId);
+    if (!next) {
+      return;
+    }
+    if (!this.canDeliver(state)) {
+      gate.unshift(next);
+      this.syncQueue(state);
+      this.emitChange(state.localId);
+      return;
+    }
+    this.launchFollowUp(state, next);
+  }
+
+  private dropFollowUp(localId: string): void {
+    this.followUps.delete(localId);
+    this.queuedContext.delete(localId);
+  }
+
+  async sendPrompt(
+    localId: string,
+    text: string,
+    extras?: { images?: QueuedImage[]; queuedId?: string }
+  ): Promise<void> {
+    const state = this.sessions.get(localId);
+    if (!state) {
+      throw new Error('Session not found');
+    }
+    const gate = this.followUpGate(state);
+    // Second concurrent prompt is rejected. Follow-ups must be queued
+    // (enqueueFollowUp) and are delivered only after this lock is released.
+    if (gate.busy || state.busy) {
+      throw new Error(BUSY_ERROR);
     }
 
-    // Local slash commands (help, plan, clear, …)
+    // Local slash commands (help, plan, clear, …). A queued slash arrives
+    // here only once the previous turn has released the lock.
     if (
       (!extras?.images || extras.images.length === 0) &&
       text.trim().startsWith('/')
     ) {
       const result = await this.tryHandleLocalSlash(localId, text);
       if (result === 'handled') {
+        this.drainFollowUps(state);
         return;
       }
     }
+
+    let dispatched = false;
+    let claimed = false;
+    try {
+      gate.claimTurn();
+      claimed = true;
+      state.busy = true;
+      void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', true);
+      this.emitChange(localId);
+
+      if (extras?.queuedId) {
+        this.attachQueuedContext(state, extras.queuedId);
+      }
+
     if (state.status !== 'ready' || !state.agentSessionId) {
       if (state.status === 'error' || state.status === 'idle') {
         await this.reconnect(state);
@@ -986,9 +1263,7 @@ export class SessionManager extends EventEmitter {
       state.title = text.trim().slice(0, 60) + (text.length > 60 ? '…' : '');
     }
     state.contextItems = [];
-    state.busy = true;
     state.updatedAt = Date.now();
-    void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', true);
     // Eager: the prompt and the new title survive a host restart mid-turn (#51)
     void this.persistNow(state);
     this.emitChange(localId);
@@ -1003,6 +1278,7 @@ export class SessionManager extends EventEmitter {
     state.messages.push(agentMsg);
     this.emitChange(localId);
 
+    dispatched = true;
     try {
       const result = await live.prompt(state.agentSessionId, blocks);
       agentMsg.streaming = false;
@@ -1049,13 +1325,11 @@ export class SessionManager extends EventEmitter {
         this.pushSystem(state, `Turn error: ${message}`);
       }
       this.log.error('prompt failed', message);
+    }
     } finally {
-      state.busy = false;
-      state.updatedAt = Date.now();
-      this.clearPendingPermissions(state.localId);
-      void vscode.commands.executeCommand('setContext', 'grokBuild.isBusy', false);
-      void this.persistNow(state);
-      this.emitChange(localId);
+      if (claimed) {
+        this.finishTurn(state, dispatched);
+      }
     }
   }
 
@@ -1556,6 +1830,8 @@ export class SessionManager extends EventEmitter {
       await this.teardownClient(localId);
     }
     this.sessions.clear();
+    this.followUps.clear();
+    this.queuedContext.clear();
   }
 
   // ─── Process lifecycle ────────────────────────────────────────────────────
@@ -1585,7 +1861,14 @@ export class SessionManager extends EventEmitter {
       const state = this.sessions.get(localId);
       if (state && state.status === 'ready') {
         state.status = 'idle';
+        // Release the turn lock without auto-sending. The in-flight prompt's
+        // finally also settles; settleTurn is a no-op the second time.
+        const gate = this.followUps.get(localId);
+        if (gate?.busy) {
+          settleTurn(gate, false);
+        }
         state.busy = false;
+        this.syncQueue(state);
         this.pushSystem(
           state,
           'Agent process disconnected. Send a message to reconnect.'

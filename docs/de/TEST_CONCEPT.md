@@ -225,6 +225,11 @@ Format je Fall:
 - **Schritte:** jede Belegung aus [USER_GUIDE §5](./USER_GUIDE.md#tastenkürzel) ausprobieren: `Ctrl+Shift+G` dann `C` / `N` / `P` / `A` / `I`, `Ctrl+Shift+G` dann `Escape` während Busy, `Escape` im fokussierten Chat während Busy, `Alt+K` mit Editor-Auswahl  
 - **Pass:** jede führt ihren Command aus; `Escape` schließt zuerst offene Menüs; kein Akkord schreibt Text in den Composer  
 
+#### T-U13 — Follow-up-Warteschlange mitten im Turn  
+- **Dim:** U, F  
+- **Schritte:** eine lange Aufgabe starten. Während Stop sichtbar ist, einen Follow-up tippen und Enter drücken. Er muss in der Liste über dem Composer erscheinen, und die laufende Antwort streamt weiter. Die Zeile bearbeiten, eine zweite einreihen und die zweite mit Remove entfernen. Mit einem neuen Entwurf Ctrl+Enter (Mac: Cmd+Enter) drücken oder in einer Zeile **Send now**.  
+- **Pass:** Enter verwirft den Text nicht und startet keinen zweiten Turn. Wenn der laufende Turn endet, wird der eingereihte Prompt für sich gesendet. Send now stoppt den Turn, und dieser Entwurf (oder die gewählte Zeile) ist der nächste Turn; die übrigen Zeilen bleiben in der Warteschlange. Stop / Esc brechen weiter ab, ohne den Composer-Entwurf zu senden. Eine in Edit offene Zeile wird nicht automatisch gesendet. In die laufende Antwort wird nichts injiziert (kein Steer).  
+
 ---
 
 ### 4.3 Kontext & @
@@ -607,7 +612,7 @@ Empfohlene Fixes (Prio):
 | Priorität | IDs | Wann |
 |-----------|-----|------|
 | **P0 Blocker** | Smoke, T-F02, T-M05 Reject, T-M07, T-F05, T-U01 Cancel | Jeder Build vor einer Demo |
-| **P1 Kern** | T-C01/02, T-S03/S06/S07, T-F01, T-U04/U09, T-M01/M04/M06 | Vor Release |
+| **P1 Kern** | T-C01/02, T-S03/S06/S07, T-F01, T-U04/U09/U13, T-M01/M04/M06 | Vor Release |
 | **P2 Feinschliff** | T-A01, T-M02, T-C04–C07, T-U10/U11, T-F06, T-P05/P06, Heuristiken | Sprint-Ende |
 | **P3 Nice** | Diff-UI, Slash-Randfälle, Multi-Window | Backlog |
 

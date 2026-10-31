@@ -38,6 +38,7 @@ await esbuild.build({
     outsideAccess: 'src/util/outsideAccess.ts',
     panelRevive: 'src/util/panelRevive.ts',
     openTabs: 'src/session/openTabs.ts',
+    followUp: 'src/session/followUp.ts',
     sessionStore: 'src/session/sessionStore.ts',
     grokFolderTrust: 'src/util/grokFolderTrust.ts',
     restoreNotices: 'src/util/restoreNotices.ts',

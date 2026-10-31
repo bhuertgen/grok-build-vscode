@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- While a turn is running, Enter queues a follow-up instead of dropping it. The next queued prompt is sent automatically when the turn ends (one at a time), matching the Grok CLI default `[ui] follow_up_behavior = "queue"`. The list above the composer can edit, remove, or **Send now** a row. Ctrl+Enter / ⌘+Enter stops the current turn and sends the draft (or the first queued prompt). Stop and Esc still cancel without sending the draft. Mid-turn **steer** is not implemented: the CLI injects via `x.ai/queue/interject` only for a prompt the agent already has on its own queue, and this client does not open a second `session/prompt` while a turn is busy.
 - File paths in Grok's answers open in the editor: relative paths under the workspace, `path:line` and `path:line:col` (1-based), and absolute paths that exist outside the workspace. A missing file shows "File not found" instead of an empty editor. `#123` opens that issue or pull request when the workspace git remote is GitHub, GitLab, Bitbucket, or a similar forge (#65).
 
 ### Changed
