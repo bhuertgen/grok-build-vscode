@@ -18,6 +18,7 @@
  */
 import * as nodePath from 'node:path';
 import * as nodeFs from 'node:fs';
+import * as os from 'node:os';
 
 export interface PathScopeOptions {
   platform?: NodeJS.Platform;
@@ -122,6 +123,42 @@ export function scopeKey(p: string, platform: NodeJS.Platform = process.platform
   return k;
 }
 
+/** `key` is `rootKey` or a path below it. Both should already be scope keys. */
+function isKeyInsideRoot(key: string, rootKey: string, sep: string): boolean {
+  const prefix = rootKey.endsWith(sep) ? rootKey : rootKey + sep;
+  return key === rootKey || key.startsWith(prefix);
+}
+
+/**
+ * True when `key` is `rootKey` or below it. An empty root matches nothing
+ * (`C:\TempExtra` is not inside `C:\Temp`). Keys must already be `scopeKey`s.
+ */
+export function isUnderScopeKey(
+  key: string,
+  rootKey: string,
+  platform: NodeJS.Platform = process.platform
+): boolean {
+  if (!rootKey) {
+    return false;
+  }
+  return isKeyInsideRoot(key, rootKey, api(platform).sep);
+}
+
+/**
+ * Comparison key of the real OS temp directory (`os.tmpdir()`).
+ * Symlinks are resolved the same way as a file check, then folded with
+ * `scopeKey` (Windows verbatim prefixes, case, separators, trailing dots).
+ * This is not "any directory named temp".
+ */
+export function osTempScopeKey(): string {
+  const tmp = os.tmpdir();
+  try {
+    return scopeKey(resolveScopePath(tmp));
+  } catch {
+    return scopeKey(tmp);
+  }
+}
+
 /** True when `target` is one of `roots` or below one of them. */
 export function isInsideWorkspace(
   target: string,
@@ -136,7 +173,6 @@ export function isInsideWorkspace(
       return false;
     }
     const root = scopeKey(resolveScopePath(r, opts), platform);
-    const prefix = root.endsWith(sep) ? root : root + sep;
-    return t === root || t.startsWith(prefix);
+    return isKeyInsideRoot(t, root, sep);
   });
 }

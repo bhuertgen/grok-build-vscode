@@ -117,7 +117,8 @@ export class ClientHandlers {
   /**
    * Allow fs access inside the workspace roots; outside, ask the user with a
    * modal (Allow once / Allow for this session / cancel = deny). Throws an
-   * ACP error when denied. A session write approval also covers reads.
+   * ACP error when denied. A session write approval also covers reads. A
+   * session write under the OS temp directory covers every file there.
    */
   private async ensureInWorkspace(
     filePath: string,
@@ -140,9 +141,11 @@ export class ClientHandlers {
       this.log.warn(`fs/${op}_text_file outside workspace — allowed (${already})`, resolved);
       return;
     }
-    // One dialog per op+path. Waiters re-check afterwards, so "Allow for this
-    // session" covers a write that arrived while the dialog was open.
-    // "Allow once" still asks for the next write (reads use the short grace).
+    // One dialog per op+path. Writes under the OS temp directory share one
+    // dialog. Waiters re-check afterwards, so "Allow for this session" covers
+    // a write that arrived while the dialog was open (and, for a temp write,
+    // every other file in that temp directory). "Allow once" still asks for
+    // the next write (reads use the short grace).
     const allowed = await coalesceOutsidePrompt(
       this.outsideGrants,
       this.outsidePrompts,
@@ -166,6 +169,7 @@ export class ClientHandlers {
     const once = 'Allow once';
     const session = 'Allow for this session';
     const verb = op === 'write' ? 'write to' : 'read';
+    const coversOsTemp = op === 'write' && this.outsideGrants.isInOsTemp(key);
     const choice = await vscode.window.showWarningMessage(
       `Grok wants to ${verb} a file outside the workspace.`,
       {
@@ -176,7 +180,9 @@ export class ClientHandlers {
           (op === 'write'
             ? '"Allow once" allows this write only; re-reads of the file during the next minute do not ask again. '
             : '"Allow once" also covers re-reads of this file during the next minute. ') +
-          '"Allow for this session" stops asking for this path until the agent restarts. ' +
+          (coversOsTemp
+            ? '"Allow for this session" stops asking for every file in the system temporary folder until the agent restarts (reads of those files included). '
+            : '"Allow for this session" stops asking for this path until the agent restarts. ') +
           'Cancel denies the request.',
       },
       once,

@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { isInsideWorkspace, resolveScopePath, scopeKey } = require('../dist-test/pathScope.js');
+const { isInsideWorkspace, isUnderScopeKey, osTempScopeKey, resolveScopePath, scopeKey } = require('../dist-test/pathScope.js');
 
 const noLinks = { realpath: (p) => { throw new Error('ENOENT ' + p); } };
 
@@ -77,7 +77,7 @@ describe('pathScope: Windows (#45)', () => {
       scopeKey('\\\\?\\UNC\\server\\share\\cl-zoom.cmd', 'win32'),
       scopeKey('\\\\server\\share\\cl-zoom.cmd', 'win32')
     );
-    // A different file in the same Temp folder is not the same grant.
+    // A different file in the same Temp folder is a different scope key.
     assert.notEqual(
       scopeKey('C:\\Users\\huertgen\\AppData\\Local\\Temp\\other.cmd', 'win32'),
       key
@@ -130,6 +130,40 @@ describe('pathScope: Windows (#45)', () => {
     assert.equal(scopeKey(after, 'win32'), scopeKey(file, 'win32'));
     assert.equal(scopeKey(forward, 'win32'), scopeKey(file, 'win32'));
     assert.equal(before.includes('?'), false, 'dialog path drops the verbatim prefix');
+  });
+  it('isUnderScopeKey is the OS temp directory, not a folder named Temp', () => {
+    const root = scopeKey('\\\\?\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\', 'win32');
+    assert.equal(
+      root,
+      scopeKey('C:/Users/HUERTGEN/AppData/Local/Temp', 'win32')
+    );
+    assert.equal(
+      isUnderScopeKey(scopeKey('\\\\?\\C:\\Users\\huertgen\\AppData\\Local\\Temp\\other.cmd', 'win32'), root, 'win32'),
+      true
+    );
+    assert.equal(
+      isUnderScopeKey(scopeKey('C:/Users/HUERTGEN/AppData/Local/Temp./sub/helper.cmd', 'win32'), root, 'win32'),
+      true
+    );
+    assert.equal(isUnderScopeKey(root, root, 'win32'), true);
+    assert.equal(
+      isUnderScopeKey(scopeKey('D:\\Temp\\other.cmd', 'win32'), root, 'win32'),
+      false
+    );
+    assert.equal(
+      isUnderScopeKey(scopeKey('C:\\Windows\\Temp\\grok-should-not.txt', 'win32'), root, 'win32'),
+      false
+    );
+    assert.equal(
+      isUnderScopeKey(scopeKey('C:\\Users\\huertgen\\AppData\\Local\\TempExtra\\x.cmd', 'win32'), root, 'win32'),
+      false
+    );
+    assert.equal(isUnderScopeKey(scopeKey('/tmp/x', 'linux'), '', 'linux'), false);
+  });
+  it('osTempScopeKey is the real system temp directory', () => {
+    assert.equal(osTempScopeKey(), scopeKey(resolveScopePath(os.tmpdir())));
+    const named = scopeKey(resolveScopePath(path.resolve(os.tmpdir(), '..', '..', 'Temp', 'cl-zoom.cmd')));
+    assert.equal(isUnderScopeKey(named, osTempScopeKey()), false);
   });
 });
 
