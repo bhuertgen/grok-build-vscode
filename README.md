@@ -105,6 +105,7 @@ npm run watch   # F5 → Extension Development Host
 | History | `↺` or `/` → Chat-History |
 | Focus chat input | `Ctrl+Shift+G I` (`Cmd+Shift+G I`) |
 | Cancel turn | Stop or `Ctrl+Shift+G Escape` (when busy) |
+| Queue a follow-up | While a turn runs, Enter queues it; it sends when the turn ends. `Ctrl+Enter` / `⌘+Enter` sends now (stops, then sends) |
 
 ### Example prompts
 

@@ -88,7 +88,7 @@ code --install-extension grok-build-vscode-x.y.z.vsix
 | **Tool-Zeilen** | Kompakt, aufklappbar; abgeschlossene Tools oft gruppiert |
 | **`+`** | Einfügen: Kontext, Bild, aktive Datei |
 | **`/`** | Aktionen: Slash, History, Modell, Permissions, CLI-Update… |
-| **Eingabe** | `Enter` senden, `Shift+Enter` Zeilenumbruch |
+| **Eingabe** | `Enter` senden (während eines Turns: in die Warteschlange), `Shift+Enter` Zeilenumbruch, `Ctrl+Enter` / `⌘+Enter` sofort senden |
 
 ---
 
@@ -131,6 +131,23 @@ Fasse die Installationsschritte in 3 Bulletpoints zusammen.
 
 Am Zeilenanfang `/` tippen für lokale/Agent-Slash-Commands (`/help`, `/plan`, `/model`, CLI-Skills…).  
 Viele Commands kommen dynamisch von der **CLI**; die Extension ergänzt immer Helfer wie `help`, `plan`, `execute`, `clear`, `new`, `context`.
+
+### 3.5 Follow-ups mitten im Turn
+
+Während ein Turn läuft, bleibt der Composer offen (Stop ist sichtbar). Das entspricht dem CLI-TUI-Default `[ui] follow_up_behavior = "queue"`.
+
+| Aktion | Wirkung |
+|--------|---------|
+| **Enter** (nicht leer) | Entwurf in die Warteschlange. Er wird automatisch gesendet, wenn der aktuelle Turn endet, danach der nächste Eintrag, ein Turn nach dem anderen. |
+| **Enter** (leer, Warteschlange nicht leer) | **Send now** für den ersten Eintrag: diesen Turn stoppen, dann diesen Prompt senden. |
+| **Ctrl+Enter** oder **⌘+Enter** | **Send now**: diesen Turn stoppen, dann den Entwurf senden. Ist der Composer leer, wird der erste Eintrag gesendet. |
+| **Send now** in einer Zeile | Diesen Turn stoppen und diese Zeile als Nächstes ausführen. Die übrigen Zeilen bleiben in der Warteschlange. |
+| **Stop**, **Esc**, **Cancel Current Turn** | Turn abbrechen. Der Entwurf im Composer wird nicht gesendet. Einträge in der Warteschlange bleiben, der nächste läuft nach dem Turn weiter. |
+| **Edit** / **Remove** | Zeile ändern oder entfernen. Eine Zeile, die gerade bearbeitet wird, wird nicht automatisch gesendet, bis das Feld verlassen wird (Enter speichert, Esc verwirft). |
+
+Die Warteschlange steht über dem Composer. Kontext-Chips am Composer bleiben an dem Follow-up, das du einreihst oder per Send now schickst, und werden angehängt, wenn dieser Prompt wirklich läuft.
+
+Die CLI kann zusätzlich `follow_up_behavior = "steer"` setzen (Text beim nächsten Tool- oder Modell-Schritt in den laufenden Turn injizieren). Diese Extension tut das nicht. Steer über ACP ist `x.ai/queue/interject` und gilt nur für einen Prompt, den der Agent schon in seiner eigenen Warteschlange angenommen hat — ein zweites laufendes `session/prompt`. `sendPrompt` lehnt einen zweiten gleichzeitigen Turn weiter ab (`Session is busy`). Die Extension täuscht Steer nicht vor, indem sie in die laufende Antwort schreibt.
 
 ---
 
@@ -295,7 +312,7 @@ Alle Einträge aus `contributes.keybindings`. Ein Akkord hat zwei Schritte: `Ctr
 | Laufenden Turn abbrechen (Webview) | `Escape` | `Escape` | Chat fokussiert und ein Turn läuft (schließt zuerst Menüs) |
 | Chat-Eingabe fokussieren | `Ctrl+Shift+G` dann `I` | `Cmd+Shift+G` dann `I` | Immer (kein `when`) |
 
-Tasten im Composer (`Enter` sendet, `@`, `/`, Pfeiltasten) sind keine Extension-Keybindings. Siehe §3.
+Tasten im Composer (`Enter` sendet, oder reiht ein während ein Turn läuft; `Ctrl+Enter` / `⌘+Enter` sendet sofort; `@`, `/`, Pfeiltasten) sind keine Extension-Keybindings. Siehe §3.5.
 
 ---
 

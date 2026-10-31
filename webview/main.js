@@ -8,6 +8,8 @@
     input: document.getElementById('input'),
     btnSend: document.getElementById('btnSend'),
     btnStop: document.getElementById('btnStop'),
+    followUpQueue: document.getElementById('followUpQueue'),
+    composerHint: document.getElementById('composerHint'),
     btnNew: document.getElementById('btnNew'),
     btnHistory: document.getElementById('btnHistory'),
     btnMode: document.getElementById('btnMode'),
@@ -266,6 +268,7 @@
     renderMessages();
     renderChips();
     renderPendingEdits();
+    renderFollowUpQueue();
     renderComposer();
   }
 
@@ -874,6 +877,10 @@
     }
     if (state.processCount) {
       bits.push(`${state.processCount}p`);
+    }
+    const queued = Array.isArray(s.promptQueue) ? s.promptQueue.length : 0;
+    if (queued > 0) {
+      bits.push(queued === 1 ? '1 queued' : `${queued} queued`);
     }
     els.statusText.textContent = bits.join(' · ');
     els.statusBar.classList.toggle('error', s.status === 'error');
@@ -1783,10 +1790,21 @@
     const s = activeSession();
     const busy = !!s?.busy;
     const cliOk = !state.cli || state.cli.ready;
-    els.btnSend.classList.toggle('hidden', busy);
+    // Send stays visible while busy: click / Enter queues a follow-up.
+    // Stop still cancels without sending the draft.
+    els.btnSend.classList.remove('hidden');
     els.btnStop.classList.toggle('hidden', !busy);
+    const sendLabel = busy ? 'Queue follow-up' : 'Send';
+    els.btnSend.title = sendLabel;
+    els.btnSend.setAttribute('aria-label', sendLabel);
     els.btnSend.disabled = !cliOk || !s || s.status === 'connecting' || s.status === 'error';
     els.input.disabled = !cliOk || !s || s.status === 'connecting';
+    els.input.placeholder = busy ? 'Queue a follow-up…' : 'Message Grok…';
+    if (els.composerHint) {
+      els.composerHint.innerHTML = busy
+        ? '<kbd>Enter</kbd> queue · <kbd>Ctrl/⌘+Enter</kbd> send now · <kbd>Esc</kbd> stop'
+        : '<kbd>+</kbd> insert · <kbd>/</kbd> actions · <kbd>@</kbd> file · <kbd>Alt+K</kbd> range · <kbd>Enter</kbd> send';
+    }
     // Keep "+" clickable when the CLI is not ready: the extension-side gate
     // explains why (invalid cliPath → Open Setting, missing → Setup CLI) (#41).
     els.btnNew.disabled = false;
@@ -2568,27 +2586,268 @@
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
-  function send() {
-    const text = els.input.value.trim();
-    if (!text && pendingImages.length === 0) {
+  /**
+   * Same branches as `decideComposerSubmit` in src/session/followUp.ts.
+   * Used only when the followUp.js bundle did not load.
+   */
+  function decideComposerSubmitFallback(input) {
+    const nonEmpty = input.text.trim().length > 0 || input.hasImages;
+    if (input.forceSendNow) {
+      return nonEmpty || input.queueLength > 0 ? 'send-now' : 'ignore';
+    }
+    if (!input.busy) {
+      return nonEmpty ? 'send' : 'ignore';
+    }
+    if (nonEmpty) {
+      return 'queue';
+    }
+    if (input.queueLength > 0) {
+      return 'send-now';
+    }
+    return 'ignore';
+  }
+
+  function decideComposerAction(input) {
+    const api = typeof GrokFollowUp !== 'undefined' ? GrokFollowUp : null;
+    if (api && typeof api.decideComposerSubmit === 'function') {
+      return api.decideComposerSubmit(input);
+    }
+    return decideComposerSubmitFallback(input);
+  }
+
+  let queueEdit = null;
+
+  function renderFollowUpQueue() {
+    const host = els.followUpQueue;
+    if (!host) {
       return;
     }
     const s = activeSession();
-    if (!s || s.busy) {
+    const items = Array.isArray(s?.promptQueue) ? s.promptQueue : [];
+    if (queueEdit && (!s || queueEdit.localId !== s.localId)) {
+      if (queueEdit.localId && queueEdit.id) {
+        post('holdFollowUp', {
+          localId: queueEdit.localId,
+          id: queueEdit.id,
+          held: false,
+        });
+      }
+      queueEdit = null;
+    }
+    if (!s || items.length === 0) {
+      host.classList.add('hidden');
+      host.replaceChildren();
+      queueEdit = null;
+      return;
+    }
+    host.classList.remove('hidden');
+    const idSig = items.map((item) => `${item.id}${item.sendNow ? '!' : ''}`).join('\n');
+    const editorOpen = !!(queueEdit && host.querySelector('.follow-up-edit'));
+    if (queueEdit && !items.some((item) => item.id === queueEdit.id)) {
+      queueEdit = null;
+    }
+    // Streaming updates must not rebuild an open editor. A new or removed row does.
+    if (editorOpen && queueEdit && queueEdit.renderedIds === idSig) {
+      return;
+    }
+    const refocusEditor =
+      editorOpen &&
+      document.activeElement &&
+      document.activeElement.classList &&
+      document.activeElement.classList.contains('follow-up-edit');
+    host.replaceChildren();
+    if (queueEdit) {
+      queueEdit.renderedIds = idSig;
+    }
+    const head = document.createElement('div');
+    head.className = 'follow-up-head';
+    head.textContent = items.length === 1 ? '1 queued' : `${items.length} queued`;
+    head.title =
+      'Enter queues another follow-up. Ctrl+Enter or ⌘+Enter stops this turn and sends now. Stop cancels without sending the draft.';
+    host.appendChild(head);
+
+    for (const item of items) {
+      const row = document.createElement('div');
+      row.className = 'follow-up-row';
+      row.dataset.id = item.id;
+      const editing = queueEdit && queueEdit.id === item.id;
+      if (editing) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'follow-up-edit';
+        input.value = queueEdit.draft;
+        input.setAttribute('aria-label', 'Edit queued follow-up');
+        input.addEventListener('input', () => {
+          if (queueEdit && queueEdit.id === item.id) {
+            queueEdit.draft = input.value;
+          }
+        });
+        input.addEventListener('keydown', (e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commitQueueEdit(false);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            commitQueueEdit(true);
+          }
+        });
+        input.addEventListener('blur', () => {
+          // Clicking a row button blurs first; let that click win.
+          // Rebuilding the list also blurs the old field and focuses the new one.
+          setTimeout(() => {
+            if (!queueEdit || queueEdit.id !== item.id || document.activeElement === input) {
+              return;
+            }
+            const next = document.activeElement;
+            if (next && next.classList && next.classList.contains('follow-up-edit')) {
+              return;
+            }
+            commitQueueEdit(false);
+          }, 120);
+        });
+        row.appendChild(input);
+        const removeEditing = document.createElement('button');
+        removeEditing.type = 'button';
+        removeEditing.textContent = 'Remove';
+        removeEditing.addEventListener('click', () => {
+          queueEdit = null;
+          post('removeFollowUp', { localId: s.localId, id: item.id });
+        });
+        row.appendChild(removeEditing);
+        host.appendChild(row);
+        if (!editorOpen || refocusEditor) {
+          queueMicrotask(() => input.focus());
+        }
+        continue;
+      }
+
+      const label = document.createElement('span');
+      label.className = 'follow-up-text';
+      const shown = (item.text || '').trim() || (item.imageCount ? '(image)' : '(empty)');
+      label.textContent = shown;
+      label.title = shown;
+      row.appendChild(label);
+      if (item.sendNow) {
+        const badge = document.createElement('span');
+        badge.className = 'follow-up-badge';
+        badge.textContent = 'Next';
+        row.appendChild(badge);
+      }
+      if (item.imageCount) {
+        const badge = document.createElement('span');
+        badge.className = 'follow-up-badge';
+        badge.textContent = item.imageCount === 1 ? 'image' : `${item.imageCount} images`;
+        row.appendChild(badge);
+      }
+      if (!item.sendNow) {
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          queueEdit = { localId: s.localId, id: item.id, draft: item.text || '' };
+          post('holdFollowUp', { localId: s.localId, id: item.id, held: true });
+          renderFollowUpQueue();
+        });
+        row.appendChild(edit);
+      }
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => {
+        if (queueEdit && queueEdit.id === item.id) {
+          queueEdit = null;
+        }
+        post('removeFollowUp', { localId: s.localId, id: item.id });
+      });
+      row.appendChild(remove);
+      if (!item.sendNow) {
+        const now = document.createElement('button');
+        now.type = 'button';
+        now.className = 'primary';
+        now.textContent = 'Send now';
+        now.title = 'Stop the current turn and send this next';
+        now.addEventListener('click', () => {
+          if (queueEdit && queueEdit.id === item.id) {
+            queueEdit = null;
+          }
+          post('sendFollowUpNow', { localId: s.localId, id: item.id });
+        });
+        row.appendChild(now);
+      }
+      host.appendChild(row);
+    }
+  }
+
+  function commitQueueEdit(cancel) {
+    if (!queueEdit) {
+      return;
+    }
+    const edit = queueEdit;
+    queueEdit = null;
+    const text = cancel ? null : edit.draft;
+    if (!cancel && text != null && !String(text).trim()) {
+      post('removeFollowUp', { localId: edit.localId, id: edit.id });
+    } else if (!cancel && text != null) {
+      post('updateFollowUp', { localId: edit.localId, id: edit.id, text });
+    }
+    post('holdFollowUp', { localId: edit.localId, id: edit.id, held: false });
+  }
+
+  function send(opts) {
+    const s = activeSession();
+    if (!s) {
+      return;
+    }
+    const text = els.input.value;
+    const hasImages = pendingImages.length > 0;
+    const queueLength = Array.isArray(s.promptQueue) ? s.promptQueue.length : 0;
+    const action = decideComposerAction({
+      busy: !!s.busy,
+      text,
+      hasImages,
+      queueLength,
+      forceSendNow: !!(opts && opts.forceSendNow),
+    });
+    if (action === 'ignore') {
       return;
     }
     hideSlashMenu();
+    if (typeof hideAtMenu === 'function') {
+      hideAtMenu();
+    }
+    if (typeof hideBottomPicker === 'function') {
+      hideBottomPicker();
+    }
     toolsExpanded = false;
-    pinToBottom(); // new turn always follows the stream
-    post('sendPrompt', {
-      localId: s.localId,
-      text: text || '(image)',
-      images: pendingImages.slice(),
-    });
-    els.input.value = '';
-    pendingImages = [];
-    autoResize();
-    renderChips();
+    pinToBottom();
+    const images = pendingImages.slice();
+    const trimmed = text.trim();
+    if (action === 'send') {
+      post('sendPrompt', {
+        localId: s.localId,
+        text: trimmed || '(image)',
+        images,
+      });
+    } else if (action === 'queue') {
+      post('enqueueFollowUp', {
+        localId: s.localId,
+        text: trimmed,
+        images,
+      });
+    } else {
+      post('sendFollowUpNow', {
+        localId: s.localId,
+        text: trimmed,
+        images,
+      });
+    }
+    if (trimmed || hasImages) {
+      els.input.value = '';
+      pendingImages = [];
+      autoResize();
+      renderChips();
+    }
   }
 
   function autoResize() {
@@ -3161,6 +3420,9 @@
         if (t === els.actionsFilter) {
           return;
         }
+        if (els.followUpQueue && els.followUpQueue.contains(t)) {
+          return;
+        }
         const s = activeSession();
         if (s?.busy) {
           e.preventDefault();
@@ -3202,7 +3464,7 @@
         renderBottomPicker();
         return;
       }
-      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey)) {
         if (bottomPickerItems[bottomPickerIndex]) {
           e.preventDefault();
           applyBottomPicker(bottomPickerItems[bottomPickerIndex]);
@@ -3229,7 +3491,7 @@
         renderAtMenu(false);
         return;
       }
-      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey)) {
         if (atFiles[atIndex]) {
           e.preventDefault();
           applyAtFile(atFiles[atIndex]);
@@ -3256,7 +3518,7 @@
         renderSlashMenu();
         return;
       }
-      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey)) {
         if (slashFiltered[slashIndex]) {
           e.preventDefault();
           applySlashCommand(slashFiltered[slashIndex]);
@@ -3278,6 +3540,12 @@
         post('cancel', { localId: s.localId });
         return;
       }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      send({ forceSendNow: true });
+      return;
     }
 
     if (e.key === 'Enter' && !e.shiftKey) {

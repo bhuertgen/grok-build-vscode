@@ -193,6 +193,8 @@
         <div class="actions-footer">Esc close · ↑↓ select · Enter</div>
       </div>
 
+      <div class="follow-up-queue hidden" id="followUpQueue" aria-live="polite" aria-label="Queued follow-ups"></div>
+
       <div class="composer-wrap">
         <div class="slash-menu hidden" id="slashMenu" role="listbox" aria-label="Slash commands"></div>
         <div class="slash-menu hidden" id="bottomPicker" role="listbox" aria-label="Picker"></div>
@@ -203,18 +205,19 @@
           </div>
           <textarea id="input" rows="1" placeholder="Message Grok…"></textarea>
           <div class="composer-actions">
-            <button type="button" class="send-btn" id="btnSend" title="Send">↑</button>
-            <button type="button" class="stop-btn hidden" id="btnStop" title="Cancel">■</button>
+            <button type="button" class="send-btn" id="btnSend" title="Send" aria-label="Send">↑</button>
+            <button type="button" class="stop-btn hidden" id="btnStop" title="Stop" aria-label="Stop">■</button>
           </div>
         </div>
       </div>
       <div class="composer-hint">
-        <span><kbd>+</kbd> insert · <kbd>/</kbd> actions · <kbd>@</kbd> file · <kbd>Alt+K</kbd> range · <kbd>Enter</kbd> send</span>
+        <span id="composerHint"><kbd>+</kbd> insert · <kbd>/</kbd> actions · <kbd>@</kbd> file · <kbd>Alt+K</kbd> range · <kbd>Enter</kbd> send</span>
       </div>
       <div class="pending-edits hidden" id="pendingEdits"></div>
     </footer>
   </div>
   {{linksScript}}
+  {{followUpScript}}
   <script src="{{scriptUri}}"></script>
 </body>
 </html>

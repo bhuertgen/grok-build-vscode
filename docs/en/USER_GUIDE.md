@@ -86,7 +86,7 @@ code --install-extension grok-build-vscode-x.y.z.vsix
 | **Tool rows** | Compact, expandable; completed tools often grouped |
 | **`+`** | Insert: context, image, active file |
 | **`/`** | Actions: slash, history, model, permissions, CLI update… |
-| **Input** | `Enter` send, `Shift+Enter` newline |
+| **Input** | `Enter` send (while a turn runs: queue), `Shift+Enter` newline, `Ctrl+Enter` / `⌘+Enter` send now |
 
 ---
 
@@ -129,6 +129,23 @@ Summarize the install steps in 3 bullets.
 
 Type `/` at the start of the line for local/agent slash commands (`/help`, `/plan`, `/model`, CLI skills…).  
 Many commands come from the **CLI** dynamically; the extension always adds helpers such as `help`, `plan`, `execute`, `clear`, `new`, `context`.
+
+### 3.5 Mid-turn follow-ups
+
+While a turn is running the composer stays open (Stop is showing). This matches the Grok CLI TUI default `[ui] follow_up_behavior = "queue"`.
+
+| Action | Effect |
+|--------|--------|
+| **Enter** (non-empty) | Queue the draft. It is sent automatically when the current turn ends, then the next queued item, one turn at a time. |
+| **Enter** (empty, queue not empty) | **Send now** of the first queued prompt: stop this turn, then send that prompt. |
+| **Ctrl+Enter** or **⌘+Enter** | **Send now**: stop this turn, then send the draft. If the composer is empty, send the first queued prompt. |
+| **Send now** on a queued row | Stop this turn and run that row next. The other rows stay queued. |
+| **Stop**, **Esc**, **Cancel Current Turn** | Cancel the turn. The composer draft is not sent. Queued follow-ups are kept, and the next one still runs after the turn ends. |
+| **Edit** / **Remove** | Change or drop a queued row. A row you are editing is not auto-sent until you leave the field (Enter saves, Esc reverts). |
+
+The queue is listed above the composer. Context chips on the composer are kept with the follow-up you queue or send now, and are attached when that prompt actually runs.
+
+The CLI can also set `follow_up_behavior = "steer"` (inject the text into the running turn at the next tool or model step). This extension does not. Steer over ACP is `x.ai/queue/interject`, and it only applies to a prompt the agent has already accepted on its own queue — a second in-flight `session/prompt`. `sendPrompt` still rejects a second concurrent turn (`Session is busy`). The extension does not pretend to steer by writing into the live answer.
 
 ---
 
@@ -293,7 +310,7 @@ Every entry in `contributes.keybindings`. A chord is two steps: press `Ctrl+Shif
 | Cancel current turn (webview) | `Escape` | `Escape` | Chat focused and a turn is running (closes menus first) |
 | Focus chat input | `Ctrl+Shift+G` then `I` | `Cmd+Shift+G` then `I` | Always (no `when`) |
 
-Composer keys (`Enter` to send, `@`, `/`, arrow keys) are not extension keybindings. See §3.
+Composer keys (`Enter` to send, or to queue while a turn is running; `Ctrl+Enter` / `⌘+Enter` to send now; `@`, `/`, arrow keys) are not extension keybindings. See §3.5.
 
 ---
 

@@ -1342,7 +1342,80 @@ html, body {
 .composer-actions {
   display: flex;
   align-items: center;
+  gap: 4px;
   flex-shrink: 0;
+}
+
+/* Mid-turn follow-up queue (CLI default: queue) */
+.follow-up-queue {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  font-size: 12px;
+  max-height: 168px;
+  overflow: auto;
+}
+
+.follow-up-head {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.follow-up-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.follow-up-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-up-edit {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.follow-up-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.follow-up-row button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.follow-up-row button.primary {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border-color: transparent;
 }
 
 .send-btn,

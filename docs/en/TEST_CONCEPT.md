@@ -225,6 +225,11 @@ Format per case:
 - **Steps:** try every binding from [USER_GUIDE §5](./USER_GUIDE.md#keybindings): `Ctrl+Shift+G` then `C` / `N` / `P` / `A` / `I`, `Ctrl+Shift+G` then `Escape` while busy, `Escape` in the focused chat while busy, `Alt+K` with an editor selection  
 - **Pass:** each runs its command; `Escape` closes open menus first; no chord leaks text into the composer  
 
+#### T-U13 — Mid-turn follow-up queue  
+- **Dim:** U, F  
+- **Steps:** start a long task. While Stop is showing, type a follow-up and press Enter. Confirm it appears in the queue above the composer and the current answer keeps streaming. Edit that row, queue a second line, and Remove the second. With a new draft, press Ctrl+Enter (Mac: Cmd+Enter), or press **Send now** on a row.  
+- **Pass:** Enter does not drop the text and does not start a second turn. When the running turn ends, the queued prompt is sent on its own. Send now stops the turn and that draft (or the chosen row) is the next turn; other rows stay queued. Stop / Esc still cancel without sending whatever is in the composer. A row left open in Edit is not auto-sent. Nothing is injected into the live answer (no steer).  
+
 ---
 
 ### 4.3 Context & @
@@ -607,7 +612,7 @@ Recommended fixes (priority):
 | Priority | IDs | When |
 |----------|-----|------|
 | **P0 blocker** | Smoke, T-F02, T-M05 Reject, T-M07, T-F05, T-U01 cancel | Every build before a demo |
-| **P1 core** | T-C01/02, T-S03/S06/S07, T-F01, T-U04/U09, T-M01/M04/M06 | Before release |
+| **P1 core** | T-C01/02, T-S03/S06/S07, T-F01, T-U04/U09/U13, T-M01/M04/M06 | Before release |
 | **P2 polish** | T-A01, T-M02, T-C04–C07, T-U10/U11, T-F06, T-P05/P06, heuristics | End of sprint |
 | **P3 nice** | Diff UI, slash edge cases, multi-window | Backlog |
 

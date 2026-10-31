@@ -44,6 +44,17 @@ Wir bauen den Agenten **nicht** nach. Wir erhalten dasselbe Verhalten wie die Te
 
 **CLI → Extension:** `session/update`, `fs/read_text_file`, `fs/write_text_file`, `terminal/*`, `session/request_permission`; Grok-Erweiterungen `_x.ai/session_notification` (`model_changed`) und `_x.ai/models/update` (Modellkatalog mit Reasoning-Efforts pro Modell, aktualisiert die Chips Model / Effort)
 
+## Follow-ups mitten im Turn
+
+Der CLI-TUI-Default ist `[ui] follow_up_behavior = "queue"`: Enter während eines laufenden Turns speichert den Entwurf, der nächste Prompt geht raus, wenn der Turn endet. Send now (Ctrl+Enter / ⌘+Enter) bricht den Turn ab und sendet danach. Die Extension macht dasselbe auf der Client-Seite (`src/session/followUp.ts`):
+
+- Die Warteschlange liegt im Speicher der Session (nicht in der Chat-History). Das Webview zeigt sie und kann eine Zeile bearbeiten, entfernen oder per Send now schicken.
+- `sendPrompt` wirft bei einem zweiten gleichzeitigen Aufruf weiter `Session is busy`. Eingereihte Prompts laufen über `enqueueFollowUp` und werden erst per `sendPrompt` ausgeliefert, wenn der laufende Turn die Sperre freigibt — ein `session/prompt` nach dem anderen.
+- Stop / Esc / Cancel Current Turn brechen ab, ohne den Composer-Entwurf zu senden. Wenn der Turn endet, läuft der nächste Eintrag trotzdem (die CLI behält die Warteschlange über Cancel hinweg).
+- Eine in der Bearbeitung offene Zeile ist gehalten und wird nicht automatisch gesendet (das `hold_edit` der CLI, lokal umgesetzt).
+
+**Steer ist nicht implementiert.** CLI `follow_up_behavior = "steer"` injiziert beim nächsten Tool- oder Modell-Schritt über die Ext-Notification `x.ai/queue/interject`. Das gilt nur für einen Prompt, den der Agent schon in seiner Server-Warteschlange angenommen hat, also ein zweites laufendes `session/prompt`. Wir öffnen dieses zweite Prompt nicht und täuschen Steer nicht vor, indem wir Text an die streamende Antwort hängen.
+
 ## Ordnerstruktur
 
 ```
@@ -65,6 +76,7 @@ src/
     grokTrust.ts               # Banner für Grok-Ordnervertrauen + Ablauf "Trust folder" (vscode-Anbindung)
   session/
     sessionManager.ts          # Multi-Session + Prozess-Map
+    followUp.ts                # Follow-up-Warteschlange mitten im Turn (CLI-Default: queue, nicht steer)
     sessionStore.ts            # History in globalState
   context/
     contextCollector.ts        # automatisch aktive Datei / Auswahl
