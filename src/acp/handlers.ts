@@ -38,7 +38,7 @@ import type { EditController } from '../edits/editController';
 import { isWriteLikePermission } from '../util/permissionKind';
 import { pickAutoAllowOption, pickRejectOption } from '../util/permissionOutcome';
 import { sliceTextLines } from '../util/textSlice';
-import { OutsideAccessGrants } from '../util/outsideAccess';
+import { coalesceOutsidePrompt, OutsideAccessGrants } from '../util/outsideAccess';
 import { isInsideWorkspace, resolveScopePath, scopeKey } from '../util/pathScope';
 import { isProbablyBinary } from '../util/unreadable';
 
@@ -140,19 +140,20 @@ export class ClientHandlers {
       this.log.warn(`fs/${op}_text_file outside workspace — allowed (${already})`, resolved);
       return;
     }
-    this.log.warn(`fs/${op}_text_file outside workspace — asking the user`, resolved);
-    // Parallel reads of one path share a dialog; writes always ask on their own.
-    const promptKey = `${op}:${key}`;
-    let pending = op === 'read' ? this.outsidePrompts.get(promptKey) : undefined;
-    if (!pending) {
-      pending = this.promptOutsideWorkspace(resolved, op, key).finally(() =>
-        this.outsidePrompts.delete(promptKey)
-      );
-      if (op === 'read') {
-        this.outsidePrompts.set(promptKey, pending);
+    // One dialog per op+path. Waiters re-check afterwards, so "Allow for this
+    // session" covers a write that arrived while the dialog was open.
+    // "Allow once" still asks for the next write (reads use the short grace).
+    const allowed = await coalesceOutsidePrompt(
+      this.outsideGrants,
+      this.outsidePrompts,
+      op,
+      key,
+      () => {
+        this.log.warn(`fs/${op}_text_file outside workspace — asking the user`, resolved);
+        return this.promptOutsideWorkspace(resolved, op, key);
       }
-    }
-    if (!(await pending)) {
+    );
+    if (!allowed) {
       this.log.warn(`fs/${op}_text_file outside workspace — denied`, resolved);
       throw new Error(
         `Grok Build blocked ${op === 'write' ? 'a write to' : 'a read of'} ${resolved}: ` +
