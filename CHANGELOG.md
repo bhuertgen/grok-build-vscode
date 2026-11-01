@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.4.2 – 2026-11-01
+
+Marketplace republish with the store build. No functional change beyond the version bump.
+
+**0.4.1** is already on the VS Code Marketplace from a manual upload of the GitHub release VSIX. That package checks GitHub Releases for a newer extension. Marketplace will not accept another 0.4.1 package, so this is **0.4.2**, packaged with `GROK_BUILD_DISTRIBUTION=store`. Store installs skip that check; the editor updates them.
+
 ## 0.4.1 – 2026-11-01
 
 Store republish so the VS Code Marketplace and Open VSX listings pick up the live install text, plus a G-mark icon (#66). This version also ships the agent-client changes that landed on main after the 2026-10-28 notes (#68, #69, #70, #71, #72).
