@@ -359,10 +359,16 @@ console.log('\nStore packaging');
   // Active location, or the staged draft until it is moved (needs a workflow-scoped token).
   const wfPath = ['.github/workflows/publish.yml', '.github/workflow-drafts/publish.yml'].find(exists);
   const wf = wfPath ? read(wfPath) : '';
-  if (/environment:\s*(?:\n\s*name:\s*)?publish/.test(wf) && /OVSX_PAT/.test(wf) && /VSCE_PAT/.test(wf) && /GROK_BUILD_DISTRIBUTION:\s*store/.test(wf)) {
-    ok('publish workflow: environment publish, OVSX_PAT, VSCE_PAT, store build flag');
+  if (
+    /environment:\s*(?:\n\s*name:\s*)?publish/.test(wf) &&
+    /OVSX_PAT/.test(wf) &&
+    /id-token:\s*write/.test(wf) &&
+    /vsce publish --packagePath "\$VSIX" \$flags --oidc/.test(wf) &&
+    /GROK_BUILD_DISTRIBUTION:\s*store/.test(wf)
+  ) {
+    ok('publish workflow: environment publish, OVSX_PAT, Marketplace OIDC, store build flag');
   } else {
-    fail('publish workflow: environment publish, OVSX_PAT, VSCE_PAT, store build flag');
+    fail('publish workflow: environment publish, OVSX_PAT, Marketplace OIDC, store build flag');
   }
 }
 

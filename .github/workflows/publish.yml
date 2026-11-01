@@ -4,13 +4,28 @@
 # 1. build-test: npm ci, lint, unit tests, smoke checks, package the store VSIX
 #    (no secrets, no approval needed).
 # 2. publish: runs in the protected `publish` environment, so it waits for a
-#    required reviewer to approve. Each store is skipped (with a notice) when its
-#    secret is not configured.
+#    required reviewer to approve.
+#    - Open VSX uses environment secret `OVSX_PAT` and is skipped (with a
+#      notice) when that secret is not set.
+#    - VS Code Marketplace uses Trusted Publishing (GitHub Actions OIDC).
+#      The job always attempts `vsce publish --oidc`. It does not read
+#      `VSCE_PAT` and does not fall back to a PAT if the token exchange fails.
+#      `VSCE_PAT` is optional/legacy (Azure DevOps PAT) and is unused if still set.
 #
-# One-time setup (repo owner): Settings → Environments → New environment
-# `publish` → add yourself as required reviewer → add environment secrets
-# `OVSX_PAT` (open-vsx.org access token, namespace `bhu`) and `VSCE_PAT`
-# (Azure DevOps PAT, scope Marketplace → Manage, publisher `bhu`).
+# Marketplace Trusted Publishing policy (publisher `bhu`, status Active):
+#   Provider: GitHub Actions
+#   Repository owner: bhuertgen
+#   Repository: grok-build-vscode
+#   Workflow: publish.yml
+#   Environment: publish
+#
+# The publish job requests an OIDC token (audience marketplace.visualstudio.com),
+# so it needs `permissions: contents: read` and `id-token: write`.
+# `@vscode/vsce` 4.x (`publish --oidc`) requires Node.js >= 22.
+#
+# One-time setup (repo owner): Settings → Environments → environment
+# `publish` → required reviewer → environment secret `OVSX_PAT`
+# (open-vsx.org access token, namespace `bhu`).
 name: Publish
 
 on:
@@ -92,17 +107,20 @@ jobs:
     needs: build-test
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment:
       name: publish
     env:
       VSIX: ${{ needs.build-test.outputs.vsix }}
       PRERELEASE: ${{ needs.build-test.outputs.prerelease }}
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
-      VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # vsce 4.x (publish --oidc) requires Node >= 22. Open VSX uses the same runtime.
+          node-version: 22
 
       - uses: actions/download-artifact@v4
         with:
@@ -119,17 +137,9 @@ jobs:
         if: env.OVSX_PAT == ''
         run: echo "::notice::OVSX_PAT secret is not set in the publish environment; skipped Open VSX."
 
-      # Marketplace auth uses a PAT for now. It can later switch to GitHub OIDC
-      # (workload identity federation, no long-lived secret; expected ~end of Oct 2026):
-      # add `permissions: id-token: write` to this job and replace `-p "$VSCE_PAT"`
-      # with the OIDC/Entra login supported by @vscode/vsce at that point.
+      # Always attempt Trusted Publishing. vsce does not fall back to VSCE_PAT.
       - name: Publish to VS Code Marketplace
-        if: env.VSCE_PAT != ''
         run: |
           flags=""
           if [ "$PRERELEASE" = "true" ]; then flags="--pre-release"; fi
-          npx --yes @vscode/vsce publish --packagePath "$VSIX" $flags -p "$VSCE_PAT"
-
-      - name: Skip Marketplace (no VSCE_PAT)
-        if: env.VSCE_PAT == ''
-        run: echo "::notice::VSCE_PAT secret is not set in the publish environment; skipped VS Code Marketplace."
+          npx --yes @vscode/vsce publish --packagePath "$VSIX" $flags --oidc
