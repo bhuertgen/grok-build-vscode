@@ -1844,7 +1844,8 @@
    * Assistant text only: file paths and `#123` become controls.
    * Spans come from GrokMessageLinks (src/util/messageLinks.ts), which skips
    * fenced code, bare URLs, and markdown https links so those links are not
-   * wrapped a second time. Placeholders are swapped back to HTML after escape.
+   * wrapped a second time. A path with spaces is one span, not the piece
+   * before the first space (CLI 1.0.74). Placeholders are swapped back to HTML after escape.
    */
   function renderMessageLink(hit) {
     if (!hit) {

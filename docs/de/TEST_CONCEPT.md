@@ -218,7 +218,7 @@ Format je Fall:
 - **Dim:** U
 - **Vorbedingung:** eine Datei in der Sandbox (`echo hi > src/hello.ts` — vorher `src/` anlegen) und ein GitHub-`origin`-Remote, wenn der PR-Link geprüft werden soll
 - **Schritte:** Grok bitten, `src/hello.ts:1` und `#1` in der Antwort zu nennen (oder ein wiederhergestelltes Transkript, das beides enthält). Den Pfad anklicken. `#1` anklicken, wenn ein Remote gesetzt ist.
-- **Pass:** der Editor öffnet `src/hello.ts` in Zeile 1. `#1` öffnet die Issue-/PR-Seite der Forge. Ein nacktes `README.md`, eine Version `1.0.72` und ein Markdown-`https`-Link werden keine Datei-Links; der https-Link öffnet weiter im Browser. Ohne Git-Remote bleibt `#1` normaler Text. Ein fehlender Pfad zeigt **File not found**.
+- **Pass:** der Editor öffnet `src/hello.ts` in Zeile 1. `#1` öffnet die Issue-/PR-Seite der Forge. Ein nacktes `README.md`, eine Version `1.0.72` und ein Markdown-`https`-Link werden keine Datei-Links; der https-Link öffnet weiter im Browser. Ein Pfad mit Leerzeichen in Inline-Code (`` `src/my file.ts` ``) ist ein Link für den ganzen Pfad und öffnet diese Datei. Ohne Git-Remote bleibt `#1` normaler Text. Ein fehlender Pfad zeigt **File not found**.
 
 #### T-U11 — Tastenkürzel  
 - **Dim:** U  
