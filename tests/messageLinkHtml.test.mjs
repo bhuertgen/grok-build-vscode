@@ -101,3 +101,50 @@ describe('webview assistant link html', () => {
     assert.match(html, /#65/);
   });
 });
+
+describe('permission-rule notice links', () => {
+  function loadNoticeHelpers() {
+    const state = { forgeIssueTemplate: null };
+    return new Function(
+      'state',
+      'GrokMessageLinks',
+      [
+        'sanitizeMessageContent',
+        'escapeHtml',
+        'renderMessageLink',
+        'applyMessageLinkPlaceholders',
+        'formatMarkdown',
+        'isPermissionRuleNotice',
+        'messageUsesPathLinks',
+      ]
+        .map(grab)
+        .join('\n') + '\nreturn { formatMarkdown, isPermissionRuleNotice, messageUsesPathLinks };'
+    )(state, GrokMessageLinks);
+  }
+
+  const { formatMarkdown, isPermissionRuleNotice, messageUsesPathLinks } = loadNoticeHelpers();
+  const notice = {
+    role: 'system',
+    content:
+      "**Permission rule warning**\nRules in /workspace/probes-1.0.77/proj/.claude/settings.json aren't loaded: not valid JSON (EOF while parsing a value at line 2 column 0). Fix the file.",
+  };
+
+  it('linkifies the file path on a permission-rule notice and not on other system lines', () => {
+    assert.equal(isPermissionRuleNotice(notice), true);
+    assert.equal(messageUsesPathLinks(notice), true);
+    assert.equal(
+      messageUsesPathLinks({ role: 'system', content: '**Session resumed** — ok.' }),
+      false
+    );
+    assert.equal(messageUsesPathLinks({ role: 'agent', content: 'src/cli/compat.ts' }), true);
+    assert.equal(isPermissionRuleNotice({ role: 'agent', content: notice.content }), false);
+
+    const html = formatMarkdown(notice.content, { linkify: messageUsesPathLinks(notice) });
+    assert.match(
+      html,
+      /<button type="button" class="path-link" data-path="\/workspace\/probes-1\.0\.77\/proj\/\.claude\/settings\.json">\/workspace\/probes-1\.0\.77\/proj\/\.claude\/settings\.json<\/button>/
+    );
+    const plain = formatMarkdown(notice.content, { linkify: false });
+    assert.doesNotMatch(plain, /path-link/);
+  });
+});

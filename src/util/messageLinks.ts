@@ -8,6 +8,8 @@
  *   or `:start-end`. Dotfiles (`src/.gitignore`) count.
  * - An absolute path (`/usr/local/bin/grok`, `C:\src\foo.ts`, `~/proj/a.ts`)
  *   may omit the extension when the last segment is a name, not a number.
+ *   An absolute path that ends in a file extension may also contain dots in
+ *   directory names (`/workspace/probes-1.0.77/proj/.claude/settings.json`).
  * - A path with spaces is one hit, not the piece before the first space
  *   (CLI 1.0.74). In prose the path must end with a file extension so the
  *   span stops before the next word (`src/my file.ts` in a sentence).
@@ -60,6 +62,8 @@ export function isSafeIssueTemplate(tpl: string): boolean {
 }
 
 const SEG = '[A-Za-z0-9_+@-]{1,64}';
+/** Directory segment that may include dots (`.claude`, `probes-1.0.77`). */
+const SEG_DOT = '[A-Za-z0-9_+@.-]{1,64}';
 const FILE = `${SEG}(?:\\.${SEG}){0,6}\\.[A-Za-z][A-Za-z0-9]{0,9}`;
 const DOTFILE = '\\.[A-Za-z][A-Za-z0-9_-]{0,40}';
 const FINAL = `(?:${FILE}|${DOTFILE})`;
@@ -78,6 +82,18 @@ function pathRegex(): RegExp {
 function bareAbsoluteRegex(): RegExp {
   return new RegExp(
     `(?<![A-Za-z0-9._+/\\\\-])(${ROOT}(?:${SEG}[\\\\/]){1,24}[A-Za-z][A-Za-z0-9_+@-]{0,64})`,
+    'g'
+  );
+}
+
+/**
+ * Absolute paths whose directories contain dots. Relative tokens such as
+ * `foo/1.0.72` stay unmatched: the path must be rooted and end in a file
+ * extension, so a version is not a path.
+ */
+function dottedAbsoluteRegex(): RegExp {
+  return new RegExp(
+    `(?<![A-Za-z0-9._+/\\\\-])(${ROOT}(?:${SEG_DOT}[\\\\/]){1,24}${FILE})`,
     'g'
   );
 }
@@ -452,7 +468,7 @@ function collectSpacedPaths(text: string, masks: Range[]): PathLinkHit[] {
 function collectPaths(text: string, masks: Range[]): PathLinkHit[] {
   const hits: PathLinkHit[] = [];
   hits.push(...collectSpacedPaths(text, masks));
-  for (const re of [pathRegex(), bareAbsoluteRegex()]) {
+  for (const re of [pathRegex(), bareAbsoluteRegex(), dottedAbsoluteRegex()]) {
     let m: RegExpExecArray | null;
     while ((m = re.exec(text))) {
       const start = m.index;

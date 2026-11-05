@@ -100,6 +100,21 @@ describe('findMessageLinks paths', () => {
     assert.equal(win[0].column, 2);
   });
 
+  it('links absolute paths whose directories contain dots', () => {
+    const settings = '/workspace/probes-1.0.77/proj/.claude/settings.json';
+    const config = '/workspace/probes-1.0.77/proj/.grok/config.toml';
+    assert.deepEqual(paths(`Rules in ${settings} aren't loaded.`), [
+      { text: settings, path: settings },
+    ]);
+    assert.deepEqual(paths(`Entry in ${config} isn't loaded.`), [
+      { text: config, path: config },
+    ]);
+    assert.deepEqual(
+      paths('Deny rule `Bash(rm -rf *` in ' + settings + " isn't enforced."),
+      [{ text: settings, path: settings }]
+    );
+  });
+
   it('links absolute paths, including extensionless ones', () => {
     assert.deepEqual(paths('Open /workspace/src/cli/compat.ts:15'), [
       {

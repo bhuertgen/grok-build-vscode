@@ -43,6 +43,7 @@ await esbuild.build({
     sessionStore: 'src/session/sessionStore.ts',
     grokFolderTrust: 'src/util/grokFolderTrust.ts',
     restoreNotices: 'src/util/restoreNotices.ts',
+    permissionRuleWarnings: 'src/util/permissionRuleWarnings.ts',
     transport: 'src/acp/transport.ts',
     distribution: 'src/util/distribution.ts',
   },

@@ -1,15 +1,23 @@
 /**
  * Restore / start notices in the chat transcript (#52). Pure — unit-tested.
  *
- * "Session resumed", "Local history loaded" and the plan-mode hint are pushed
- * as system lines when a stored chat is restored. They are persisted with the
- * transcript, so every reload used to add another copy. `pushNotice` drops
- * notices of the same kind that trail the conversation (after the last
- * non-system message) before appending, so a chat ends with at most one of
- * each — also for transcripts that already contain stacked copies.
+ * "Session resumed", "Local history loaded", the plan-mode hint, and
+ * permission-rule warnings are pushed as system lines. They are persisted
+ * with the transcript, so every reload used to add another copy.
+ * `pushNotice` drops notices of the same kind that trail the conversation
+ * (after the last non-system message) before appending, so a chat ends with
+ * at most one of each — also for transcripts that already contain stacked
+ * copies.
  */
 
-export type NoticeKind = 'session-resumed' | 'local-history' | 'plan-hint' | 'folder-trust';
+import { PERMISSION_RULES_NOTICE_RE } from './permissionRuleWarnings';
+
+export type NoticeKind =
+  | 'session-resumed'
+  | 'local-history'
+  | 'plan-hint'
+  | 'folder-trust'
+  | 'permission-rules';
 
 export interface NoticeMessageLike {
   role: string;
@@ -21,6 +29,7 @@ const PATTERNS: Array<[NoticeKind, RegExp]> = [
   ['local-history', /^\*\*Local history loaded\*\*/],
   ['plan-hint', /^`grokBuild\.cliPermissionMode` is `plan`, but Grok CLI .* starts in the default mode\./],
   ['folder-trust', /^\*\*Folder trusted for Grok\*\*/],
+  ['permission-rules', PERMISSION_RULES_NOTICE_RE],
 ];
 
 /** Kind of a notice line, or undefined for any other content. */
