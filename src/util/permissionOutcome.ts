@@ -92,10 +92,19 @@ export type UiPermissionMode = 'ask' | 'allow-once' | 'allow-session' | 'allow-a
  * - `allow-once` → `allow_once` only; without one, the user is asked.
  * - A tool the user approved with "Allow always" earlier in this session
  *   (`sessionKeyAllowed`) → `pickAllowOnceOption()`.
+ * - A hook ask (`hookAsk`, #30) is not answered here except for full YOLO
+ *   (`allow-always` / `globalAllowAlways`). `allow-once`, `allow-session`
+ *   and a remembered session allow still show the card. The CLI documents
+ *   that a client may blanket-approve; that is this mode only.
  */
 export function pickAutoAllowOption<T extends OptionLike>(
   options: T[] | undefined | null,
-  ctx: { mode: UiPermissionMode | string; globalAllowAlways?: boolean; sessionKeyAllowed?: boolean }
+  ctx: {
+    mode: UiPermissionMode | string;
+    globalAllowAlways?: boolean;
+    sessionKeyAllowed?: boolean;
+    hookAsk?: boolean;
+  }
 ): T | undefined {
   const list = options ?? [];
   if (ctx.globalAllowAlways || ctx.mode === 'allow-always') {
@@ -103,6 +112,9 @@ export function pickAutoAllowOption<T extends OptionLike>(
     if (o) {
       return o;
     }
+  }
+  if (ctx.hookAsk) {
+    return undefined;
   }
   if (ctx.mode === 'allow-session') {
     const o = pickAllowOnceOption(list);
@@ -120,4 +132,19 @@ export function pickAutoAllowOption<T extends OptionLike>(
     return pickAllowOnceOption(list);
   }
   return undefined;
+}
+
+/**
+ * Timeout (and a dismissed dialog) for a hook ask: reject, or cancel when
+ * the agent offered no reject option. Never an allow — a missed card must
+ * not approve the hook (#30).
+ */
+export function denyHookAskOutcome<T extends OptionLike>(
+  options: T[] | undefined | null
+): { outcome: 'selected'; optionId: string } | { outcome: 'cancelled' } {
+  const reject = pickRejectOption(options);
+  if (reject) {
+    return { outcome: 'selected', optionId: reject.optionId };
+  }
+  return { outcome: 'cancelled' };
 }

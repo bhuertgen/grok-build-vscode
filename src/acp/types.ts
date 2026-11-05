@@ -446,6 +446,11 @@ export interface RequestPermissionRequest {
   sessionId: SessionId;
   toolCall: ToolCallUpdate;
   options: PermissionOption[];
+  /**
+   * Grok extension metadata. A PreToolUse hook `{"decision":"ask"}` sets
+   * `hookAsk: { hookName, reason }` (CLI ≥ 1.0.70, probed on 1.0.77).
+   */
+  _meta?: Record<string, unknown>;
 }
 
 export type RequestPermissionOutcome =

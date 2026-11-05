@@ -8,10 +8,11 @@ import {
   extractWritePath,
   isProbablyBinary,
   isWriteLikeToolCall,
-  parsePermissionTitle,
   unreadableLabel,
 } from '../util/unreadable';
+import { permissionRequestFields } from '../util/hookAsk';
 import {
+  denyHookAskOutcome,
   permissionDecision,
   permissionDecisionLabel,
   pickAllowAlwaysOption,
@@ -1845,7 +1846,7 @@ export class SessionManager extends EventEmitter {
 
     const client = new AcpClient(
       this.editController,
-      (sid, tool, opts) => this.handlePermission(sid, tool, opts),
+      (sid, tool, opts, meta) => this.handlePermission(sid, tool, opts, meta),
       (params) => this.handleElicitation(params)
     );
 
@@ -2355,22 +2356,28 @@ export class SessionManager extends EventEmitter {
   /**
    * ACP session/request_permission — must not hang silently.
    * Prefer webview bottom card; fallback modal message; timeout auto-allows in execute mode.
+   * A hook ask is never auto-allowed here (execute mode, or the 90s timeout);
+   * the timeout rejects it instead (#30). `permissionMode: allow-always` is
+   * answered upstream before this runs.
    */
   private async handlePermission(
     sessionId: string,
     toolCall: ToolCallUpdate,
-    options: PermissionOption[]
+    options: PermissionOption[],
+    meta?: Record<string, unknown>
   ): Promise<RequestPermissionResponse> {
     const state = [...this.sessions.values()].find(
       (s) => s.agentSessionId === sessionId
     );
     const cfg = getConfig();
+    const view = permissionRequestFields(toolCall.title, meta);
 
     const allowOpt = pickAllowOnceOption(options);
     const rejectOpt = pickRejectOption(options);
 
     // Execute mode: auto-allow tools (agentic default) unless disabled in settings.
     // Plan mode and explicit non-auto settings still prompt (modal + webview).
+    // Hook asks always prompt — auto-allow would defeat the hook (#30).
     const isExecute =
       state?.mode === 'execute' ||
       (!state?.mode && cfg.defaultMode === 'execute');
@@ -2378,7 +2385,8 @@ export class SessionManager extends EventEmitter {
       isExecute &&
       allowOpt &&
       cfg.autoAllowInExecuteMode &&
-      cfg.permissionMode !== 'allow-always' // already handled upstream
+      cfg.permissionMode !== 'allow-always' && // already handled upstream
+      !view.hookAsk
     ) {
       this.log.info('Auto-allow tool (execute mode)', toolCall.title, toolCall.kind);
       // No chat spam — tools show as compact collapsible rows
@@ -2391,9 +2399,8 @@ export class SessionManager extends EventEmitter {
 
     const permId = `perm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const localId = state?.localId;
-    const parsedTitle = parsePermissionTitle(toolCall.title);
     const unreadable =
-      parsedTitle.unreadable ||
+      view.unreadable ||
       (isWriteLikeToolCall(toolCall as never) &&
         (await isBinaryFileOnDisk(extractWritePath(toolCall as never))));
     if (unreadable && state) {
@@ -2412,7 +2419,10 @@ export class SessionManager extends EventEmitter {
       toolCall,
       // CLI 1.0.54+: "(unreadable, no preview)" suffix → clean title + hint, no diff.
       // CLI only flags some binaries (NUL bytes) → also detect on disk ourselves.
-      displayTitle: parsedTitle.title,
+      // Hook ask: cleaned title (no ` — hook '…' asks:` suffix) plus _meta (#30).
+      displayTitle: view.displayTitle,
+      ...(view._meta ? { _meta: view._meta } : {}),
+      ...(view.hookAsk ? { hookAsk: view.hookAsk } : {}),
       ...(unreadable
         ? { unreadable: true, unreadableLabel: unreadableLabel(vscode.env.language) }
         : {}),
@@ -2424,8 +2434,9 @@ export class SessionManager extends EventEmitter {
     });
 
     // Also show a modal that can't be missed (Extension Host often hides QuickPick)
-    const title = parsedTitle.title || toolCall.kind || 'tool action';
+    const title = view.displayTitle || toolCall.kind || 'tool action';
     const modalDetail =
+      (view.hookAsk ? `${view.hookAsk.label}\n` : '') +
       `Session tool permission (${toolCall.kind ?? 'other'})` +
       (unreadable ? ` — ${unreadableLabel(vscode.env.language)}` : '');
     void vscode.window
@@ -2455,6 +2466,9 @@ export class SessionManager extends EventEmitter {
           this.resolvePermission(permId, {
             outcome: { outcome: 'selected', optionId: rejectOpt.optionId },
           });
+        } else if (!choice && view.hookAsk) {
+          // Dismissed hook ask must not fall through to the execute-mode allow.
+          this.resolvePermission(permId, { outcome: denyHookAskOutcome(options) });
         } else if (!choice && allowOpt && isExecute) {
           // Dismissed modal in execute → allow so work continues
           this.resolvePermission(permId, {
@@ -2467,6 +2481,11 @@ export class SessionManager extends EventEmitter {
 
     return new Promise<RequestPermissionResponse>((resolve) => {
       const timer = setTimeout(() => {
+        if (view.hookAsk) {
+          this.log.warn('Hook permission timed out — reject', title);
+          this.resolvePermission(permId, { outcome: denyHookAskOutcome(options) });
+          return;
+        }
         this.log.warn('Permission timed out — auto-allow', title);
         if (allowOpt) {
           this.resolvePermission(permId, {
