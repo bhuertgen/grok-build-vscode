@@ -117,6 +117,127 @@ describe('findMessageLinks paths', () => {
     assert.deepEqual(paths('Open "src/my file.ts:4" next'), [
       { text: 'src/my file.ts:4', path: 'src/my file.ts', line: 4 },
     ]);
+    assert.deepEqual(paths("Open 'src/my docs/file.ts' next"), [
+      { text: 'src/my docs/file.ts', path: 'src/my docs/file.ts' },
+    ]);
+  });
+
+  it('links a backtick path with spaces as one path (CLI 1.0.74)', () => {
+    assert.deepEqual(paths('Open `src/my file.ts:4:2` next'), [
+      { text: 'src/my file.ts:4:2', path: 'src/my file.ts', line: 4, column: 2 },
+    ]);
+    assert.deepEqual(paths('`src/my file.ts:10-12`'), [
+      {
+        text: 'src/my file.ts:10-12',
+        path: 'src/my file.ts',
+        line: 10,
+        endLine: 12,
+      },
+    ]);
+    assert.deepEqual(paths('`~/Library/Application Support/Grok/config.toml`'), [
+      {
+        text: '~/Library/Application Support/Grok/config.toml',
+        path: '~/Library/Application Support/Grok/config.toml',
+      },
+    ]);
+    assert.deepEqual(
+      paths('`~/Library/Application Support/Grok (Alpha)/config.toml:3`'),
+      [
+        {
+          text: '~/Library/Application Support/Grok (Alpha)/config.toml:3',
+          path: '~/Library/Application Support/Grok (Alpha)/config.toml',
+          line: 3,
+        },
+      ]
+    );
+    assert.deepEqual(paths('`src/my docs/file.ts`'), [
+      { text: 'src/my docs/file.ts', path: 'src/my docs/file.ts' },
+    ]);
+    assert.deepEqual(paths('`src/my dir/.gitignore`'), [
+      { text: 'src/my dir/.gitignore', path: 'src/my dir/.gitignore' },
+    ]);
+    assert.deepEqual(paths('`./My Docs/readme.md`'), [
+      { text: './My Docs/readme.md', path: './My Docs/readme.md' },
+    ]);
+    assert.deepEqual(paths('`My Documents/readme.md`'), [
+      { text: 'My Documents/readme.md', path: 'My Documents/readme.md' },
+    ]);
+    const win = paths('Edit `C:\\Program Files\\Grok\\grok.exe:10:2` now');
+    assert.equal(win.length, 1);
+    assert.equal(win[0].path, 'C:\\Program Files\\Grok\\grok.exe');
+    assert.equal(win[0].line, 10);
+    assert.equal(win[0].column, 2);
+  });
+
+  it('does not split a spaced backtick path at the first space', () => {
+    const text = 'See `~/Library/Application Support/foo.txt:3`';
+    const hits = paths(text);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0].path, '~/Library/Application Support/foo.txt');
+    assert.equal(hits[0].line, 3);
+    assert.equal(hits[0].text, '~/Library/Application Support/foo.txt:3');
+    const at = text.indexOf('~/');
+    assert.equal(text.slice(at, at + hits[0].text.length), hits[0].text);
+  });
+
+  it('links an extensionless absolute path with spaces inside backticks', () => {
+    assert.deepEqual(paths('`~/Library/Application Support`'), [
+      {
+        text: '~/Library/Application Support',
+        path: '~/Library/Application Support',
+      },
+    ]);
+    assert.deepEqual(paths('`/usr/local/My Programs/grok`'), [
+      { text: '/usr/local/My Programs/grok', path: '/usr/local/My Programs/grok' },
+    ]);
+  });
+
+  it('links an unquoted path with spaces as one path and stops before the next word', () => {
+    assert.deepEqual(paths('see src/my file.ts for notes'), [
+      { text: 'src/my file.ts', path: 'src/my file.ts' },
+    ]);
+    assert.deepEqual(paths('see src/my docs/file.ts now'), [
+      { text: 'src/my docs/file.ts', path: 'src/my docs/file.ts' },
+    ]);
+    assert.deepEqual(paths('Open ~/Library/Application Support/foo.txt please.'), [
+      {
+        text: '~/Library/Application Support/foo.txt',
+        path: '~/Library/Application Support/foo.txt',
+      },
+    ]);
+    assert.deepEqual(paths('Done in src/my file.ts.'), [
+      { text: 'src/my file.ts', path: 'src/my file.ts' },
+    ]);
+    assert.deepEqual(paths('Edit src/my file.ts:42:7 next'), [
+      { text: 'src/my file.ts:42:7', path: 'src/my file.ts', line: 42, column: 7 },
+    ]);
+    assert.deepEqual(
+      paths('https://example.com/my docs/file.ts stays a url, see src/ok file.ts.'),
+      [{ text: 'src/ok file.ts', path: 'src/ok file.ts' }]
+    );
+  });
+
+  it('does not treat non-paths as spaced file links', () => {
+    const samples = [
+      '`hello world`',
+      '`README.md`',
+      '`1.0.72`',
+      '`lodash@4.17.21`',
+      '`feat/clickable-paths`',
+      '`feat/clickable paths`',
+      '`image/png`',
+      '`src/my folder`',
+      '`/my dir/123`',
+      '`https://example.com/my file.ts`',
+      'feat/clickable paths',
+      'src/my folder',
+      'version 1.0.72 today',
+      'image/png and feat/clickable paths and README.md',
+      'See the image/png and then src/my folder today',
+    ];
+    for (const sample of samples) {
+      assert.deepEqual(paths(sample), [], sample);
+    }
   });
 
   it('does not treat a sentence period as part of the path', () => {
@@ -171,7 +292,7 @@ describe('findMessageLinks false positives', () => {
   });
 
   it('does not link inside fenced code, including an unclosed fence', () => {
-    const fenced = 'Before\n```ts\nconst p = "src/cli/compat.ts";\n// see #65\n```\nAfter src/util/cwd.ts';
+    const fenced = 'Before\n```ts\nconst p = "src/cli/compat.ts";\nconst q = "src/my file.ts";\n// see #65\n```\nAfter src/util/cwd.ts';
     assert.deepEqual(paths(fenced), [
       { text: 'src/util/cwd.ts', path: 'src/util/cwd.ts' },
     ]);
@@ -285,6 +406,39 @@ describe('resolveAssistantFile', () => {
     assert.equal(
       resolveAssistantFile('https://example.com/a.ts', { roots: ['/work'], isFile, platform: 'linux' }),
       null
+    );
+  });
+
+  it('resolves paths that contain spaces', () => {
+    const files = new Set([
+      '/work/src/my file.ts',
+      '/home/me/Library/Application Support/Grok/config.toml',
+    ]);
+    assert.equal(
+      resolveAssistantFile('src/my file.ts', {
+        roots: ['/work'],
+        isFile: (p) => files.has(p),
+        platform: 'linux',
+      }),
+      '/work/src/my file.ts'
+    );
+    assert.equal(
+      resolveAssistantFile('~/Library/Application Support/Grok/config.toml', {
+        roots: ['/work'],
+        homedir: '/home/me',
+        isFile: (p) => files.has(p),
+        platform: 'linux',
+      }),
+      '/home/me/Library/Application Support/Grok/config.toml'
+    );
+    const winFiles = new Set(['C:\\Program Files\\Grok\\grok.exe']);
+    assert.equal(
+      resolveAssistantFile('C:\\Program Files\\Grok\\grok.exe', {
+        roots: ['C:\\work'],
+        isFile: (p) => winFiles.has(p),
+        platform: 'win32',
+      }),
+      'C:\\Program Files\\Grok\\grok.exe'
     );
   });
 

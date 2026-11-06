@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- A file path with spaces is one link for the whole path, not the piece before the first space (`src/my file.ts`, `` `~/Library/Application Support/Grok/config.toml:12` ``). In a sentence the link stops at the end of the path. `:line` and `:line:col` still open at that position. This matches Grok CLI 1.0.74, which links spaced paths inside inline code. A relative path still needs a file extension (#65).
+
 ## 0.4.2 – 2026-11-01
 
 Marketplace republish with the store build. No functional change beyond the version bump.

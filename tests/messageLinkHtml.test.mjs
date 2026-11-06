@@ -64,6 +64,21 @@ describe('webview assistant link html', () => {
     );
   });
 
+  it('links a backtick path with spaces as one control', () => {
+    const html = formatMarkdown(
+      'Open `src/my file.ts:4:2` and [docs](https://example.com/a).',
+      { linkify: true }
+    );
+    assert.match(
+      html,
+      /<code><button type="button" class="path-link" data-path="src\/my file.ts" data-line="4" data-col="2">src\/my file.ts:4:2<\/button><\/code>/
+    );
+    assert.equal(html.match(/path-link/g).length, 1);
+    assert.match(html, /<a href="https:\/\/example.com\/a" rel="noreferrer">docs<\/a>/);
+    assert.doesNotMatch(html, /data-path="src\/my"/);
+    assert.doesNotMatch(html, /data-path="file.ts"/);
+  });
+
   it('does not link paths inside fenced code', () => {
     const html = formatMarkdown(
       '```ts\nconst p = "src/cli/compat.ts";\n```\n\nAfter src/util/cwd.ts',

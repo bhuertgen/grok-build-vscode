@@ -21,7 +21,7 @@
 
 | Area | What you get |
 |------|----------------|
-| **Chat UI** | Theme-aware webview, streaming, collapsible tools/thoughts. File paths in Grok's answers open in the editor; `#123` opens the PR when a git remote is known |
+| **Chat UI** | Theme-aware webview, streaming, collapsible tools/thoughts. File paths in Grok's answers open in the editor, including a path with spaces as one link; `#123` opens the PR when a git remote is known |
 | **Composer** | `+` insert · `/` actions · `@` workspace files |
 | **Multi-session** | Tabs; one CLI process per chat |
 | **Plan / Execute** | UI, commands, keybindings |

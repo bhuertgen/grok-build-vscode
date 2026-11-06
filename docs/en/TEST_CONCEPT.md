@@ -218,7 +218,7 @@ Format per case:
 - **Dim:** U
 - **Precondition:** a file in the sandbox (`echo hi > src/hello.ts` — create `src/` first) and a GitHub `origin` remote if you want the PR link
 - **Steps:** ask Grok to mention `src/hello.ts:1` and `#1` in the answer (or paste a restored transcript that contains them). Click the path. Click `#1` when a remote is set.
-- **Pass:** the editor opens `src/hello.ts` on line 1. `#1` opens the forge issue/PR page. A bare `README.md`, a version `1.0.72`, and a markdown `https` link are not turned into file links; the https link still opens in the browser. With no git remote, `#1` stays plain text. A missing path shows **File not found**.
+- **Pass:** the editor opens `src/hello.ts` on line 1. `#1` opens the forge issue/PR page. A bare `README.md`, a version `1.0.72`, and a markdown `https` link are not turned into file links; the https link still opens in the browser. A path with spaces inside inline code (`` `src/my file.ts` ``) is one link for the whole path and opens that file. With no git remote, `#1` stays plain text. A missing path shows **File not found**.
 
 #### T-U11 — Keyboard shortcuts  
 - **Dim:** U  
