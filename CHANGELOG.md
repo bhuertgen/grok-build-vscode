@@ -9,6 +9,7 @@
 - Broken project permission rules from `session/new` and `session/load` (`_meta["x.ai/permissionRuleWarnings"]`) show as a warning system notice. Paths in that notice are clickable. A later load replaces the trailing copy of the same notice (#31, #78).
 
 ### Fixed
+- On Linux, `run_terminal_command` after Allow no longer fails with `Terminal error: IO Error: Internal error: "failed to deserialize response"`. Grok CLI 1.0.77 sends `terminal/create` as one shell line in `command` and no `args` (`/usr/bin/bash -lc '…'`). That string now runs through the shell. Separate `args` stay a direct spawn, so a path with spaces is still one argument. A failed spawn's negative close code (`-2`) is reported as exit code `1`.
 - A file path with spaces is one link for the whole path, not the piece before the first space (`src/my file.ts`, `` `~/Library/Application Support/Grok/config.toml:12` ``). In a sentence the link stops at the end of the path. `:line` and `:line:col` still open at that position. This matches Grok CLI 1.0.74, which links spaced paths inside inline code. A relative path still needs a file extension (#65, #76).
 
 ### Compatibility

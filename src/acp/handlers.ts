@@ -42,6 +42,7 @@ import { sliceTextLines } from '../util/textSlice';
 import { coalesceOutsidePrompt, OutsideAccessGrants } from '../util/outsideAccess';
 import { isInsideWorkspace, resolveScopePath, scopeKey } from '../util/pathScope';
 import { isProbablyBinary } from '../util/unreadable';
+import { normalizeTerminalExitCode, planTerminalSpawn } from './terminalSpawn';
 
 /** Re-reads of a file after "Allow once" within this window do not ask again (#45). */
 const OUTSIDE_READ_GRACE_MS = 60_000;
@@ -448,18 +449,25 @@ export class ClientHandlers {
     }
 
     const args = params.args ?? [];
-    this.log.info('terminal/create', params.command, args.join(' '));
+    // No separate args (CLI 1.0.77's `/usr/bin/bash -lc '…'` line) → shell.
+    // Argv stays a direct spawn. Windows keeps one cmd.exe command line.
+    const spec = planTerminalSpawn(process.platform, params.command, args);
+    this.log.info(
+      'terminal/create',
+      params.command,
+      args.join(' '),
+      spec.shell ? 'shell' : 'argv'
+    );
 
-    // Windows: shell needed for .cmd/.bat; avoid DEP0190 by using one command string.
-    const isWin = process.platform === 'win32';
-    const proc = isWin
-      ? spawn(quoteWinCommand(params.command, args), {
+    // shell:true gets one command string and no args array (Windows DEP0190).
+    const proc = spec.shell
+      ? spawn(spec.file, {
           cwd,
           env,
           shell: true,
-          windowsHide: true,
+          ...(spec.windowsHide ? { windowsHide: true } : {}),
         })
-      : spawn(params.command, args, { cwd, env, shell: false });
+      : spawn(spec.file, spec.args, { cwd, env, shell: false });
 
     const limit = params.outputByteLimit ?? 1_000_000;
     const managed: ManagedTerminal = {
@@ -488,23 +496,35 @@ export class ClientHandlers {
 
     proc.stdout?.on('data', append);
     proc.stderr?.on('data', append);
-    proc.on('close', (code, signal) => {
+    const publishExit = (code: number | null, signal: string | null) => {
+      const status = {
+        exitCode: normalizeTerminalExitCode(code),
+        signal,
+      };
       managed.exited = true;
-      managed.exitCode = code;
-      managed.signal = signal;
+      managed.exitCode = status.exitCode;
+      managed.signal = status.signal;
       for (const w of managed.waiters) {
-        w({ exitCode: code, signal });
+        w(status);
       }
       managed.waiters = [];
+    };
+
+    proc.on('close', (code, signal) => {
+      // `error` already published a failure. A later close code of -2
+      // (failed spawn) must not replace it.
+      if (managed.exited) {
+        return;
+      }
+      publishExit(code, signal);
     });
     proc.on('error', (err) => {
       managed.output += `\n[process error] ${err.message}`;
-      managed.exited = true;
-      managed.exitCode = 1;
-      for (const w of managed.waiters) {
-        w({ exitCode: 1, signal: null });
+      if (managed.exited) {
+        managed.exitCode = 1;
+        return;
       }
-      managed.waiters = [];
+      publishExit(1, null);
     });
 
     this.terminals.set(id, managed);
@@ -522,7 +542,10 @@ export class ClientHandlers {
       output: t.output,
       truncated: t.truncated,
       exitStatus: t.exited
-        ? { exitCode: t.exitCode ?? null, signal: t.signal ?? null }
+        ? {
+            exitCode: normalizeTerminalExitCode(t.exitCode),
+            signal: t.signal ?? null,
+          }
         : null,
     };
   }
@@ -535,12 +558,15 @@ export class ClientHandlers {
       throw new Error(`Unknown terminal: ${params.terminalId}`);
     }
     if (t.exited) {
-      return { exitCode: t.exitCode ?? null, signal: t.signal ?? null };
+      return {
+        exitCode: normalizeTerminalExitCode(t.exitCode),
+        signal: t.signal ?? null,
+      };
     }
     return new Promise((resolve) => {
       t.waiters.push((status) => {
         resolve({
-          exitCode: status.exitCode ?? null,
+          exitCode: normalizeTerminalExitCode(status.exitCode),
           signal: status.signal ?? null,
         });
       });
@@ -591,16 +617,3 @@ export class ClientHandlers {
   }
 }
 
-/** Build a single cmd.exe-safe command line (for shell:true without args[]). */
-function quoteWinCommand(command: string, args: string[]): string {
-  const parts = [command, ...args].map((p) => {
-    if (!p) {
-      return '""';
-    }
-    if (/[\s"]/g.test(p)) {
-      return `"${p.replace(/"/g, '\\"')}"`;
-    }
-    return p;
-  });
-  return parts.join(' ');
-}
