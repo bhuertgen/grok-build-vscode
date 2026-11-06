@@ -45,6 +45,7 @@ await esbuild.build({
     restoreNotices: 'src/util/restoreNotices.ts',
     permissionRuleWarnings: 'src/util/permissionRuleWarnings.ts',
     transport: 'src/acp/transport.ts',
+    terminalSpawn: 'src/acp/terminalSpawn.ts',
     distribution: 'src/util/distribution.ts',
   },
   outdir: outDir,
