@@ -830,6 +830,14 @@ html, body {
   max-width: 90%;
 }
 
+.msg.system.warning {
+  align-self: stretch;
+  max-width: 100%;
+  text-align: left;
+  opacity: 1;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
 .msg.system .body {
   white-space: pre-wrap;
 }

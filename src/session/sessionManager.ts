@@ -85,6 +85,7 @@ import {
   type GrokModelsUpdate,
 } from '../util/configOptionsUi';
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
+import { permissionRuleNoticeFromMeta } from '../util/permissionRuleWarnings';
 import { pushNotice } from '../util/restoreNotices';
 import { clearStaleStartErrors } from '../util/cliRecovery';
 import {
@@ -488,6 +489,7 @@ export class SessionManager extends EventEmitter {
         state.model = fromAgent.currentValue;
       }
       state.status = 'ready';
+      this.pushPermissionRuleWarnings(state, res);
       // Paint chips before mode/model awaits so the header does not wait
       // for a later update or a resume.
       this.emitChange(localId);
@@ -660,6 +662,7 @@ export class SessionManager extends EventEmitter {
             state,
             '**Session resumed** — the agent has the previous conversation.'
           );
+          this.pushPermissionRuleWarnings(state, res);
         } catch (err) {
           this.log.warn('Agent resume failed, creating new agent session', err);
           const res = await client.newSession({ cwd: state.cwd });
@@ -678,6 +681,7 @@ export class SessionManager extends EventEmitter {
           } else {
             state.agentContext = 'new';
           }
+          this.pushPermissionRuleWarnings(state, res);
         }
       } else {
         const res = await client.newSession({ cwd: state.cwd });
@@ -696,6 +700,7 @@ export class SessionManager extends EventEmitter {
         } else {
           state.agentContext = 'new';
         }
+        this.pushPermissionRuleWarnings(state, res);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1724,6 +1729,7 @@ export class SessionManager extends EventEmitter {
     state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
     state.status = 'ready';
     state.lastError = undefined;
+    this.pushPermissionRuleWarnings(state, res);
 
     // Try to also set via config option if now advertised
     const modelOpt = findModelConfigOption(state.configOptions);
@@ -1931,17 +1937,20 @@ export class SessionManager extends EventEmitter {
           });
           state.modes = res.modes ?? undefined;
           state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
+          this.pushPermissionRuleWarnings(state, res);
         } catch {
           const res = await client.newSession({ cwd: state.cwd });
           state.agentSessionId = res.sessionId;
           state.modes = res.modes ?? undefined;
           state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
+          this.pushPermissionRuleWarnings(state, res);
         }
       } else {
         const res = await client.newSession({ cwd: state.cwd });
         state.agentSessionId = res.sessionId;
         state.modes = res.modes ?? undefined;
         state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
+        this.pushPermissionRuleWarnings(state, res);
       }
       state.status = 'ready';
       state.lastError = undefined;
@@ -2754,6 +2763,23 @@ export class SessionManager extends EventEmitter {
       content,
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Broken project permission rules (CLI alpha ≥ 1.0.75) arrive on
+   * `session/new` and `session/load` as `_meta["x.ai/permissionRuleWarnings"]`.
+   * `session/resume` returns the same result type and falls back to load.
+   * One warning notice per response; a later load replaces the trailing copy.
+   */
+  private pushPermissionRuleWarnings(
+    state: SessionState,
+    res: { _meta?: Record<string, unknown> } | null | undefined
+  ): void {
+    const notice = permissionRuleNoticeFromMeta(res?._meta);
+    if (!notice) {
+      return;
+    }
+    this.pushSystem(state, notice);
   }
 
   private emitChange(localId: string): void {

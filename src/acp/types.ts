@@ -239,6 +239,11 @@ export interface NewSessionResponse {
   sessionId: SessionId;
   modes?: SessionModeState | null;
   configOptions?: SessionConfigOption[] | null;
+  /**
+   * Grok metadata. Alpha ≥ 1.0.75 in a trusted folder may set
+   * `x.ai/permissionRuleWarnings` (string[]). Omitted when there are no warnings.
+   */
+  _meta?: Record<string, unknown>;
 }
 
 export interface LoadSessionRequest {
@@ -251,6 +256,12 @@ export interface LoadSessionRequest {
 export interface LoadSessionResponse {
   modes?: SessionModeState | null;
   configOptions?: SessionConfigOption[] | null;
+  /**
+   * Same `_meta` as `session/new`. `session/load` carries
+   * `x.ai/permissionRuleWarnings` when project rules failed to load.
+   * `session/resume` uses this result type; a missing key is ignored.
+   */
+  _meta?: Record<string, unknown>;
 }
 
 export interface ResumeSessionRequest {

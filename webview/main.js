@@ -1265,6 +1265,23 @@
   }
 
 
+  /**
+   * Permission-rule notice from session/new and session/load (#31).
+   * Same prefix as PERMISSION_RULES_NOTICE_RE in src/util/permissionRuleWarnings.ts.
+   */
+  function isPermissionRuleNotice(m) {
+    return (
+      !!m &&
+      m.role === 'system' &&
+      /^\*\*Permission rule warnings?\*\*/.test(String(m.content || ''))
+    );
+  }
+
+  /** Agent answers and permission-rule notices reuse path / #123 linking (#65). */
+  function messageUsesPathLinks(m) {
+    return !!m && (m.role === 'agent' || isPermissionRuleNotice(m));
+  }
+
   /** Mirror renderMessages skip rules so structure sig matches DOM children. */
   function shouldSkipMsg(m) {
     if (!m) {
@@ -1283,7 +1300,7 @@
       return true;
     }
     const html = formatMarkdown(m.role === 'user' ? m.content || '' : cleaned, {
-      linkify: m.role === 'agent',
+      linkify: messageUsesPathLinks(m),
     });
     if (!html.trim() && !(m.images && m.images.length) && !m.streaming) {
       return true;
@@ -1383,7 +1400,7 @@
           m.role === 'user'
             ? m.content || ''
             : sanitizeMessageContent(m.content || '');
-        body.innerHTML = formatMarkdown(cleaned, { linkify: m.role === 'agent' });
+        body.innerHTML = formatMarkdown(cleaned, { linkify: messageUsesPathLinks(m) });
         body.classList.add('streaming-cursor');
       } else if (m.role === 'thought') {
         const body = el.querySelector('.thought-row-body');
@@ -1518,7 +1535,7 @@
       const cleaned = sanitizeMessageContent(m.content || '');
 
       const div = document.createElement('div');
-      div.className = `msg ${m.role}`;
+      div.className = `msg ${m.role}${isPermissionRuleNotice(m) ? ' warning' : ''}`;
       div.dataset.msgId = m.id;
 
       if (m.role === 'agent') {
@@ -1565,7 +1582,7 @@
       const body = document.createElement('div');
       body.className = 'body' + (m.streaming ? ' streaming-cursor' : '');
       const html = formatMarkdown(m.role === 'user' ? m.content || '' : cleaned, {
-        linkify: m.role === 'agent',
+        linkify: messageUsesPathLinks(m),
       });
       body.innerHTML = html;
       div.appendChild(body);
