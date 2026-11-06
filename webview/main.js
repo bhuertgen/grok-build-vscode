@@ -420,6 +420,14 @@
     }
     if (els.permCardDetail) {
       els.permCardDetail.textContent = '';
+      // Hook ask (#30): "Hook `project/probe` asks: …". Title is already cleaned.
+      const hookAsk = activePermission.hookAsk;
+      if (hookAsk && hookAsk.label) {
+        const line = document.createElement('div');
+        line.className = 'perm-hook-ask';
+        line.textContent = hookAsk.label;
+        els.permCardDetail.append(line);
+      }
       // CLI 1.0.54+: binary/unreadable target — explicit hint, no diff/preview
       if (activePermission.unreadable) {
         const badge = document.createElement('span');
@@ -3742,6 +3750,8 @@
           displayTitle: msg.displayTitle,
           unreadable: !!msg.unreadable,
           unreadableLabel: msg.unreadableLabel,
+          _meta: msg._meta,
+          hookAsk: msg.hookAsk,
         };
         renderPermissionCard();
     renderElicitationCard();

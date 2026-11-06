@@ -24,6 +24,7 @@ await esbuild.build({
     configOptionsUi: 'src/util/configOptionsUi.ts',
     fileRangeMention: 'src/util/fileRangeMention.ts',
     turnOutcome: 'src/util/turnOutcome.ts',
+    hookAsk: 'src/util/hookAsk.ts',
     unreadable: 'src/util/unreadable.ts',
     permissionOutcome: 'src/util/permissionOutcome.ts',
     initialMode: 'src/util/initialMode.ts',

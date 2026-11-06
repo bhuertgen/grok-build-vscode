@@ -15,10 +15,26 @@ describe('parsePermissionTitle', () => {
     assert.equal(parsePermissionTitle('Write `a.bin` (Binary, Unreadable)').title, 'Write `a.bin`');
   });
   it('leaves normal titles alone', () => {
-    for (const t of ['Write `src/a.ts`', 'Run `ls (unreadable stuff)` now', 'Edit (preview)', '']) {
+    for (const t of ['Write `src/a.ts`', 'Run `ls (unreadable stuff)` now', 'Edit (preview)', 'Run the hook tests', '']) {
       assert.deepEqual(parsePermissionTitle(t), { title: t, unreadable: false });
     }
     assert.deepEqual(parsePermissionTitle(undefined), { title: '', unreadable: false });
+  });
+  it('strips a trailing hook-ask suffix so the card does not repeat it (#30)', () => {
+    const raw =
+      "Execute `echo deploy-probe` — hook 'project/probe:pre_tool_use[0].hooks[0]' asks: Confirm this deploy";
+    assert.deepEqual(parsePermissionTitle(raw), {
+      title: 'Execute `echo deploy-probe`',
+      unreadable: false,
+    });
+    assert.equal(
+      parsePermissionTitle("Write `a.bin` (unreadable, no preview) — hook 'p/h:pre_tool_use[0].hooks[0]' asks: no").title,
+      'Write `a.bin`'
+    );
+    assert.equal(
+      parsePermissionTitle("Write `a.bin` (unreadable, no preview) — hook 'p/h:pre_tool_use[0].hooks[0]' asks: no").unreadable,
+      true
+    );
   });
 });
 

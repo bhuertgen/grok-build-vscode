@@ -580,6 +580,12 @@ html, body {
   margin-bottom: 10px;
 }
 
+.perm-hook-ask {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
 .perm-card-actions {
   display: flex;
   gap: 8px;

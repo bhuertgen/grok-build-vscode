@@ -10,18 +10,28 @@ import { isGermanLocale, localize } from './locale';
 
 const UNREADABLE_SUFFIX = /\s*\((?:[^()]*\b)?unreadable\b[^()]*\)\s*$/i;
 
+/**
+ * CLI appends ` — hook '<id>' asks: <reason>` to the permission title when a
+ * hook asks (probed 1.0.70 / 1.0.77). The card shows that from `_meta.hookAsk`
+ * instead, so the suffix is not repeated. Em dash is the live form; en dash
+ * and hyphen are accepted too.
+ */
+const HOOK_ASK_TITLE_SUFFIX =
+  /\s+(?:—|–|--|-)\s+hook\s+(?:'[^']*'|"[^"]*")\s+asks:\s*[\s\S]*$/i;
+
 export interface ParsedPermissionTitle {
-  /** Title without the "(unreadable…)" suffix. */
+  /** Title without the "(unreadable…)" or hook-ask suffix. */
   title: string;
   unreadable: boolean;
 }
 
 export function parsePermissionTitle(title: string | undefined | null): ParsedPermissionTitle {
   const raw = typeof title === 'string' ? title : '';
-  if (UNREADABLE_SUFFIX.test(raw)) {
-    return { title: raw.replace(UNREADABLE_SUFFIX, '').trim(), unreadable: true };
+  const withoutHook = raw.replace(HOOK_ASK_TITLE_SUFFIX, '').trim();
+  if (UNREADABLE_SUFFIX.test(withoutHook)) {
+    return { title: withoutHook.replace(UNREADABLE_SUFFIX, '').trim(), unreadable: true };
   }
-  return { title: raw, unreadable: false };
+  return { title: withoutHook, unreadable: false };
 }
 
 /** Binary heuristic: NUL byte or invalid UTF-8 within the first `sampleBytes`. */

@@ -112,6 +112,14 @@ describe('pickAutoAllowOption (#44)', () => {
   it('options without kind are never auto-allowed by name', () => {
     assert.equal(pick([{ optionId: 'allow', name: 'Allow' }], { mode: 'allow-always' }), undefined);
   });
+  it('hook ask is prompted except for full allow-always (#30)', () => {
+    assert.equal(pick(cli, { mode: 'ask', hookAsk: true }), undefined);
+    assert.equal(pick(cli, { mode: 'allow-once', hookAsk: true }), undefined);
+    assert.equal(pick(cli, { mode: 'allow-session', hookAsk: true }), undefined);
+    assert.equal(pick(cli, { mode: 'ask', sessionKeyAllowed: true, hookAsk: true }), undefined);
+    assert.equal(pick(cli, { mode: 'allow-always', hookAsk: true }), 'allow-edits-session');
+    assert.equal(pick(cli, { mode: 'ask', globalAllowAlways: true, hookAsk: true }), 'allow-edits-session');
+  });
   it('permissionDecision maps disallow-like ids of unknown kind to rejected', () => {
     assert.equal(permissionDecision({ outcome: { outcome: 'selected', optionId: 'disallow' } }, []), 'rejected');
     assert.equal(permissionDecision({ outcome: { outcome: 'selected', optionId: 'dont-allow' } }, []), 'rejected');

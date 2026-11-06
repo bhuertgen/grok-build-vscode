@@ -35,6 +35,7 @@ import {
   promptTrustWorkspace,
 } from '../util/workspaceTrust';
 import type { EditController } from '../edits/editController';
+import { parseHookAsk, permissionRequestFields } from '../util/hookAsk';
 import { isWriteLikePermission } from '../util/permissionKind';
 import { pickAutoAllowOption, pickRejectOption } from '../util/permissionOutcome';
 import { sliceTextLines } from '../util/textSlice';
@@ -92,7 +93,8 @@ export class ClientHandlers {
     private readonly onPermissionUi?: (
       sessionId: string,
       toolCall: ToolCallUpdate,
-      options: PermissionOption[]
+      options: PermissionOption[],
+      meta?: Record<string, unknown>
     ) => Promise<RequestPermissionResponse>,
     private readonly onElicitationUi?: (
       params: CreateElicitationRequest
@@ -304,12 +306,16 @@ export class ClientHandlers {
       }
     }
 
-    // permissionMode auto-answers: kind-based, order-independent (#44)
+    // permissionMode auto-answers: kind-based, order-independent (#44).
+    // A hook ask is not swallowed by allow-once, allow-session, or a
+    // remembered "allow always". Full allow-always (YOLO) still blanket-approves (#30).
     const key = this.permissionKey(params.toolCall);
+    const hookAsk = !!parseHookAsk(params._meta);
     const auto = pickAutoAllowOption(params.options, {
       mode: cfg.permissionMode,
       globalAllowAlways: this.globalAllowAlways,
-      sessionKeyAllowed: this.sessionAllowAlways.has(key),
+      sessionKeyAllowed: hookAsk ? false : this.sessionAllowAlways.has(key),
+      hookAsk,
     });
     if (auto) {
       this.log.info('Auto-answer permission', cfg.permissionMode, auto.kind, auto.optionId);
@@ -320,9 +326,12 @@ export class ClientHandlers {
       const result = await this.onPermissionUi(
         params.sessionId,
         params.toolCall,
-        params.options
+        params.options,
+        params._meta
       );
-      if (result.outcome.outcome === 'selected') {
+      // Remembering "allow always" would auto-answer the next hook ask, which
+      // the CLI re-sends even under always-approve. Only plain tool grants stick.
+      if (!hookAsk && result.outcome.outcome === 'selected') {
         const optionId = result.outcome.optionId;
         const selected = params.options.find((o) => o.optionId === optionId);
         if (selected?.kind === 'allow_always') {
@@ -350,14 +359,12 @@ export class ClientHandlers {
       optionId: o.optionId,
     }));
 
-    const title =
-      params.toolCall.title ??
-      params.toolCall.kind ??
-      'Agent requests permission';
+    const view = permissionRequestFields(params.toolCall.title, params._meta);
+    const title = view.displayTitle || params.toolCall.kind || 'Agent requests permission';
 
     const picked = await vscode.window.showQuickPick(items, {
-      title: `Grok Build: ${title}`,
-      placeHolder: 'Allow or reject this tool action',
+      title: view.hookAsk ? `Grok Build: ${view.hookAsk.label}` : `Grok Build: ${title}`,
+      placeHolder: view.hookAsk ? title : 'Allow or reject this tool action',
       ignoreFocusOut: true,
     });
 
@@ -365,7 +372,7 @@ export class ClientHandlers {
       return { outcome: { outcome: 'cancelled' } };
     }
 
-    if (picked.description === 'allow_always') {
+    if (picked.description === 'allow_always' && !view.hookAsk) {
       this.sessionAllowAlways.add(this.permissionKey(params.toolCall));
     }
 
