@@ -548,9 +548,14 @@ html, body {
   background: #34d399;
 }
 
-.agent-dot.failed,
-.agent-dot.cancelled {
+.agent-dot.failed {
   background: var(--error);
+}
+
+/* Neutral: cancelled is terminal, not an error and not still running. */
+.agent-dot.cancelled,
+.agent-dot.unknown {
+  background: var(--muted);
 }
 
 @keyframes pulse-dot {

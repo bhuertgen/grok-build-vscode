@@ -91,6 +91,7 @@ for (const p of [
   'dist/webview/main.js',
   'dist/webview/messageLinks.js',
   'dist/webview/followUp.js',
+  'dist/webview/toolStatus.js',
   'dist/webview/styles.css',
   'dist/webview/index.html',
   'package.json',
@@ -155,6 +156,7 @@ for (const m of [
   'enqueueFollowUp',
   'GrokFollowUp',
   'decideComposerSubmitFallback',
+  'GrokToolStatus',
 ]) {
   if (wvMain.includes(m)) {
     ok(`webview has ${m}`);

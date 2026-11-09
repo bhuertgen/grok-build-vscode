@@ -372,9 +372,7 @@
     }
     const s = activeSession();
     // Only show live/recent running work — compact multi-agent strip
-    const agents = (s?.agents || []).filter(
-      (a) => a.status === 'pending' || a.status === 'in_progress'
-    );
+    const agents = (s?.agents || []).filter((a) => isToolRunning(a));
     if (!agents.length) {
       els.agentsPanel.classList.add('hidden');
       els.agentsList.innerHTML = '';
@@ -1015,8 +1013,64 @@
     return 'Tool';
   }
 
+  function toolStatusApi() {
+    return typeof GrokToolStatus !== 'undefined' ? GrokToolStatus : null;
+  }
+
   function isToolRunning(t) {
+    const api = toolStatusApi();
+    if (api && typeof api.isRunningToolStatus === 'function') {
+      return api.isRunningToolStatus(t && t.status);
+    }
     return t?.status === 'pending' || t?.status === 'in_progress';
+  }
+
+  /**
+   * Status → row view. Production uses GrokToolStatus (src/util/toolStatus.ts),
+   * the same mapping the unit tests cover. The fallback matches it if the
+   * script did not load.
+   */
+  function toolRowView(t) {
+    const dur = formatDuration(t && t.durationMs);
+    const api = toolStatusApi();
+    if (api && typeof api.toolRowStatus === 'function') {
+      return api.toolRowStatus(t && t.status, dur);
+    }
+    return toolRowStatusFallback(t && t.status, dur);
+  }
+
+  function toolRowStatusFallback(status, durationLabel) {
+    const raw = typeof status === 'string' ? status.trim() : '';
+    const s = raw.toLowerCase();
+    if (s === 'pending' || s === 'in_progress') {
+      return { running: true, dot: s, label: 'running', groupAsCompleted: false };
+    }
+    if (s === 'completed') {
+      const duration = typeof durationLabel === 'string' ? durationLabel.trim() : '';
+      return {
+        running: false,
+        dot: 'completed',
+        label: duration || 'done',
+        groupAsCompleted: true,
+      };
+    }
+    if (s === 'failed') {
+      return { running: false, dot: 'failed', label: 'failed', groupAsCompleted: false };
+    }
+    if (s === 'cancelled') {
+      return {
+        running: false,
+        dot: 'cancelled',
+        label: 'Cancelled',
+        groupAsCompleted: false,
+      };
+    }
+    return {
+      running: false,
+      dot: 'unknown',
+      label: raw || 'unknown',
+      groupAsCompleted: false,
+    };
   }
 
   function buildTimeline(s) {
@@ -1052,26 +1106,41 @@
     }
 
     const tools = (s.toolCalls || []).filter((t) => t?.id);
-    const running = tools.filter(isToolRunning);
-    const done = tools.filter((t) => !isToolRunning(t));
+    const running = [];
+    const completed = [];
+    const rest = [];
+    for (const t of tools) {
+      const view = toolRowView(t);
+      if (view.running) {
+        running.push(t);
+      } else if (view.groupAsCompleted) {
+        completed.push(t);
+      } else {
+        // Cancelled, failed, and unknown stay their own rows (not a green "done").
+        rest.push(t);
+      }
+    }
 
     // Live tools: always one compact row each (Grok Build style)
     for (const t of running) {
       items.push({ type: 'tool', ts: t.startedAt || 0, t });
     }
+    for (const t of rest) {
+      items.push({ type: 'tool', ts: t.startedAt || 0, t });
+    }
 
     // Completed tools: one summary row by default (avoids “ruled paper” stack after the answer).
     // Expand to list each tool only when the user asks.
-    if (done.length === 1) {
-      items.push({ type: 'tool', ts: done[0].startedAt || 0, t: done[0] });
-    } else if (done.length > 1) {
+    if (completed.length === 1) {
+      items.push({ type: 'tool', ts: completed[0].startedAt || 0, t: completed[0] });
+    } else if (completed.length > 1) {
       if (toolsExpanded) {
-        for (const t of done) {
+        for (const t of completed) {
           items.push({ type: 'tool', ts: t.startedAt || 0, t });
         }
       } else {
-        const ts = Math.min(...done.map((t) => t.startedAt || 0));
-        items.push({ type: 'tool-group', ts, tools: done });
+        const ts = Math.min(...completed.map((t) => t.startedAt || 0));
+        items.push({ type: 'tool-group', ts, tools: completed });
       }
     }
 
@@ -1133,7 +1202,8 @@
 
   function renderToolRow(t) {
     const wrap = document.createElement('div');
-    const running = isToolRunning(t);
+    const view = toolRowView(t);
+    const running = view.running;
     // Grok Build style: always one compact line; expand only on user click
     const isOpen = expandedTools.has(t.id);
     const kl = kindLabel(t.kind, t.title);
@@ -1141,6 +1211,7 @@
       'tool-row' +
       (isOpen ? ' open' : '') +
       (running ? ' running' : '') +
+      (view.dot === 'cancelled' ? ' cancelled' : '') +
       ' kind-' +
       kl.toLowerCase();
     wrap.dataset.toolId = t.id;
@@ -1148,15 +1219,10 @@
     const head = document.createElement('button');
     head.type = 'button';
     head.className = 'tool-row-head';
-    const dur = formatDuration(t.durationMs);
-    const statusLabel = running
-      ? 'running'
-      : t.status === 'completed'
-        ? dur || 'done'
-        : t.status || '';
+    const statusLabel = view.label;
     const title = (t.title || '').trim() || kl;
     head.innerHTML = `
-      <span class="agent-dot ${escapeHtml(t.status || '')}"></span>
+      <span class="agent-dot ${escapeHtml(view.dot || '')}"></span>
       <span class="tool-kind kind-${escapeHtml(kl.toLowerCase())}">${escapeHtml(kl)}</span>
       <span class="tool-title">${escapeHtml(title)}</span>
       ${t.unreadable ? '<span class="perm-unreadable" title="Binary/unreadable file — no diff/preview">unreadable</span>' : ''}
@@ -1308,6 +1374,23 @@
     return false;
   }
 
+  /**
+   * Non-streaming system lines (the background-command notice) change text
+   * without changing id. Include a content key so that update re-renders.
+   * Streaming bodies stay out of the key so token deltas can patch in place.
+   */
+  function systemContentKey(m) {
+    if (!m || m.streaming || m.role !== 'system') {
+      return '';
+    }
+    const str = String(m.content || '');
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = (Math.imul(h, 31) + str.charCodeAt(i)) | 0;
+    }
+    return ':' + str.length + ':' + h;
+  }
+
   /** Stable structure key (ids/roles/flags) — excludes message text content. */
   function timelineStructureSig(sessionId, timeline) {
     // Forge URL arrives after the first paint; include it so `#123` relinks.
@@ -1335,7 +1418,8 @@
             ':' +
             (m.streaming ? '1' : '0') +
             ':' +
-            (m.role === 'thought' && expandedThoughts.has(m.id) ? '1' : '0')
+            (m.role === 'thought' && expandedThoughts.has(m.id) ? '1' : '0') +
+            systemContentKey(m)
         );
       }
     }

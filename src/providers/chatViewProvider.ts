@@ -903,6 +903,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const followUpScript = followUpOnDisk
       ? `<script src="${webview.asWebviewUri(followUpOnDisk).toString()}"></script>`
       : '';
+    const toolStatusOnDisk =
+      tryUri(distWebview, 'toolStatus.js') ??
+      tryUri(fallbackWebview, 'toolStatus.js');
+    const toolStatusScript = toolStatusOnDisk
+      ? `<script src="${webview.asWebviewUri(toolStatusOnDisk).toString()}"></script>`
+      : '';
 
     const styleUri = webview.asWebviewUri(styleOnDisk);
     const scriptUri = webview.asWebviewUri(scriptOnDisk);
@@ -934,6 +940,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       .replace(/\{\{styleUri\}\}/g, styleUri.toString())
       .replace(/\{\{linksScript\}\}/g, linksScript)
       .replace(/\{\{followUpScript\}\}/g, followUpScript)
+      .replace(/\{\{toolStatusScript\}\}/g, toolStatusScript)
       .replace(/\{\{scriptUri\}\}/g, scriptUri.toString())
       .replace(/\{\{logoUri\}\}/g, logoUri.toString())
       .replace(/\{\{fontSize\}\}/g, String(fontSize))

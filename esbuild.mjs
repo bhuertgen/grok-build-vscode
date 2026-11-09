@@ -38,6 +38,21 @@ function buildFollowUp() {
   });
 }
 
+/** Tool-row status mapping shared with tests (GrokToolStatus.toolRowStatus). */
+function buildToolStatus() {
+  return esbuild.build({
+    entryPoints: ['src/util/toolStatus.ts'],
+    outfile: path.join(outDir, 'webview', 'toolStatus.js'),
+    bundle: true,
+    format: 'iife',
+    globalName: 'GrokToolStatus',
+    platform: 'browser',
+    target: 'es2022',
+    minify: production,
+    logLevel: 'silent',
+  });
+}
+
 /** Copy webview static assets next to the bundle */
 function copyWebview() {
   const srcDir = path.join('webview');
@@ -91,6 +106,7 @@ const ctx = await esbuild.context({
           if (result.errors.length === 0) {
             await buildMessageLinks();
             await buildFollowUp();
+            await buildToolStatus();
             // Signal for VS Code background problemMatcher (endsPattern)
             console.log('[watch] build finished, watching for changes...');
           }
