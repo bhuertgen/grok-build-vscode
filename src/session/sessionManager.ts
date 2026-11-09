@@ -5,6 +5,16 @@ import * as vscode from 'vscode';
 import { AcpClient } from '../acp/client';
 import { classifyTurnEnd, turnEndNotice } from '../util/turnOutcome';
 import {
+  cancelOpenToolCalls,
+  canonicalToolStatus,
+  isTerminalToolStatus,
+  mergeToolCallStatus,
+} from '../util/toolStatus';
+import {
+  BACKGROUND_NOTICE_ID,
+  syncBackgroundCommandNotice,
+} from '../util/backgroundCommands';
+import {
   extractWritePath,
   isProbablyBinary,
   isWriteLikeToolCall,
@@ -622,7 +632,7 @@ export class SessionManager extends EventEmitter {
       cwd: stored.cwd,
       createdAt: stored.createdAt,
       updatedAt: stored.updatedAt,
-      messages: stored.messages,
+      messages: stored.messages.filter((m) => m.id !== BACKGROUND_NOTICE_ID),
       toolCalls: stored.toolCalls,
       plan: stored.plan,
       usage: stored.usage,
@@ -1313,6 +1323,12 @@ export class SessionManager extends EventEmitter {
       if (notice) {
         this.pushSystem(state, notice);
       }
+      // CLI ≥ 1.0.50 marks open calls cancelled; if that update never arrives,
+      // a cancelled turn still closes pending / in_progress rows (#29).
+      if (result.stopReason === 'cancelled') {
+        cancelOpenToolCalls(state.toolCalls);
+      }
+      this.applyBackgroundNotice(state, live.listRunningCommands(), true);
       if (outcome.kind === 'hook_stopped' || outcome.kind === 'hook_denied') {
         this.log.info(
           outcome.kind === 'hook_denied' ? 'Prompt blocked by failed hook' : 'Turn stopped by hook',
@@ -1850,10 +1866,12 @@ export class SessionManager extends EventEmitter {
     // Tear down any stale client for this id
     void this.teardownClient(localId);
 
-    const client = new AcpClient(
+    let client!: AcpClient;
+    client = new AcpClient(
       this.editController,
       (sid, tool, opts, meta) => this.handlePermission(sid, tool, opts, meta),
-      (params) => this.handleElicitation(params)
+      (params) => this.handleElicitation(params),
+      () => this.onBackgroundTerminalsChanged(localId, client)
     );
 
     client.on('sessionUpdate', (n: SessionNotification) => {
@@ -2087,7 +2105,7 @@ export class SessionManager extends EventEmitter {
       if (existing) {
         existing.title = title;
         existing.kind = toolKind;
-        existing.status = status;
+        this.applyToolStatus(existing, status);
         if (u.content) {
           existing.content = u.content as ToolCallContent[];
         }
@@ -2095,15 +2113,17 @@ export class SessionManager extends EventEmitter {
           existing.rawInput = u.rawInput;
         }
       } else {
+        const canonical = canonicalToolStatus(status) as ChatToolCall['status'];
         state.toolCalls.push({
           id: toolCallId,
           title,
           kind: toolKind,
-          status,
+          status: canonical,
           content: (u.content as ToolCallContent[]) ?? [],
           locations: u.locations as ChatToolCall['locations'],
           rawInput: u.rawInput,
           startedAt: Date.now(),
+          finishedAt: isTerminalToolStatus(canonical) ? Date.now() : undefined,
         });
       }
       return;
@@ -2120,7 +2140,7 @@ export class SessionManager extends EventEmitter {
           existing.kind = u.kind as ChatToolCall['kind'];
         }
         if (u.status) {
-          existing.status = u.status as ChatToolCall['status'];
+          this.applyToolStatus(existing, u.status);
         }
         if (u.content) {
           existing.content = u.content as ToolCallContent[];
@@ -2130,13 +2150,6 @@ export class SessionManager extends EventEmitter {
         }
         if (u.rawInput !== undefined) {
           existing.rawInput = u.rawInput;
-        }
-        if (
-          existing.status === 'completed' ||
-          existing.status === 'failed' ||
-          existing.status === 'cancelled'
-        ) {
-          existing.finishedAt = Date.now();
         }
       }
       return;
@@ -2755,6 +2768,43 @@ export class SessionManager extends EventEmitter {
     }
   }
 
+  /**
+   * Keep `cancelled` terminal (#29). A later `completed` must not restart the row.
+   */
+  private applyToolStatus(tool: ChatToolCall, incoming: unknown): void {
+    const next = mergeToolCallStatus(tool.status, incoming);
+    const changed = next !== tool.status;
+    tool.status = next as ChatToolCall['status'];
+    if (isTerminalToolStatus(tool.status) && (changed || tool.finishedAt == null)) {
+      tool.finishedAt = Date.now();
+    }
+  }
+
+  /**
+   * One info line for terminals still running after a turn. `placeAtEnd` is
+   * the prompt response; later exits update or remove that line in place.
+   * A replaced client clears the line instead of publishing its own processes.
+   */
+  private applyBackgroundNotice(
+    state: SessionState,
+    commands: readonly string[],
+    placeAtEnd: boolean
+  ): boolean {
+    return syncBackgroundCommandNotice(state.messages, commands, { placeAtEnd });
+  }
+
+  private onBackgroundTerminalsChanged(localId: string, client: AcpClient): void {
+    const state = this.sessions.get(localId);
+    if (!state) {
+      return;
+    }
+    const commands =
+      this.clients.get(localId) === client ? client.listRunningCommands() : [];
+    if (this.applyBackgroundNotice(state, commands, false)) {
+      this.emitChange(localId);
+    }
+  }
+
   private pushSystem(state: SessionState, content: string): void {
     // Restore notices replace trailing copies of the same kind (#52).
     pushNotice(state.messages, {
@@ -2809,6 +2859,10 @@ export class SessionManager extends EventEmitter {
   }
 
   private async persistNow(state: SessionState): Promise<void> {
+    // The background-command line tracks live processes and must not survive a reload.
+    const messages = state.messages
+      .filter((m) => m.id !== BACKGROUND_NOTICE_ID)
+      .map((m) => ({ ...m, streaming: false }));
     const stored: StoredSession = {
       localId: state.localId,
       agentSessionId: state.agentSessionId,
@@ -2818,8 +2872,8 @@ export class SessionManager extends EventEmitter {
       cwd: state.cwd,
       createdAt: state.createdAt,
       updatedAt: state.updatedAt,
-      messageCount: state.messages.length,
-      messages: state.messages.map((m) => ({ ...m, streaming: false })),
+      messageCount: messages.length,
+      messages,
       toolCalls: state.toolCalls,
       plan: state.plan,
       usage: state.usage,

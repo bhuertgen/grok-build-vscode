@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- A tool call whose ACP status is `cancelled` stops spinning and shows a neutral **Cancelled** label (not failed, not still running). The same happens to any tool still pending or in progress when that turn ends with `stopReason: cancelled`. A later `completed` does not clear `cancelled`, and an unknown status is not shown as done. Cancelling one chat does not change another chat's tool rows (#29).
+- When a turn ends and a terminal created for that session is still running, the chat shows an info line such as `1 background command still running: \`npm run dev\`` (plural for more than one, long commands truncated, at most three listed plus "and N more"). The line updates or disappears when those terminals exit or are released. No new setting and no modal (Grok CLI 1.0.79).
+
 ## 0.4.3 – 2026-11-06
 
 ### Added

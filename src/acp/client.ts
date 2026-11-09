@@ -62,10 +62,16 @@ export class AcpClient extends EventEmitter {
   constructor(
     editController: EditController,
     permissionUi?: ConstructorParameters<typeof ClientHandlers>[1],
-    elicitationUi?: ConstructorParameters<typeof ClientHandlers>[2]
+    elicitationUi?: ConstructorParameters<typeof ClientHandlers>[2],
+    onTerminalActivity?: () => void
   ) {
     super();
-    this.handlers = new ClientHandlers(editController, permissionUi, elicitationUi);
+    this.handlers = new ClientHandlers(
+      editController,
+      permissionUi,
+      elicitationUi,
+      onTerminalActivity
+    );
   }
 
   get isConnected(): boolean {
@@ -87,6 +93,11 @@ export class AcpClient extends EventEmitter {
 
   get clientHandlers(): ClientHandlers {
     return this.handlers;
+  }
+
+  /** Terminals from `terminal/create` that have not exited or been released. */
+  listRunningCommands(): string[] {
+    return this.handlers.listRunningCommands();
   }
 
   /**

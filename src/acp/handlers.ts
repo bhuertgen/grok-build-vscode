@@ -43,6 +43,7 @@ import { coalesceOutsidePrompt, OutsideAccessGrants } from '../util/outsideAcces
 import { isInsideWorkspace, resolveScopePath, scopeKey } from '../util/pathScope';
 import { isProbablyBinary } from '../util/unreadable';
 import { normalizeTerminalExitCode, planTerminalSpawn } from './terminalSpawn';
+import { displayTerminalCommand } from '../util/backgroundCommands';
 
 /** Re-reads of a file after "Allow once" within this window do not ask again (#45). */
 const OUTSIDE_READ_GRACE_MS = 60_000;
@@ -60,6 +61,8 @@ async function pathExists(p: string): Promise<boolean> {
 interface ManagedTerminal {
   id: TerminalId;
   proc: ChildProcessWithoutNullStreams;
+  /** Short command shown if this process is still running at turn end. */
+  displayCommand: string;
   output: string;
   truncated: boolean;
   exitCode?: number | null;
@@ -99,8 +102,21 @@ export class ClientHandlers {
     ) => Promise<RequestPermissionResponse>,
     private readonly onElicitationUi?: (
       params: CreateElicitationRequest
-    ) => Promise<CreateElicitationResponse>
+    ) => Promise<CreateElicitationResponse>,
+    /** Fired when a terminal exits, is released, or the handler is disposed. */
+    private readonly onTerminalActivity?: () => void
   ) {}
+
+  /** Commands whose processes have not exited and have not been released. */
+  listRunningCommands(): string[] {
+    const commands: string[] = [];
+    for (const t of this.terminals.values()) {
+      if (!t.exited) {
+        commands.push(t.displayCommand);
+      }
+    }
+    return commands;
+  }
 
   resetSessionPermissions(): void {
     this.sessionAllowAlways.clear();
@@ -473,6 +489,7 @@ export class ClientHandlers {
     const managed: ManagedTerminal = {
       id,
       proc: proc as ChildProcessWithoutNullStreams,
+      displayCommand: displayTerminalCommand(params.command, params.args),
       output: '',
       truncated: false,
       exited: false,
@@ -508,6 +525,7 @@ export class ClientHandlers {
         w(status);
       }
       managed.waiters = [];
+      this.onTerminalActivity?.();
     };
 
     proc.on('close', (code, signal) => {
@@ -598,6 +616,7 @@ export class ClientHandlers {
         }
       }
       this.terminals.delete(params.terminalId);
+      this.onTerminalActivity?.();
     }
     return {};
   }
@@ -614,6 +633,7 @@ export class ClientHandlers {
       }
     }
     this.terminals.clear();
+    this.onTerminalActivity?.();
   }
 }
 

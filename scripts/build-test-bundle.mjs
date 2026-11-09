@@ -46,6 +46,8 @@ await esbuild.build({
     permissionRuleWarnings: 'src/util/permissionRuleWarnings.ts',
     transport: 'src/acp/transport.ts',
     terminalSpawn: 'src/acp/terminalSpawn.ts',
+    toolStatus: 'src/util/toolStatus.ts',
+    backgroundCommands: 'src/util/backgroundCommands.ts',
     distribution: 'src/util/distribution.ts',
   },
   outdir: outDir,

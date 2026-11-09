@@ -85,7 +85,7 @@ code --install-extension grok-build-vscode-x.y.z.vsix
 |---------|----------|
 | **Tabs** | Mehrere Sessions; `+` neu; `↺` History dieses Projekts |
 | **Model / Perm / Execute** | Modell, UI-Permission-Modus, Plan ↔ Execute |
-| **Tool-Zeilen** | Kompakt, aufklappbar; abgeschlossene Tools oft gruppiert |
+| **Tool-Zeilen** | Kompakt, aufklappbar; abgeschlossene Tools oft gruppiert. Ein abgebrochener Aufruf zeigt **Cancelled** (neutraler Punkt, kein Spinner) und wird nicht als erledigt gruppiert. |
 | **`+`** | Einfügen: Kontext, Bild, aktive Datei |
 | **`/`** | Aktionen: Slash, History, Modell, Permissions, CLI-Update… |
 | **Eingabe** | `Enter` senden (während eines Turns: in die Warteschlange), `Shift+Enter` Zeilenumbruch, `Ctrl+Enter` / `⌘+Enter` sofort senden |
@@ -243,6 +243,7 @@ Bietet die CLI `configOptions` (select oder boolean) an, zeigt der Chat-Header e
 | Zeile / Badge | Wann |
 |---------------|------|
 | ℹ️ *Turn stopped by hook (`<hook>`): <Grund>* | Ein CLI-Hook hat den Turn mit `continue: false` beendet (CLI ≥ 1.0.60). Erscheint statt `(cancelled)` oder nichts. Die Hook-ID wird gekürzt (`project/stop:pre_tool_use[0]…` → `project/stop`). |
+| ℹ️ *1 background command still running: `npm run dev`* | Endet ein Turn, während ein Terminal dieser Session noch läuft, listet der Chat bis zu drei Befehle (längere werden gekürzt); die Zeile aktualisiert sich oder verschwindet, wenn diese Terminals beendet oder freigegeben werden. |
 | ℹ️ *Prompt blockiert, weil ein Hook fehlgeschlagen ist (`<hook>`): <Grund>* | Ein `failClosed`-Hook auf UserPromptSubmit ist abgestürzt oder hat das Timeout überschritten (CLI-Alpha ≥ 1.0.71). Der Prompt erreicht das Modell nicht. Ein fail-closed PreToolUse-Hook beendet den Turn nicht: die Tool-Zeile zeigt **failed** und aufgeklappt den CLI-Text `Hook denied: …`. |
 | **unreadable – no preview** | Eine Write-Freigabe betrifft eine binäre/nicht lesbare Datei (CLI ≥ 1.0.54); es wird kein Diff versucht. |
 | Hinweis auf `grok update` | `cliPermissionMode: plan` mit einer CLI älter als 1.0.65 (die Session startet in `defaultMode`). |
