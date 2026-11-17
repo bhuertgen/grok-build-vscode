@@ -228,7 +228,7 @@ Format je Fall:
 #### T-U13 — Follow-up-Warteschlange mitten im Turn  
 - **Dim:** U, F  
 - **Schritte:** eine lange Aufgabe starten. Während Stop sichtbar ist, einen Follow-up tippen und Enter drücken. Er muss in der Liste über dem Composer erscheinen, und die laufende Antwort streamt weiter. Die Zeile bearbeiten, eine zweite einreihen und die zweite mit Remove entfernen. Mit einem neuen Entwurf Ctrl+Enter (Mac: Cmd+Enter) drücken oder in einer Zeile **Send now**.  
-- **Pass:** Enter verwirft den Text nicht und startet keinen zweiten Turn. Wenn der laufende Turn endet, wird der eingereihte Prompt für sich gesendet. Send now stoppt den Turn, und dieser Entwurf (oder die gewählte Zeile) ist der nächste Turn; die übrigen Zeilen bleiben in der Warteschlange. Stop / Esc brechen weiter ab, ohne den Composer-Entwurf zu senden. Eine in Edit offene Zeile wird nicht automatisch gesendet. In die laufende Antwort wird nichts injiziert (kein Steer).  
+- **Pass:** Enter verwirft den Text nicht und startet keinen zweiten Turn. Wenn der laufende Turn von allein endet (auch bei abgelehnter Permission, Turn-Limit, wiederholten Tool-Aufrufen oder Refusal), wird der eingereihte Prompt für sich gesendet. Send now stoppt den Turn, und dieser Entwurf (oder die gewählte Zeile) ist der nächste Turn; die übrigen Zeilen bleiben in der Warteschlange. Ein Doppel-Enter oder Send now in der ersten halben Sekunde nach Turn-Start bricht diesen Turn nicht ab. Stop / Esc brechen weiter ab, ohne den Composer-Entwurf zu senden, und senden die Warteschlange nicht automatisch. Eine in Edit offene Zeile wird nicht automatisch gesendet. In die laufende Antwort wird nichts injiziert (kein Steer).  
 
 ---
 

@@ -228,7 +228,7 @@ Format per case:
 #### T-U13 — Mid-turn follow-up queue  
 - **Dim:** U, F  
 - **Steps:** start a long task. While Stop is showing, type a follow-up and press Enter. Confirm it appears in the queue above the composer and the current answer keeps streaming. Edit that row, queue a second line, and Remove the second. With a new draft, press Ctrl+Enter (Mac: Cmd+Enter), or press **Send now** on a row.  
-- **Pass:** Enter does not drop the text and does not start a second turn. When the running turn ends, the queued prompt is sent on its own. Send now stops the turn and that draft (or the chosen row) is the next turn; other rows stay queued. Stop / Esc still cancel without sending whatever is in the composer. A row left open in Edit is not auto-sent. Nothing is injected into the live answer (no steer).  
+- **Pass:** Enter does not drop the text and does not start a second turn. When the running turn ends on its own (including a rejected permission, the turn cap, repeated tool calls, or a refusal), the queued prompt is sent on its own. Send now stops the turn and that draft (or the chosen row) is the next turn; other rows stay queued. A double-Enter or send-now in the first half-second after a turn starts does not cancel that turn. Stop / Esc still cancel without sending whatever is in the composer, and they do not auto-send the queue. A row left open in Edit is not auto-sent. Nothing is injected into the live answer (no steer).  
 
 ---
 

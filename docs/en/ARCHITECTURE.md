@@ -50,7 +50,9 @@ The CLI TUI default is `[ui] follow_up_behavior = "queue"`: Enter while a turn i
 
 - The queue lives in memory on the session (not in chat history). The webview lists it and can edit, remove, or send now a row.
 - `sendPrompt` still throws `Session is busy` for a second concurrent call. Queued prompts go through `enqueueFollowUp` and are delivered by calling `sendPrompt` only after the in-flight turn releases the lock — one `session/prompt` at a time.
-- Stop / Esc / Cancel Current Turn cancel without sending the composer draft. When that turn ends, the next queued item still runs (the CLI keeps the queue across cancel).
+- Stop / Esc / Cancel Current Turn cancel without sending the composer draft. The queue is kept and is not auto-sent (the CLI keeps the queue across a user interrupt; Stop means stop). Send now on a row, or another turn that is not a Stop, runs it.
+- A send-now or double-Enter in the first 500 ms after a turn is claimed does not cancel that turn (CLI 1.0.84). A draft is queued behind it.
+- A rejected or cancelled permission, a non-user cancel, `max_turn_requests`, repeated tool calls, and `refusal` keep the queue and the next prompt still runs (CLI 1.0.84 / 1.0.85).
 - A row open in the editor is held and is not auto-sent (the CLI's `hold_edit`, done locally).
 
 **Steer is not implemented.** CLI `follow_up_behavior = "steer"` injects at the next tool or model step via the ext-notification `x.ai/queue/interject`. That only works for a prompt the agent has already accepted on its server queue, which is a second in-flight `session/prompt`. We do not open that second prompt, and we do not fake steer by appending text to the streaming answer.

@@ -21,6 +21,7 @@ import {
   isWriteLikeToolCall,
   unreadableLabel,
 } from '../util/unreadable';
+import { attentionNotice, type AttentionNotice } from '../util/attention';
 import { permissionRequestFields } from '../util/hookAsk';
 import {
   denyHookAskOutcome,
@@ -63,6 +64,13 @@ import {
   isUrlElicitation,
   validateFormContent,
 } from '../acp/elicitation';
+import type {
+  AskUserQuestionRequest,
+  AskUserQuestionResponse,
+  PlanApprovalRequest,
+  PlanApprovalResponse,
+} from '../acp/extMethod';
+import { acceptedQuestion, cancelledQuestion } from '../acp/extMethod';
 import { getConfig, getWorkspaceCwd } from '../util/config';
 import {
   buildHistorySeedTranscript,
@@ -103,8 +111,10 @@ import {
   BUSY_ERROR,
   FollowUpGate,
   coerceQueuedImages,
+  queueDisposition,
   settleTurn,
   type FollowUpQueueItem,
+  type QueueDisposition,
   type QueuedImage,
   type QueuedPrompt,
 } from './followUp';
@@ -251,6 +261,8 @@ export class SessionManager extends EventEmitter {
   private persistTimers = new Map<string, NodeJS.Timeout>();
   /** Client-side follow-up queue per session (CLI default: queue, not steer). */
   private followUps = new Map<string, FollowUpGate>();
+  /** Stop / Esc / Cancel Current Turn. Consumed when that turn ends. */
+  private userStops = new Set<string>();
   /** Context chips captured with a queued follow-up, keyed by prompt id. */
   private queuedContext = new Map<string, Map<string, ContextItem[]>>();
   /** True while bootstrap reopens the saved tabs (do not overwrite the list mid-restore) */
@@ -1014,7 +1026,12 @@ export class SessionManager extends EventEmitter {
       this.launchFollowUp(state, decision.prompt, { allowReconnect: true });
       return;
     }
-    this.cancel(state.localId);
+    if (decision.action === 'queued') {
+      return;
+    }
+    // Send-now cancels the running turn, then that prompt is next.
+    // This is not a user Stop: the queue still drains.
+    this.requestCancel(state.localId, false);
   }
 
   private followUpGate(state: SessionState): FollowUpGate {
@@ -1111,9 +1128,13 @@ export class SessionManager extends EventEmitter {
     }
   }
 
-  private finishTurn(state: SessionState, dispatched: boolean): void {
+  private finishTurn(
+    state: SessionState,
+    dispatched: boolean,
+    disposition: QueueDisposition = 'continue'
+  ): void {
     const gate = this.followUpGate(state);
-    const next = settleTurn(gate, dispatched);
+    const next = settleTurn(gate, dispatched, disposition);
     state.busy = false;
     state.updatedAt = Date.now();
     this.clearPendingPermissions(state.localId);
@@ -1136,6 +1157,7 @@ export class SessionManager extends EventEmitter {
   private dropFollowUp(localId: string): void {
     this.followUps.delete(localId);
     this.queuedContext.delete(localId);
+    this.userStops.delete(localId);
   }
 
   async sendPrompt(
@@ -1169,6 +1191,8 @@ export class SessionManager extends EventEmitter {
 
     let dispatched = false;
     let claimed = false;
+    let stopReason: string | undefined;
+    let cancellationCategory: string | undefined;
     try {
       gate.claimTurn();
       claimed = true;
@@ -1324,6 +1348,10 @@ export class SessionManager extends EventEmitter {
         (m) => !(m.role === 'thought' && !m.content?.trim())
       );
       const outcome = classifyTurnEnd(result);
+      stopReason = typeof result?.stopReason === 'string' ? result.stopReason : undefined;
+      const category =
+        result?._meta?.cancellationCategory ?? result?._meta?.['x.ai/cancellationCategory'];
+      cancellationCategory = typeof category === 'string' ? category : undefined;
       const agentSpoke = state.messages.some((m) => m.id === agentMsg.id);
       const notice = turnEndNotice(outcome, agentSpoke, vscode.env.language);
       if (notice) {
@@ -1356,20 +1384,35 @@ export class SessionManager extends EventEmitter {
     }
     } finally {
       if (claimed) {
-        this.finishTurn(state, dispatched);
+        const userStopped = this.userStops.delete(localId);
+        this.finishTurn(
+          state,
+          dispatched,
+          queueDisposition({ stopReason, cancellationCategory, userStopped })
+        );
       }
     }
   }
 
   cancel(localId?: string): void {
-    const state = localId
-      ? this.sessions.get(localId)
-      : this.getActive();
+    this.requestCancel(localId, true);
+  }
+
+  /** `userStop` keeps the queue without auto-sending. Send-now passes false. */
+  private requestCancel(localId: string | undefined, userStop: boolean): void {
+    const state = localId ? this.sessions.get(localId) : this.getActive();
     if (!state?.agentSessionId || !state.busy) {
       return;
     }
+    if (userStop) {
+      this.userStops.add(state.localId);
+    } else {
+      this.userStops.delete(state.localId);
+    }
     // Mark before the processes die. A killed command can report `failed`
     // before the prompt returns, and `cancelled` must stick (#29).
+    // client.cancel() kills and releases this session's terminals, then
+    // sends session/cancel.
     const toolsChanged = cancelOpenToolCalls(state.toolCalls) > 0;
     const thoughtsChanged = cancelStreamingThoughts(state.messages) > 0;
     this.clients.get(state.localId)?.cancel(state.agentSessionId);
@@ -1885,7 +1928,11 @@ export class SessionManager extends EventEmitter {
       this.editController,
       (sid, tool, opts, meta) => this.handlePermission(sid, tool, opts, meta),
       (params) => this.handleElicitation(params),
-      () => this.onBackgroundTerminalsChanged(localId, client)
+      () => this.onBackgroundTerminalsChanged(localId, client),
+      {
+        planApproval: (request) => this.handlePlanApproval(request),
+        question: (request) => this.handleQuestion(request),
+      }
     );
 
     client.on('sessionUpdate', (n: SessionNotification) => {
@@ -2269,6 +2316,12 @@ export class SessionManager extends EventEmitter {
       return;
     }
 
+    if (kind === 'model_catalog') {
+      // Setup phase also arrives as x.ai/session/setup. Either way, no warning.
+      this.log.debug('Session setup phase', 'model_catalog');
+      return;
+    }
+
     this.log.debug('Unhandled session update', kind);
   }
 
@@ -2292,8 +2345,87 @@ export class SessionManager extends EventEmitter {
 
 
   /**
+   * Same modal warning a permission request already uses
+   * (`showWarningMessage` with `modal: true`). Elicitation, question cards,
+   * MCP input, and plan approval go through this too (CLI 1.0.85).
+   */
+  private showAttention(
+    notice: AttentionNotice,
+    actions: string[],
+    detail?: string
+  ): Thenable<string | undefined> {
+    return vscode.window.showWarningMessage(
+      notice.message,
+      { modal: true, detail: detail ?? notice.detail },
+      ...actions
+    );
+  }
+
+  /** `x.ai/exit_plan_mode` — same modal attention as a permission request. */
+  private async handlePlanApproval(request: PlanApprovalRequest): Promise<PlanApprovalResponse> {
+    const state = [...this.sessions.values()].find(
+      (s) => s.agentSessionId === request.sessionId
+    );
+    const plan = (request.planContent ?? '').trim();
+    if (state) {
+      this.pushSystem(
+        state,
+        plan ? `**Plan approval**\n\n${plan}` : '**Plan approval** — waiting for approval.'
+      );
+      this.emitChange(state.localId);
+    }
+    const choice = await this.showAttention(
+      attentionNotice('plan-approval', plan),
+      ['Approve', 'Reject']
+    );
+    if (choice === 'Approve') {
+      return { outcome: 'approved' };
+    }
+    if (choice === 'Reject') {
+      return { outcome: 'cancelled' };
+    }
+    return { outcome: 'abandoned' };
+  }
+
+  /**
+   * `x.ai/ask_user_question` — one modal per question, the same attention
+   * as a permission request. Answers are keyed by the question text.
+   */
+  private async handleQuestion(request: AskUserQuestionRequest): Promise<AskUserQuestionResponse> {
+    const answers: Record<string, string[]> = {};
+    for (const item of request.questions) {
+      const notice = attentionNotice('elicitation', item.question);
+      if (item.options.length === 0) {
+        const text = await vscode.window.showInputBox({
+          title: notice.message,
+          prompt: notice.detail,
+          ignoreFocusOut: true,
+        });
+        if (!text?.trim()) {
+          return cancelledQuestion();
+        }
+        answers[item.question] = [text.trim()];
+        continue;
+      }
+      const labels = item.options.slice(0, 6);
+      const dismiss = labels.includes('Cancel') ? 'Dismiss' : 'Cancel';
+      const choice = await this.showAttention(notice, [...labels, dismiss]);
+      if (!choice || choice === dismiss || !labels.includes(choice)) {
+        return cancelledQuestion();
+      }
+      answers[item.question] = [choice];
+    }
+    if (!Object.keys(answers).length) {
+      return cancelledQuestion();
+    }
+    return acceptedQuestion(answers);
+  }
+
+  /**
    * ACP elicitation/create — form or URL consent via webview card.
    * Cancel/decline must always be available so chat is not permanently blocked.
+   * The modal is the same attention as a permission request; the card still
+   * collects the form or URL consent.
    */
   private async handleElicitation(
     params: CreateElicitationRequest
@@ -2324,6 +2456,10 @@ export class SessionManager extends EventEmitter {
     }
 
     this.emit('elicitationRequest', payload);
+    void this.showAttention(
+      attentionNotice('elicitation', String(payload.message ?? '')),
+      ['OK']
+    );
 
     return new Promise<CreateElicitationResponse>((resolve) => {
       const timer = setTimeout(() => {
@@ -2469,20 +2605,14 @@ export class SessionManager extends EventEmitter {
       })),
     });
 
-    // Also show a modal that can't be missed (Extension Host often hides QuickPick)
+    // Also show a modal that can't be missed (Extension Host often hides QuickPick).
+    // Question, MCP input, and plan approval use this same dialog.
     const title = view.displayTitle || toolCall.kind || 'tool action';
     const modalDetail =
       (view.hookAsk ? `${view.hookAsk.label}\n` : '') +
       `Session tool permission (${toolCall.kind ?? 'other'})` +
       (unreadable ? ` — ${unreadableLabel(vscode.env.language)}` : '');
-    void vscode.window
-      .showWarningMessage(
-        `Grok wants to: ${title}`,
-        { modal: true, detail: modalDetail },
-        'Allow',
-        'Allow always',
-        'Reject'
-      )
+    void this.showAttention(attentionNotice('permission', title), ['Allow', 'Allow always', 'Reject'], modalDetail)
       .then((choice) => {
         if (!this.permissionWaiters.has(permId)) {
           return;

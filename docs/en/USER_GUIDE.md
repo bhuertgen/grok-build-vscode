@@ -136,14 +136,16 @@ While a turn is running the composer stays open (Stop is showing). This matches 
 
 | Action | Effect |
 |--------|--------|
-| **Enter** (non-empty) | Queue the draft. It is sent automatically when the current turn ends, then the next queued item, one turn at a time. |
-| **Enter** (empty, queue not empty) | **Send now** of the first queued prompt: stop this turn, then send that prompt. |
-| **Ctrl+Enter** or **⌘+Enter** | **Send now**: stop this turn, then send the draft. If the composer is empty, send the first queued prompt. |
-| **Send now** on a queued row | Stop this turn and run that row next. The other rows stay queued. |
-| **Stop**, **Esc**, **Cancel Current Turn** | Cancel the turn. The composer draft is not sent. Queued follow-ups are kept, and the next one still runs after the turn ends. |
+| **Enter** (non-empty) | Queue the draft. It is sent automatically when the current turn ends for a reason other than Stop, then the next queued item, one turn at a time. |
+| **Enter** (empty, queue not empty) | **Send now** of the first queued prompt: stop this turn, then send that prompt. A turn that started in the last half-second is not cancelled. |
+| **Ctrl+Enter** or **⌘+Enter** | **Send now**: stop this turn, then send the draft. If the composer is empty, send the first queued prompt. A double-Enter or send-now in the first half-second after a turn starts does not cancel that turn; a draft is queued behind it instead. |
+| **Send now** on a queued row | Stop this turn and run that row next, unless the turn has only just started. The other rows stay queued. |
+| **Stop**, **Esc**, **Cancel Current Turn** | Cancel the turn. The composer draft is not sent. Queued follow-ups are kept and are **not** sent automatically — the CLI keeps its queue across a user interrupt, and Stop means stop. Use **Send now** on a row (or send another message; the queue runs after that turn) when you want one. |
 | **Edit** / **Remove** | Change or drop a queued row. A row you are editing is not auto-sent until you leave the field (Enter saves, Esc reverts). |
 
 The queue is listed above the composer. Context chips on the composer are kept with the follow-up you queue or send now, and are attached when that prompt actually runs.
+
+When the turn ends for any other reason, the next queued prompt still runs. That includes a rejected or cancelled permission, a cancel that is not the Stop button, `stopReason: max_turn_requests` (the turn cap), repeated tool calls, and `refusal` (Grok CLI 1.0.84 / 1.0.85).
 
 The CLI can also set `follow_up_behavior = "steer"` (inject the text into the running turn at the next tool or model step). This extension does not. Steer over ACP is `x.ai/queue/interject`, and it only applies to a prompt the agent has already accepted on its own queue — a second in-flight `session/prompt`. `sendPrompt` still rejects a second concurrent turn (`Session is busy`). The extension does not pretend to steer by writing into the live answer.
 

@@ -38,6 +38,20 @@ import { getConfig, getWorkspaceCwd } from '../util/config';
 import { applyMemoryEnv } from '../util/memory';
 import { getLogger } from '../util/logger';
 import type { EditController } from '../edits/editController';
+import {
+  elicitationToMcpResult,
+  formatMcpInitializedLog,
+  mcpElicitAsElicitation,
+  parseExtMethod,
+  parseMcpInitialized,
+  parsePlanApproval,
+  parseAskUserQuestion,
+  parseSetupPhase,
+  type AskUserQuestionRequest,
+  type AskUserQuestionResponse,
+  type PlanApprovalRequest,
+  type PlanApprovalResponse,
+} from './extMethod';
 
 export interface AcpClientEvents {
   sessionUpdate: [SessionNotification];
@@ -61,12 +75,22 @@ export class AcpClient extends EventEmitter {
   private agentInfo: Implementation | null = null;
   private agentVersionStr: string | undefined;
   private readonly log = getLogger();
+  private readonly onPlanApproval?: (
+    request: PlanApprovalRequest
+  ) => Promise<PlanApprovalResponse>;
+  private readonly onQuestion?: (
+    request: AskUserQuestionRequest
+  ) => Promise<AskUserQuestionResponse>;
 
   constructor(
     editController: EditController,
     permissionUi?: ConstructorParameters<typeof ClientHandlers>[1],
     elicitationUi?: ConstructorParameters<typeof ClientHandlers>[2],
-    onTerminalActivity?: () => void
+    onTerminalActivity?: () => void,
+    interactions?: {
+      planApproval?: (request: PlanApprovalRequest) => Promise<PlanApprovalResponse>;
+      question?: (request: AskUserQuestionRequest) => Promise<AskUserQuestionResponse>;
+    }
   ) {
     super();
     this.handlers = new ClientHandlers(
@@ -75,6 +99,8 @@ export class AcpClient extends EventEmitter {
       elicitationUi,
       onTerminalActivity
     );
+    this.onPlanApproval = interactions?.planApproval;
+    this.onQuestion = interactions?.question;
   }
 
   get isConnected(): boolean {
@@ -344,6 +370,18 @@ export class AcpClient extends EventEmitter {
         case 'elicitation/create':
           result = await this.handlers.createElicitation(req.params);
           break;
+        case 'ext_method':
+        case '_x.ai/ext_method':
+        case 'x.ai/ext_method': {
+          const ext = await this.dispatchExtMethod(req.params);
+          if (!ext.known) {
+            this.log.warn('Unknown ext_method', ext.method);
+            this.transport.respondError(id, -32601, `Method not found: ${ext.method}`);
+            return;
+          }
+          result = ext.result;
+          break;
+        }
         case 'terminal/create':
           result = await this.handlers.createTerminal(req.params as never);
           break;
@@ -423,7 +461,73 @@ export class AcpClient extends EventEmitter {
       }
       return;
     }
+    if (n.method === '_x.ai/mcp_initialized' || n.method === 'x.ai/mcp_initialized') {
+      const notice = parseMcpInitialized(n.params);
+      if (notice) {
+        this.log.info(formatMcpInitializedLog(notice));
+      } else {
+        this.log.debug('MCP initialized');
+      }
+      return;
+    }
+    if (n.method === '_x.ai/session/setup' || n.method === 'x.ai/session/setup') {
+      const phase = parseSetupPhase(n.params);
+      if (phase) {
+        // model_catalog and every other setup phase are expected. Do not warn.
+        const line = `Session setup: ${phase.phase}`;
+        if (phase.phase === 'model_catalog') {
+          this.log.info(line);
+        } else {
+          this.log.debug(line);
+        }
+      } else {
+        this.log.debug('Session setup');
+      }
+      return;
+    }
     this.log.debug('Unhandled notification', n.method);
+  }
+
+  private async dispatchExtMethod(raw: unknown): Promise<
+    | { known: true; result: unknown }
+    | { known: false; method: string }
+  > {
+    const call = parseExtMethod(raw);
+    if (!call) {
+      return { known: false, method: 'ext_method' };
+    }
+    switch (call.method) {
+      case 'x.ai/exit_plan_mode': {
+        const request = parsePlanApproval(call.params);
+        if (!request) {
+          throw new Error('Invalid exit_plan_mode params');
+        }
+        if (!this.onPlanApproval) {
+          return { known: true, result: { outcome: 'abandoned' } };
+        }
+        return { known: true, result: await this.onPlanApproval(request) };
+      }
+      case 'x.ai/mcp/elicit': {
+        const elicit = mcpElicitAsElicitation(call.params);
+        if (!elicit) {
+          throw new Error('Invalid mcp elicit params');
+        }
+        const response = await this.handlers.createElicitation(elicit);
+        return { known: true, result: elicitationToMcpResult(response) };
+      }
+      case 'x.ai/ask_user_question': {
+        const request = parseAskUserQuestion(call.params);
+        if (!request) {
+          throw new Error('Invalid ask_user_question params');
+        }
+        if (!this.onQuestion) {
+          return { known: true, result: { outcome: 'cancelled' } };
+        }
+        return { known: true, result: await this.onQuestion(request) };
+      }
+      default:
+        return { known: false, method: call.method };
+    }
   }
 
   private async ensureConnected(): Promise<void> {
