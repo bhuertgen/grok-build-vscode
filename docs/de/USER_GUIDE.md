@@ -18,7 +18,7 @@ Architektur: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-Agent: [MULTI_AGENT.m
 1. **VS Code** ≥ 1.90 (oder kompatibel, z. B. Cursor)  
 2. **Grok Build CLI** installiert und eingeloggt  
    - Docs: https://x.ai/cli  
-   - Prüfen: `grok --version` — **1.0.77 oder neuer empfohlen** (getestet mit **1.0.77 stable**); ältere 1.0.x laufen mit Warnbanner  
+   - Prüfen: `grok --version` — **1.0.88 oder neuer empfohlen** (getestet mit **1.0.88 stable**); ältere 1.0.x laufen mit Warnbanner  
 3. Optional zum Entwickeln: **Node.js** ≥ 18  
 
 ### Extension installieren
@@ -274,7 +274,7 @@ Vertraue nur Ordnern, deren Hooks und MCP-Server du geprüft hast: Hooks führen
 In **Groks Antworten** (deine eigenen Nachrichten bleiben normaler Text):
 
 - Ein Pfad, der wie eine Datei aussieht, ist ein Link: `src/cli/compat.ts`, `./README.md`, `../docs/en/USER_GUIDE.md`, `src/cli/compat.ts:42`, `src/cli/compat.ts:42:7`. Ein Klick öffnet die Datei. Mit Zeile (und optional Spalte) springt der Editor dorthin; Zeilen und Spalten beginnen bei 1. `pfad:10-20` markiert diesen Zeilenbereich.
-- Ein Pfad mit Leerzeichen ist ein einzelner Link, nicht nur das Stück vor dem ersten Leerzeichen (wie Grok CLI 1.0.74, dort für Inline-Code wie `` `~/Library/Application Support/Grok/config.toml:12` ``). Im Satz ist nur der Pfad der Link: `see src/my file.ts for notes` öffnet `src/my file.ts`, und `:Zeile` / `:Zeile:Spalte` springen weiter dorthin. Ein relativer Pfad braucht eine Dateiendung, deshalb bleibt `src/my folder` normaler Text. Enthält schon der erste Ordnername ein Leerzeichen, oder hat ein absoluter Pfad keine Endung, gehört der Pfad in Inline-Code oder Anführungszeichen (`` `My Documents/readme.md` ``, `` `~/Library/Application Support` ``), damit er ein einzelner Link bleibt.
+- Ein Pfad mit Leerzeichen ist ein einzelner Link, nicht nur das Stück vor dem ersten Leerzeichen (wie Grok CLI 1.0.74, dort für Inline-Code wie `` `~/Library/Application Support/Grok/config.toml:12` ``). Im Satz ist nur der Pfad der Link: `see src/my file.ts for notes` öffnet `src/my file.ts`, und `:Zeile` / `:Zeile:Spalte` springen weiter dorthin. Ein relativer Pfad braucht eine Dateiendung, deshalb bleibt `src/my folder` normaler Text. Ein prozentkodiertes Leerzeichen (`%20`) wird vor dem Öffnen dekodiert (`src/my%20file.ts` öffnet `src/my file.ts`), wie in Grok CLI 1.0.86. Ein Pfad, der schon mit einem echten Leerzeichen geschrieben ist, bleibt unverändert. Enthält schon der erste Ordnername ein Leerzeichen, oder hat ein absoluter Pfad keine Endung, gehört der Pfad in Inline-Code oder Anführungszeichen (`` `My Documents/readme.md` ``, `` `~/Library/Application Support` ``), damit er ein einzelner Link bleibt.
 - Die Datei muss existieren. Ein relativer Pfad wird gegen die geöffneten Workspace-Ordner aufgelöst (der erste Treffer). Ein absoluter Pfad, auch außerhalb des Workspace, öffnet sich, wenn die Datei existiert. Sonst zeigt der Editor **File not found**.
 - Normaler Text bleiben: ein nackter Name (`README.md`), eine Paketversion (`1.0.72`, `lodash@4.17.21`), eine URL und ein Markdown-Link `[label](https://…)`. Diese https-Links öffnen weiter im Browser.
 - `#123` öffnet das Issue oder den Pull Request, wenn der Workspace ein Git-Remote hat (GitHub, GitLab, Bitbucket oder eine ähnliche Forge; einmal von `origin` gelesen, sonst das erste Remote). Ohne Remote bleibt `#123` normaler Text. GitHub-artige Remotes nutzen `/issues/123` (GitHub leitet Pull Requests dorthin um). GitLab-Remotes nutzen `/-/issues/123`.
@@ -361,7 +361,7 @@ Auch in der Installationsanleitung: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-em
 | `noMemory` | `false` | **Veraltet** → `memory: "off"` verwenden. Wird weiter als `GROK_MEMORY=0` gemappt, wenn `memory` = `default`. |
 | `experimentalMemory` | `false` | **Veraltet** → `memory: "on"` verwenden. Wird weiter als `GROK_MEMORY=1` gemappt, wenn `memory` = `default` (`noMemory` hat Vorrang). |
 | `disableWebSearch` | `false` | `--disable-web-search` |
-| `sandbox` | `""` | `--sandbox <PROFILE>` |
+| `sandbox` | `""` | `--sandbox <PROFILE>` als freier String (auch Env `GROK_SANDBOX`). Eingebaute Profile: `off` (Default), `workspace`, `devbox`, `read-only`, `strict` und **`minimal`** (CLI ≥ 1.0.82, in Stable 1.0.88). `minimal` ist die kleine Basis für ein eigenes Profil: der Agent darf den Startordner, `~/.grok` und die Systempfade lesen, die er zum Start braucht, und er darf `~/.grok/sessions` schreiben, nicht den Startordner. Kindprozess-Netzwerk ist unter Linux gesperrt. Ein eigenes Profil in `~/.grok/sandbox.toml` oder `.grok/sandbox.toml` wird über denselben Namen gewählt. Die Option **`workspace_write`** darin (CLI ≥ 1.0.82) ist ein Boolean: `true` erlaubt Schreiben im Ordner, in dem Grok gestartet wurde, `false` nimmt die Freigabe des Basisprofils weg, und ohne die Option bleibt das Basisprofil. Dieses Setting übergibt nur den Profilnamen. |
 | `tools` | `""` | `--tools` Allow-List (kommagetrennt) |
 | `disallowedTools` | `""` | `--disallowed-tools` |
 | `rules` | `""` | `--rules` zusätzliche Systemregeln |

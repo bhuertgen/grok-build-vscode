@@ -113,3 +113,56 @@ export function cancelOpenToolCalls<T extends ToolStatusCarrier>(
   }
   return changed;
 }
+
+export interface ThoughtStatusCarrier {
+  role: string;
+  streaming?: boolean;
+  /** Still streaming when the turn was cancelled. Neutral dot, not success. */
+  cancelled?: boolean;
+}
+
+export interface ThoughtRowView {
+  /** Pulse. Only a thought that is still streaming and was not cancelled. */
+  running: boolean;
+  /** Same vocabulary as a tool dot. Finished and not cancelled is `completed`. */
+  dot: 'in_progress' | 'completed' | 'cancelled';
+}
+
+/**
+ * Thought indicator. A thought stays `streaming` until the turn ends, so
+ * "not streaming" used to always render the green success dot. Cancel sets
+ * `cancelled` while it may still be streaming; that wins, and the dot is
+ * the same neutral colour as a cancelled tool (#29).
+ */
+export function thoughtRowStatus(
+  message: { streaming?: boolean; cancelled?: boolean } | null | undefined
+): ThoughtRowView {
+  if (message?.cancelled) {
+    return { running: false, dot: 'cancelled' };
+  }
+  if (message?.streaming) {
+    return { running: true, dot: 'in_progress' };
+  }
+  return { running: false, dot: 'completed' };
+}
+
+/**
+ * Mark thoughts that are still streaming as cancelled. Finished thoughts
+ * (already not streaming) stay as they were, including an earlier turn's
+ * green dot. `streaming` is left set so a late chunk still appends here;
+ * the row view treats `cancelled` as not running.
+ * Returns how many thoughts changed.
+ */
+export function cancelStreamingThoughts<T extends ThoughtStatusCarrier>(
+  messages: readonly T[]
+): number {
+  let changed = 0;
+  for (const message of messages) {
+    if (message.role !== 'thought' || message.cancelled || !message.streaming) {
+      continue;
+    }
+    message.cancelled = true;
+    changed++;
+  }
+  return changed;
+}

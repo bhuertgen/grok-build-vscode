@@ -10,6 +10,8 @@ const {
   mergeToolCallStatus,
   cancelOpenToolCalls,
   canonicalToolStatus,
+  thoughtRowStatus,
+  cancelStreamingThoughts,
 } = require('../dist-test/toolStatus.js');
 
 describe('toolRowStatus (#29)', () => {
@@ -130,5 +132,55 @@ describe('cancelOpenToolCalls', () => {
     const tools = [{ status: 'completed', finishedAt: 1 }];
     assert.equal(cancelOpenToolCalls(tools, 9), 0);
     assert.equal(tools[0].finishedAt, 1);
+  });
+});
+
+describe('thoughtRowStatus', () => {
+  it('uses the green success dot only after a thought finishes', () => {
+    assert.deepEqual(thoughtRowStatus({ streaming: true }), {
+      running: true,
+      dot: 'in_progress',
+    });
+    assert.deepEqual(thoughtRowStatus({ streaming: false }), {
+      running: false,
+      dot: 'completed',
+    });
+    assert.deepEqual(thoughtRowStatus({}), {
+      running: false,
+      dot: 'completed',
+    });
+  });
+
+  it('uses the neutral cancelled dot after Stop, even if streaming is still set', () => {
+    const view = thoughtRowStatus({ streaming: true, cancelled: true });
+    assert.equal(view.running, false);
+    assert.equal(view.dot, 'cancelled');
+    assert.notEqual(view.dot, 'completed');
+    assert.notEqual(view.dot, 'failed');
+    assert.deepEqual(thoughtRowStatus({ streaming: false, cancelled: true }), {
+      running: false,
+      dot: 'cancelled',
+    });
+  });
+});
+
+describe('cancelStreamingThoughts', () => {
+  it('marks only the in-progress thought, and leaves an earlier turn green', () => {
+    const messages = [
+      { role: 'thought', streaming: false, content: 'earlier' },
+      { role: 'agent', streaming: true, content: 'answer' },
+      { role: 'thought', streaming: true, content: 'still thinking' },
+      { role: 'user', streaming: false, content: 'hi' },
+    ];
+    assert.equal(cancelStreamingThoughts(messages), 1);
+    assert.equal(messages[0].cancelled, undefined);
+    assert.equal(messages[0].streaming, false);
+    assert.equal(messages[1].cancelled, undefined);
+    assert.equal(messages[2].cancelled, true);
+    // Late chunks can still append; the row view treats cancelled as stopped.
+    assert.equal(messages[2].streaming, true);
+    assert.equal(thoughtRowStatus(messages[0]).dot, 'completed');
+    assert.equal(thoughtRowStatus(messages[2]).dot, 'cancelled');
+    assert.equal(cancelStreamingThoughts(messages), 0);
   });
 });

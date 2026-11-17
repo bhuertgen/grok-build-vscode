@@ -451,7 +451,7 @@
         "grokBuild.sandbox": {
           "type": "string",
           "default": "",
-          "description": "CLI --sandbox <PROFILE> (also env GROK_SANDBOX)."
+          "description": "CLI --sandbox <PROFILE> as a free string (also env GROK_SANDBOX). Built-in profiles include off, workspace, devbox, read-only, strict, and minimal (CLI 1.0.82+, in stable 1.0.88). minimal reads the launch folder, ~/.grok, and the system paths needed to start; it writes ~/.grok/sessions but not the launch folder, and it blocks child-process network on Linux. A custom profile name from sandbox.toml is passed the same way. On a custom profile, workspace_write (CLI 1.0.82+) adds (true) or removes (false) write access to the folder Grok started in; omit it to keep the base profile."
         },
         "grokBuild.tools": {
           "type": "string",
@@ -595,7 +595,7 @@
     "package": "vsce package --no-dependencies",
     "lint": "tsc -p ./ --noEmit",
     "test:bundle": "node scripts/build-test-bundle.mjs",
-    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/hookAsk.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs tests/cliPath.test.mjs tests/cliRecovery.test.mjs tests/locale.test.mjs tests/textSlice.test.mjs tests/permissionKind.test.mjs tests/pathScope.test.mjs tests/outsideAccess.test.mjs tests/panelRevive.test.mjs tests/openTabs.test.mjs tests/grokFolderTrust.test.mjs tests/permissionRuleWarnings.test.mjs tests/restoreNotices.test.mjs tests/transport.test.mjs tests/distribution.test.mjs tests/messageLinks.test.mjs tests/messageLinkHtml.test.mjs tests/followUp.test.mjs tests/terminalSpawn.test.mjs tests/toolStatus.test.mjs tests/backgroundCommands.test.mjs tests/attention.test.mjs tests/extMethod.test.mjs",
+    "test:unit": "node scripts/build-test-bundle.mjs && node --test tests/chatFormat.test.mjs tests/cwd.test.mjs tests/agentArgs.test.mjs tests/modelCatalog.test.mjs tests/compat.test.mjs tests/memory.test.mjs tests/scrollStick.test.mjs tests/elicitation.test.mjs tests/configOptionsUi.test.mjs tests/fileRangeMention.test.mjs tests/streamNewlines.test.mjs tests/turnOutcome.test.mjs tests/unreadable.test.mjs tests/permissionOutcome.test.mjs tests/hookAsk.test.mjs tests/initialMode.test.mjs tests/cliRefresh.test.mjs tests/cliPath.test.mjs tests/cliRecovery.test.mjs tests/locale.test.mjs tests/textSlice.test.mjs tests/permissionKind.test.mjs tests/pathScope.test.mjs tests/outsideAccess.test.mjs tests/panelRevive.test.mjs tests/openTabs.test.mjs tests/grokFolderTrust.test.mjs tests/permissionRuleWarnings.test.mjs tests/restoreNotices.test.mjs tests/transport.test.mjs tests/distribution.test.mjs tests/messageLinks.test.mjs tests/messageLinkHtml.test.mjs tests/followUp.test.mjs tests/terminalSpawn.test.mjs tests/terminalTombstone.test.mjs tests/toolStatus.test.mjs tests/backgroundCommands.test.mjs tests/attention.test.mjs tests/extMethod.test.mjs",
     "test:integration:bundle": "node scripts/build-integration-tests.mjs",
     "test:integration": "npm run build && node scripts/build-integration-tests.mjs && node dist-test/integration/runTest.js",
     "test": "npm run test:unit",

@@ -6,6 +6,7 @@ import { AcpClient } from '../acp/client';
 import { classifyTurnEnd, turnEndNotice } from '../util/turnOutcome';
 import {
   cancelOpenToolCalls,
+  cancelStreamingThoughts,
   canonicalToolStatus,
   isTerminalToolStatus,
   mergeToolCallStatus,
@@ -1331,6 +1332,11 @@ export class SessionManager extends EventEmitter {
       if (!agentMsg.content?.trim()) {
         state.messages = state.messages.filter((m) => m.id !== agentMsg.id);
       }
+      // A thought stays streaming until the turn ends. Mark it cancelled
+      // before clearing streaming, or the indicator renders as success.
+      if (result.stopReason === 'cancelled') {
+        cancelStreamingThoughts(state.messages);
+      }
       // Finalize thoughts (stop “streaming” so they collapse cleanly)
       for (const m of state.messages) {
         if (m.role === 'thought') {
@@ -1403,7 +1409,17 @@ export class SessionManager extends EventEmitter {
     } else {
       this.userStops.delete(state.localId);
     }
+    // Mark before the processes die. A killed command can report `failed`
+    // before the prompt returns, and `cancelled` must stick (#29).
+    // client.cancel() kills and releases this session's terminals, then
+    // sends session/cancel.
+    const toolsChanged = cancelOpenToolCalls(state.toolCalls) > 0;
+    const thoughtsChanged = cancelStreamingThoughts(state.messages) > 0;
     this.clients.get(state.localId)?.cancel(state.agentSessionId);
+    if (toolsChanged || thoughtsChanged) {
+      this.emitChange(state.localId);
+      this.schedulePersist(state);
+    }
   }
 
   async setMode(localId: string, mode: AgentMode): Promise<void> {
