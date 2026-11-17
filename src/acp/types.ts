@@ -552,6 +552,11 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   streaming?: boolean;
+  /**
+   * Thought was still streaming when the turn was cancelled.
+   * The indicator is neutral, not the green success dot.
+   */
+  cancelled?: boolean;
   images?: Array<{ mimeType: string; dataUrl: string }>;
   /** Visible @-context refs attached when this message was sent */
   attachments?: Array<{

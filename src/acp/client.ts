@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import * as vscode from 'vscode';
 import { AcpTransport } from './transport';
+import { isUnknownTerminalError, terminalMissLogLevel } from './terminalTombstone';
 import { getInstalledExtensionVersion } from '../util/extensionUpdate';
 import { ClientHandlers } from './handlers';
 import {
@@ -54,6 +55,8 @@ export class AcpClient extends EventEmitter {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private handlers: ClientHandlers;
   private initialized = false;
+  /** method + terminal id already warned for a released/unknown terminal. */
+  private unknownTerminalLogs = new Set<string>();
   private agentCapabilities: AgentCapabilities = {};
   private agentInfo: Implementation | null = null;
   private agentVersionStr: string | undefined;
@@ -270,6 +273,10 @@ export class AcpClient extends EventEmitter {
   }
 
   cancel(sessionId: SessionId): void {
+    // The agent often does not terminal/kill on cancel, and shell:true
+    // would survive that kill anyway. Stop the processes here, then tell
+    // the agent. Do this even if the transport is already closed.
+    this.handlers.cancelSessionTerminals(sessionId);
     if (!this.transport || this.transport.isClosed) {
       return;
     }
@@ -360,6 +367,22 @@ export class AcpClient extends EventEmitter {
       this.transport.respond(id, result ?? {});
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (isUnknownTerminalError(err)) {
+        // The agent often reads a terminal it already released. That is an
+        // ACP error for the agent, not a client failure. Warn once per id.
+        const level = terminalMissLogLevel(
+          this.unknownTerminalLogs,
+          req.method,
+          err.terminalId
+        );
+        if (level === 'warn') {
+          this.log.warn(`Released terminal (${req.method})`, message);
+        } else {
+          this.log.debug(`Released terminal (${req.method})`, message);
+        }
+        this.transport.respondError(id, err.code, message);
+        return;
+      }
       this.log.error(`Handler error for ${req.method}`, message);
       this.transport.respondError(id, -32000, message);
     }

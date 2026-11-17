@@ -42,7 +42,21 @@ import { sliceTextLines } from '../util/textSlice';
 import { coalesceOutsidePrompt, OutsideAccessGrants } from '../util/outsideAccess';
 import { isInsideWorkspace, resolveScopePath, scopeKey } from '../util/pathScope';
 import { isProbablyBinary } from '../util/unreadable';
-import { normalizeTerminalExitCode, planTerminalSpawn } from './terminalSpawn';
+import {
+  killTerminalProcess,
+  normalizeTerminalExitCode,
+  planTerminalSpawn,
+  terminalIdsToCancel,
+} from './terminalSpawn';
+import {
+  ReleasedTerminalCache,
+  UnknownTerminalError,
+  answerTerminalOutput,
+  finishedExitStatus,
+  liveTerminalForKill,
+  releaseTerminalRecord,
+  resolveTerminal,
+} from './terminalTombstone';
 import { displayTerminalCommand } from '../util/backgroundCommands';
 
 /** Re-reads of a file after "Allow once" within this window do not ask again (#45). */
@@ -60,6 +74,8 @@ async function pathExists(p: string): Promise<boolean> {
 
 interface ManagedTerminal {
   id: TerminalId;
+  /** ACP session that created this terminal. Stop only touches that session. */
+  sessionId: string;
   proc: ChildProcessWithoutNullStreams;
   /** Short command shown if this process is still running at turn end. */
   displayCommand: string;
@@ -78,6 +94,8 @@ interface ManagedTerminal {
 export class ClientHandlers {
   private readonly log = getLogger();
   private terminals = new Map<TerminalId, ManagedTerminal>();
+  /** Output kept after release so a late terminal/output still succeeds. */
+  private releasedTerminals = new ReleasedTerminalCache<ManagedTerminal>();
   private terminalSeq = 0;
   /** Session-scoped allow-always option ids */
   private sessionAllowAlways = new Set<string>();
@@ -476,18 +494,27 @@ export class ClientHandlers {
     );
 
     // shell:true gets one command string and no args array (Windows DEP0190).
+    // Unix `detached` makes the shell a process-group leader so Stop can
+    // signal the command under it, not only `/bin/sh`.
     const proc = spec.shell
       ? spawn(spec.file, {
           cwd,
           env,
           shell: true,
+          ...(spec.detached ? { detached: true } : {}),
           ...(spec.windowsHide ? { windowsHide: true } : {}),
         })
-      : spawn(spec.file, spec.args, { cwd, env, shell: false });
+      : spawn(spec.file, spec.args, {
+          cwd,
+          env,
+          shell: false,
+          ...(spec.detached ? { detached: true } : {}),
+        });
 
     const limit = params.outputByteLimit ?? 1_000_000;
     const managed: ManagedTerminal = {
       id,
+      sessionId: params.sessionId,
       proc: proc as ChildProcessWithoutNullStreams,
       displayCommand: displayTerminalCommand(params.command, params.args),
       output: '',
@@ -552,34 +579,20 @@ export class ClientHandlers {
   async terminalOutput(
     params: TerminalOutputRequest
   ): Promise<TerminalOutputResponse> {
-    const t = this.terminals.get(params.terminalId);
-    if (!t) {
-      throw new Error(`Unknown terminal: ${params.terminalId}`);
-    }
-    return {
-      output: t.output,
-      truncated: t.truncated,
-      exitStatus: t.exited
-        ? {
-            exitCode: normalizeTerminalExitCode(t.exitCode),
-            signal: t.signal ?? null,
-          }
-        : null,
-    };
+    // Live, or the last output of a terminal this session just released.
+    return answerTerminalOutput(this.terminals, this.releasedTerminals, params.terminalId);
   }
 
   async waitForExit(
     params: WaitForTerminalExitRequest
   ): Promise<WaitForTerminalExitResponse> {
-    const t = this.terminals.get(params.terminalId);
+    const t = resolveTerminal(this.terminals, this.releasedTerminals, params.terminalId);
     if (!t) {
-      throw new Error(`Unknown terminal: ${params.terminalId}`);
+      throw new UnknownTerminalError(params.terminalId);
     }
-    if (t.exited) {
-      return {
-        exitCode: normalizeTerminalExitCode(t.exitCode),
-        signal: t.signal ?? null,
-      };
+    const done = finishedExitStatus(t);
+    if (done) {
+      return done;
     }
     return new Promise((resolve) => {
       t.waiters.push((status) => {
@@ -592,13 +605,10 @@ export class ClientHandlers {
   }
 
   async killTerminal(params: KillTerminalRequest): Promise<Record<string, never>> {
-    const t = this.terminals.get(params.terminalId);
+    // Unknown and already released ids are no-ops.
+    const t = liveTerminalForKill(this.terminals, params.terminalId);
     if (t && !t.exited) {
-      try {
-        t.proc.kill();
-      } catch {
-        /* ignore */
-      }
+      this.stopProcess(t);
     }
     return {};
   }
@@ -607,32 +617,60 @@ export class ClientHandlers {
     params: ReleaseTerminalRequest
   ): Promise<Record<string, never>> {
     const t = this.terminals.get(params.terminalId);
-    if (t) {
-      if (!t.exited) {
-        try {
-          t.proc.kill();
-        } catch {
-          /* ignore */
-        }
-      }
-      this.terminals.delete(params.terminalId);
-      this.onTerminalActivity?.();
+    if (!t) {
+      return {};
     }
+    // ACP: release kills the command if it is still running, then the id
+    // leaves the live map. The output stays in the released cache.
+    if (!t.exited) {
+      this.stopProcess(t);
+    }
+    releaseTerminalRecord(this.terminals, this.releasedTerminals, params.terminalId);
+    this.onTerminalActivity?.();
     return {};
+  }
+
+  /**
+   * User Stop (`session/cancel`). Kill and release every still-running
+   * terminal for this session, including background commands the agent
+   * left up. ACP `terminal/kill` stops the process; `terminal/release`
+   * drops the id. Other sessions are left alone.
+   * Returns the display commands that were stopped.
+   */
+  cancelSessionTerminals(sessionId: string): string[] {
+    const ids = terminalIdsToCancel(this.terminals.values(), sessionId);
+    if (ids.length === 0) {
+      return [];
+    }
+    const commands: string[] = [];
+    for (const id of ids) {
+      const t = this.terminals.get(id);
+      if (!t) {
+        continue;
+      }
+      commands.push(t.displayCommand);
+      this.stopProcess(t);
+      releaseTerminalRecord(this.terminals, this.releasedTerminals, id);
+    }
+    this.onTerminalActivity?.();
+    this.log.info('session/cancel stopped terminals', sessionId, commands.join(', '));
+    return commands;
+  }
+
+  /** End the process tree. `proc.kill()` alone leaves a `shell: true` command running. */
+  private stopProcess(t: ManagedTerminal): void {
+    killTerminalProcess(t.proc, process.platform);
   }
 
   dispose(): void {
     this.pendingUrlElicitations.clear();
     for (const t of this.terminals.values()) {
-      try {
-        if (!t.exited) {
-          t.proc.kill();
-        }
-      } catch {
-        /* ignore */
+      if (!t.exited) {
+        this.stopProcess(t);
       }
     }
     this.terminals.clear();
+    this.releasedTerminals.clear();
     this.onTerminalActivity?.();
   }
 }
