@@ -50,7 +50,9 @@ Der CLI-TUI-Default ist `[ui] follow_up_behavior = "queue"`: Enter während eine
 
 - Die Warteschlange liegt im Speicher der Session (nicht in der Chat-History). Das Webview zeigt sie und kann eine Zeile bearbeiten, entfernen oder per Send now schicken.
 - `sendPrompt` wirft bei einem zweiten gleichzeitigen Aufruf weiter `Session is busy`. Eingereihte Prompts laufen über `enqueueFollowUp` und werden erst per `sendPrompt` ausgeliefert, wenn der laufende Turn die Sperre freigibt — ein `session/prompt` nach dem anderen.
-- Stop / Esc / Cancel Current Turn brechen ab, ohne den Composer-Entwurf zu senden. Wenn der Turn endet, läuft der nächste Eintrag trotzdem (die CLI behält die Warteschlange über Cancel hinweg).
+- Stop / Esc / Cancel Current Turn brechen ab, ohne den Composer-Entwurf zu senden. Die Warteschlange bleibt und wird nicht automatisch gesendet (die CLI behält sie bei einem Nutzer-Abbruch; Stop heißt Stop). Send now an einer Zeile oder ein weiterer Turn, der kein Stop ist, führt sie aus.
+- Send now oder ein Doppel-Enter in den ersten 500 ms nach dem Claim eines Turns bricht diesen Turn nicht ab (CLI 1.0.84). Ein Entwurf wird dahinter eingereiht.
+- Eine abgelehnte oder abgebrochene Permission, ein Abbruch ohne Stop-Button, `max_turn_requests`, wiederholte Tool-Aufrufe und `refusal` behalten die Warteschlange, und der nächste Prompt läuft weiter (CLI 1.0.84 / 1.0.85).
 - Eine in der Bearbeitung offene Zeile ist gehalten und wird nicht automatisch gesendet (das `hold_edit` der CLI, lokal umgesetzt).
 
 **Steer ist nicht implementiert.** CLI `follow_up_behavior = "steer"` injiziert beim nächsten Tool- oder Modell-Schritt über die Ext-Notification `x.ai/queue/interject`. Das gilt nur für einen Prompt, den der Agent schon in seiner Server-Warteschlange angenommen hat, also ein zweites laufendes `session/prompt`. Wir öffnen dieses zweite Prompt nicht und täuschen Steer nicht vor, indem wir Text an die streamende Antwort hängen.

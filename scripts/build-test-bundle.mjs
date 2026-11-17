@@ -49,6 +49,8 @@ await esbuild.build({
     toolStatus: 'src/util/toolStatus.ts',
     backgroundCommands: 'src/util/backgroundCommands.ts',
     distribution: 'src/util/distribution.ts',
+    attention: 'src/util/attention.ts',
+    extMethod: 'src/acp/extMethod.ts',
   },
   outdir: outDir,
   // sessionStore (and its logger/config imports) get a tiny vscode stub

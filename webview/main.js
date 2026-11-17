@@ -2773,7 +2773,7 @@
     head.className = 'follow-up-head';
     head.textContent = items.length === 1 ? '1 queued' : `${items.length} queued`;
     head.title =
-      'Enter queues another follow-up. Ctrl+Enter or ⌘+Enter stops this turn and sends now. Stop cancels without sending the draft.';
+      'Enter queues another follow-up. Ctrl+Enter or ⌘+Enter stops this turn and sends now. Stop keeps the queue and does not send it.';
     host.appendChild(head);
 
     for (const item of items) {

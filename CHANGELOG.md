@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- While a turn is running, the follow-up queue is kept and the next prompt still runs when a permission is rejected or cancelled, when the turn is cancelled by something other than Stop, and when the turn stops with `max_turn_requests` (the turn cap), repeated tool calls, or `refusal`. This matches Grok CLI 1.0.84 / 1.0.85. **Stop**, **Esc**, and **Cancel Current Turn** keep the queue too (the CLI does not drop it) but do not auto-send: Stop means stop. Use **Send now** on a row, or send another message, to run what is queued (#25).
+- A double-Enter or **Send now** in the first half-second after a turn starts no longer cancels that turn. A draft from that second press is queued behind it instead (Grok CLI 1.0.84) (#25).
+- Question / elicitation cards, MCP input requests, and plan-approval requests raise the same modal warning a permission request already uses (`showWarningMessage`, modal). Plan approval (`x.ai/exit_plan_mode`) is answered from that dialog. MCP input (`x.ai/mcp/elicit`) uses the existing elicitation card (#26).
+- `x.ai/mcp_initialized` (`mcpToolCount`, `elapsedMs`) is logged on the Grok Build output channel, and the setup phase `model_catalog` (any `x.ai/session/setup` phase) is accepted without a warning (#6).
 - A tool call whose ACP status is `cancelled` stops spinning and shows a neutral **Cancelled** label (not failed, not still running). The same happens to any tool still pending or in progress when that turn ends with `stopReason: cancelled`. A later `completed` does not clear `cancelled`, and an unknown status is not shown as done. Cancelling one chat does not change another chat's tool rows (#29).
 - When a turn ends and a terminal created for that session is still running, the chat shows an info line such as `1 background command still running: \`npm run dev\`` (plural for more than one, long commands truncated, at most three listed plus "and N more"). The line updates or disappears when those terminals exit or are released. No new setting and no modal (Grok CLI 1.0.79).
 

@@ -6,6 +6,21 @@
  * sent later through the normal `session/prompt` path — one turn at a time.
  * Send now stops the current turn, then that prompt is the next turn.
  *
+ * CLI 1.0.84/1.0.85 keeps that queue when a permission prompt is rejected
+ * or cancelled, when the turn is cancelled, and when the turn stops for
+ * `max_turn_requests`, repeated tool calls (`action_stationarity`), or
+ * `refusal` — the next queued prompt still runs. This client does the same.
+ * Stop / Esc / Cancel Current Turn is the exception: the CLI keeps the
+ * queue across a user interrupt, and so do we, but we do not auto-send.
+ * The user just asked the turn to stop; the queued rows stay until they
+ * send one (Send now, or another turn that is not a Stop).
+ *
+ * CLI 1.0.84 also refuses send-now / double-Enter while the running
+ * prompt's user message is not committed yet, so the second press cannot
+ * cancel the turn the first press just started. `session/prompt` here is
+ * one call that lasts the whole turn, so that window is `FRESH_TURN_MS`
+ * from the moment the turn is claimed.
+ *
  * Steer (`follow_up_behavior = "steer"`, ACP ext-notification
  * `x.ai/queue/interject`) is intentionally not implemented. Interject only
  * injects a prompt the agent has already accepted onto its own queue, which
@@ -21,6 +36,54 @@ export const QUEUE_FULL = 'Follow-up queue is full';
 
 /** Composer drafts waiting behind the current turn. */
 export const MAX_FOLLOW_UPS = 30;
+
+/**
+ * Send-now / double-Enter must not cancel a turn this recently claimed.
+ * Matches CLI 1.0.84 ("send-now and double-Enter no longer cancel a turn
+ * that the first press just started"). A deliberate send-now after the
+ * window still cancels.
+ */
+export const FRESH_TURN_MS = 500;
+
+/**
+ * What to do with the local queue when a turn ends.
+ * `continue` — keep every row and send the next one (CLI 1.0.84/1.0.85).
+ * `hold` — keep every row and do not send (user pressed Stop).
+ */
+export type QueueDisposition = 'continue' | 'hold';
+
+export interface QueueDispositionInput {
+  stopReason?: string | null;
+  /**
+   * `_meta.cancellationCategory` when the CLI sends one.
+   * `PermissionRejected` / `PermissionCancelled` (1.0.84),
+   * `action_stationarity` (repeated tool calls, 1.0.85),
+   * `max_turns_reached` (turn cap, often paired with `max_turn_requests`).
+   */
+  cancellationCategory?: string | null;
+  /** Stop, Esc, or Cancel Current Turn. Send-now is not a user stop. */
+  userStopped?: boolean;
+}
+
+/**
+ * Keep the queue and keep draining it for every agent stop, including a
+ * rejected or cancelled permission, a cancelled turn, `max_turn_requests`,
+ * repeated tool calls, and `refusal`. A user Stop keeps the queue and
+ * does not auto-send.
+ */
+export function queueDisposition(input: QueueDispositionInput): QueueDisposition {
+  if (input.userStopped) {
+    return 'hold';
+  }
+  // Every other ending keeps draining: end_turn, cancelled (including a
+  // permission reject or cancel, and a cancel the user did not press Stop
+  // for), refusal, max_tokens, max_turn_requests, and categories such as
+  // PermissionRejected, PermissionCancelled, action_stationarity, and
+  // max_turns_reached. An unknown reason continues too — losing the queue
+  // is the bug CLI 1.0.84/1.0.85 fixed. stopReason and cancellationCategory
+  // are accepted so callers and tests can name the ending; they do not drop.
+  return 'continue';
+}
 
 export interface QueuedImage {
   mimeType: string;
@@ -144,7 +207,8 @@ export type SendNowOrigin = 'draft' | 'queue';
 export type SendNowResult =
   | { action: 'ignore' }
   | { action: 'send'; prompt: QueuedPrompt; origin: SendNowOrigin }
-  | { action: 'cancel'; prompt: QueuedPrompt; origin: SendNowOrigin };
+  | { action: 'cancel'; prompt: QueuedPrompt; origin: SendNowOrigin }
+  | { action: 'queued'; prompt: QueuedPrompt; origin: 'draft' };
 
 /**
  * One session's follow-up queue plus the single-turn lock.
@@ -155,17 +219,24 @@ export class FollowUpGate {
   private queue: QueuedPrompt[] = [];
   private sendNow: QueuedPrompt | null = null;
   private _busy = false;
+  private turnStartedAt = 0;
 
   get busy(): boolean {
     return this._busy;
   }
 
   /** Start a turn. Throws when one is already running — does not touch the queue. */
-  claimTurn(): void {
+  claimTurn(now = Date.now()): void {
     if (this._busy) {
       throw new Error(BUSY_ERROR);
     }
     this._busy = true;
+    this.turnStartedAt = now;
+  }
+
+  /** True while send-now must not cancel the turn the previous press just started. */
+  isFreshTurn(now = Date.now()): boolean {
+    return this._busy && now - this.turnStartedAt < FRESH_TURN_MS;
   }
 
   /**
@@ -178,6 +249,22 @@ export class FollowUpGate {
     }
     this._busy = false;
     return this.takeNext();
+  }
+
+  /**
+   * The user pressed Stop. Clear the lock and leave every row queued,
+   * including a send-now that had not been delivered yet.
+   */
+  holdTurn(): void {
+    if (!this._busy) {
+      return;
+    }
+    this._busy = false;
+    if (this.sendNow) {
+      const prompt = this.sendNow;
+      this.sendNow = null;
+      this.unshift(prompt);
+    }
   }
 
   /** After a local slash command, or when an edit hold ends and nothing is running. */
@@ -237,8 +324,16 @@ export class FollowUpGate {
    * id wins over the draft. While busy, the chosen prompt is stored and the
    * caller cancels the turn — it is not sent until `releaseTurn`.
    * Replacing a previous send-now puts that prompt back at the front.
+   * A turn that just started is not cancelled: a draft is queued behind it
+   * and an empty send-now is ignored (CLI 1.0.84).
    */
-  armSendNow(req: { text?: string; images?: QueuedImage[]; id?: string }): SendNowResult {
+  armSendNow(
+    req: { text?: string; images?: QueuedImage[]; id?: string },
+    now = Date.now()
+  ): SendNowResult {
+    if (this._busy && this.isFreshTurn(now)) {
+      return this.deferFreshSendNow(req);
+    }
     const picked = this.pickSendNow(req);
     if (!picked) {
       return { action: 'ignore' };
@@ -251,6 +346,25 @@ export class FollowUpGate {
     }
     this.sendNow = picked.prompt;
     return { action: 'cancel', prompt: picked.prompt, origin: picked.origin };
+  }
+
+  /** Queue a draft behind a turn that just started. Do not cancel that turn. */
+  private deferFreshSendNow(req: {
+    text?: string;
+    images?: QueuedImage[];
+    id?: string;
+  }): SendNowResult {
+    if (!req.id) {
+      const draft = createQueuedPrompt(req.text ?? '', req.images);
+      if (isSendable(draft)) {
+        if (this.queue.length >= MAX_FOLLOW_UPS) {
+          throw new Error(QUEUE_FULL);
+        }
+        this.queue.push(draft);
+        return { action: 'queued', prompt: draft, origin: 'draft' };
+      }
+    }
+    return { action: 'ignore' };
   }
 
   /** Put a prompt back (turn never reached the agent, or the process is gone). */
@@ -338,10 +452,19 @@ function toItem(prompt: QueuedPrompt, sendNow: boolean): FollowUpQueueItem {
 /**
  * End the in-flight turn. When `dispatched` is false the turn never reached
  * `session/prompt` (session not ready): the next prompt is put back so a
- * failure does not retry in a loop. Returns the prompt to send next, or null.
+ * failure does not retry in a loop. `hold` keeps the queue and does not
+ * send (user pressed Stop). Returns the prompt to send next, or null.
  */
-export function settleTurn(gate: FollowUpGate, dispatched: boolean): QueuedPrompt | null {
+export function settleTurn(
+  gate: FollowUpGate,
+  dispatched: boolean,
+  disposition: QueueDisposition = 'continue'
+): QueuedPrompt | null {
   if (!gate.busy) {
+    return null;
+  }
+  if (disposition === 'hold') {
+    gate.holdTurn();
     return null;
   }
   const next = gate.releaseTurn();

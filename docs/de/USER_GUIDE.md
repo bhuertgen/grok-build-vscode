@@ -138,14 +138,16 @@ Während ein Turn läuft, bleibt der Composer offen (Stop ist sichtbar). Das ent
 
 | Aktion | Wirkung |
 |--------|---------|
-| **Enter** (nicht leer) | Entwurf in die Warteschlange. Er wird automatisch gesendet, wenn der aktuelle Turn endet, danach der nächste Eintrag, ein Turn nach dem anderen. |
-| **Enter** (leer, Warteschlange nicht leer) | **Send now** für den ersten Eintrag: diesen Turn stoppen, dann diesen Prompt senden. |
-| **Ctrl+Enter** oder **⌘+Enter** | **Send now**: diesen Turn stoppen, dann den Entwurf senden. Ist der Composer leer, wird der erste Eintrag gesendet. |
-| **Send now** in einer Zeile | Diesen Turn stoppen und diese Zeile als Nächstes ausführen. Die übrigen Zeilen bleiben in der Warteschlange. |
-| **Stop**, **Esc**, **Cancel Current Turn** | Turn abbrechen. Der Entwurf im Composer wird nicht gesendet. Einträge in der Warteschlange bleiben, der nächste läuft nach dem Turn weiter. |
+| **Enter** (nicht leer) | Entwurf in die Warteschlange. Er wird automatisch gesendet, wenn der aktuelle Turn aus einem anderen Grund als Stop endet, danach der nächste Eintrag, ein Turn nach dem anderen. |
+| **Enter** (leer, Warteschlange nicht leer) | **Send now** für den ersten Eintrag: diesen Turn stoppen, dann diesen Prompt senden. Ein Turn, der in der letzten halben Sekunde gestartet ist, wird nicht abgebrochen. |
+| **Ctrl+Enter** oder **⌘+Enter** | **Send now**: diesen Turn stoppen, dann den Entwurf senden. Ist der Composer leer, wird der erste Eintrag gesendet. Ein Doppel-Enter oder Send now in der ersten halben Sekunde nach Turn-Start bricht diesen Turn nicht ab; ein Entwurf wird stattdessen dahinter eingereiht. |
+| **Send now** in einer Zeile | Diesen Turn stoppen und diese Zeile als Nächstes ausführen, außer der Turn ist gerade erst gestartet. Die übrigen Zeilen bleiben in der Warteschlange. |
+| **Stop**, **Esc**, **Cancel Current Turn** | Turn abbrechen. Der Entwurf im Composer wird nicht gesendet. Einträge in der Warteschlange bleiben und werden **nicht** automatisch gesendet — die CLI behält die Warteschlange bei einem Nutzer-Abbruch, und Stop heißt Stop. **Send now** an einer Zeile (oder eine weitere Nachricht; die Warteschlange läuft nach diesem Turn) schickt einen Eintrag. |
 | **Edit** / **Remove** | Zeile ändern oder entfernen. Eine Zeile, die gerade bearbeitet wird, wird nicht automatisch gesendet, bis das Feld verlassen wird (Enter speichert, Esc verwirft). |
 
 Die Warteschlange steht über dem Composer. Kontext-Chips am Composer bleiben an dem Follow-up, das du einreihst oder per Send now schickst, und werden angehängt, wenn dieser Prompt wirklich läuft.
+
+Endet der Turn aus einem anderen Grund, läuft der nächste eingereihte Prompt weiter. Das gilt für eine abgelehnte oder abgebrochene Permission, einen Abbruch, der nicht der Stop-Button ist, `stopReason: max_turn_requests` (Turn-Limit), wiederholte Tool-Aufrufe und `refusal` (Grok CLI 1.0.84 / 1.0.85).
 
 Die CLI kann zusätzlich `follow_up_behavior = "steer"` setzen (Text beim nächsten Tool- oder Modell-Schritt in den laufenden Turn injizieren). Diese Extension tut das nicht. Steer über ACP ist `x.ai/queue/interject` und gilt nur für einen Prompt, den der Agent schon in seiner eigenen Warteschlange angenommen hat — ein zweites laufendes `session/prompt`. `sendPrompt` lehnt einen zweiten gleichzeitigen Turn weiter ab (`Session is busy`). Die Extension täuscht Steer nicht vor, indem sie in die laufende Antwort schreibt.
 

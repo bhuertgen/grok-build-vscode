@@ -10,11 +10,13 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const {
+  const {
   BUSY_ERROR,
+  FRESH_TURN_MS,
   FollowUpGate,
   MAX_FOLLOW_UPS,
   decideComposerSubmit,
+  queueDisposition,
   settleTurn,
 } = require('../dist-test/followUp.js');
 
@@ -38,7 +40,7 @@ function createTurnHarness() {
     if (gate.busy) {
       throw new Error(BUSY_ERROR);
     }
-    gate.claimTurn();
+    gate.claimTurn(0);
     active += 1;
     if (active > 1) {
       events.push({ type: 'overlap', text });
@@ -156,18 +158,18 @@ describe('webview composer', () => {
 describe('follow-up gate', () => {
   it('queues while busy and does not start another turn', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     const queued = gate.enqueue('follow up');
     assert.equal(queued.text, 'follow up');
     assert.equal(gate.snapshot().length, 1);
-    assert.throws(() => gate.claimTurn(), { message: BUSY_ERROR });
+    assert.throws(() => gate.claimTurn(0), { message: BUSY_ERROR });
     assert.equal(gate.snapshot().length, 1);
     assert.equal(gate.snapshot()[0].text, 'follow up');
   });
 
   it('drains the oldest unheld prompt when the turn ends', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     gate.enqueue('first');
     gate.enqueue('second');
     const next = settleTurn(gate, true);
@@ -177,14 +179,14 @@ describe('follow-up gate', () => {
       gate.snapshot().map((item) => item.text),
       ['second']
     );
-    gate.claimTurn();
+    gate.claimTurn(0);
     assert.equal(settleTurn(gate, true).text, 'second');
     assert.equal(gate.snapshot().length, 0);
   });
 
   it('skips a row that is being edited, then sends it after the hold ends', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     const editing = gate.enqueue('draft');
     gate.enqueue('ready');
     gate.hold(editing.id, true);
@@ -197,7 +199,7 @@ describe('follow-up gate', () => {
 
   it('send now cancels the turn and that prompt is next, ahead of the queue', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     const queued = gate.enqueue('later');
     const decision = gate.armSendNow({ text: 'do this instead' });
     assert.equal(decision.action, 'cancel');
@@ -211,7 +213,7 @@ describe('follow-up gate', () => {
 
   it('send now of a row removes that row and leaves the rest in order', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     gate.enqueue('a', undefined, 'a');
     gate.enqueue('b', undefined, 'b');
     gate.enqueue('c', undefined, 'c');
@@ -227,7 +229,7 @@ describe('follow-up gate', () => {
 
   it('does not send a held top row on empty send-now', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     const top = gate.enqueue('editing');
     gate.hold(top.id, true);
     assert.deepEqual(gate.armSendNow({}), { action: 'ignore' });
@@ -237,16 +239,86 @@ describe('follow-up gate', () => {
 
   it('puts a replaced send-now prompt back on the queue', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
-    gate.armSendNow({ text: 'one' });
-    gate.armSendNow({ text: 'two' });
+    gate.claimTurn(0);
+    gate.armSendNow({ text: 'one' }, FRESH_TURN_MS);
+    gate.armSendNow({ text: 'two' }, FRESH_TURN_MS);
     assert.equal(settleTurn(gate, true).text, 'two');
     assert.equal(gate.snapshot()[0].text, 'one');
   });
 
+  it('does not cancel a turn that just started (double-Enter / send now)', () => {
+    const gate = new FollowUpGate();
+    const started = 10_000;
+    gate.claimTurn(started);
+    gate.enqueue('already queued');
+    const empty = gate.armSendNow({}, started + 20);
+    assert.deepEqual(empty, { action: 'ignore' });
+    assert.equal(gate.busy, true);
+    assert.equal(gate.snapshot()[0].text, 'already queued');
+
+    const drafted = gate.armSendNow({ text: 'second press' }, started + 40);
+    assert.equal(drafted.action, 'queued');
+    assert.equal(drafted.prompt.text, 'second press');
+    assert.equal(gate.busy, true);
+    assert.deepEqual(
+      gate.snapshot().map((item) => item.text),
+      ['already queued', 'second press']
+    );
+
+    const row = gate.armSendNow({ id: gate.snapshot()[0].id }, started + FRESH_TURN_MS - 1);
+    assert.deepEqual(row, { action: 'ignore' });
+    assert.equal(gate.busy, true);
+  });
+
+  it('send now cancels once the fresh window has passed', () => {
+    const gate = new FollowUpGate();
+    gate.claimTurn(1_000);
+    const decision = gate.armSendNow({ text: 'now' }, 1_000 + FRESH_TURN_MS);
+    assert.equal(decision.action, 'cancel');
+    assert.equal(settleTurn(gate, true).text, 'now');
+  });
+
+  it('holds the queue on user stop and continues it for every other stop', () => {
+    const reasons = [
+      { stopReason: 'cancelled', cancellationCategory: 'PermissionRejected' },
+      { stopReason: 'cancelled', cancellationCategory: 'PermissionCancelled' },
+      { stopReason: 'cancelled', cancellationCategory: undefined },
+      { stopReason: 'max_turn_requests', cancellationCategory: 'max_turns_reached' },
+      { stopReason: 'cancelled', cancellationCategory: 'action_stationarity' },
+      { stopReason: 'refusal', cancellationCategory: undefined },
+      { stopReason: 'end_turn', cancellationCategory: undefined },
+      { stopReason: 'max_tokens', cancellationCategory: undefined },
+      { stopReason: 'weird', cancellationCategory: undefined },
+    ];
+    for (const ending of reasons) {
+      assert.equal(queueDisposition(ending), 'continue', ending.stopReason);
+      const gate = new FollowUpGate();
+      gate.claimTurn(0);
+      gate.enqueue('first');
+      gate.enqueue('second');
+      assert.equal(settleTurn(gate, true, queueDisposition(ending)).text, 'first');
+      assert.equal(gate.snapshot()[0].text, 'second');
+    }
+
+    for (const ending of reasons) {
+      const gate = new FollowUpGate();
+      gate.claimTurn(0);
+      gate.enqueue('kept');
+      gate.enqueue('also kept');
+      const disposition = queueDisposition({ ...ending, userStopped: true });
+      assert.equal(disposition, 'hold');
+      assert.equal(settleTurn(gate, true, disposition), null);
+      assert.equal(gate.busy, false);
+      assert.deepEqual(
+        gate.snapshot().map((item) => item.text),
+        ['kept', 'also kept']
+      );
+    }
+  });
+
   it('restores the next prompt when the turn never reached the agent', () => {
     const gate = new FollowUpGate();
-    gate.claimTurn();
+    gate.claimTurn(0);
     gate.enqueue('keep me');
     assert.equal(settleTurn(gate, false), null);
     assert.equal(gate.busy, false);
