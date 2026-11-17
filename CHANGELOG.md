@@ -9,6 +9,7 @@
 ### Fixed
 - **Stop** during a turn kills terminal processes the agent started with `terminal/create`, including commands it left running in the background. The extension kills the process and releases the terminal (`terminal/kill`, then `terminal/release`). On Linux and macOS the shell is its own process group, so the command under `shell: true` (the 0.4.3 spawn) is signalled too, not only `/bin/sh`. On Windows the process tree is ended with `taskkill /T /F`. Open tool rows for that turn show **Cancelled** immediately (a later `failed` from the killed command does not clear it). The "background command still running" line is removed. Another chat's terminals are not touched.
 - After a cancelled turn, the **Thought** dot is the same neutral colour as a cancelled tool. It no longer stays green. A thought from an earlier turn that already finished stays green.
+- A `terminal/output` (or `terminal/wait_for_exit`) for a terminal that was just released — by the agent, or by Stop — returns the last captured output and exit status. The last 16 released terminals are kept. `terminal/kill` and `terminal/release` for an id that is already gone do nothing. An id that is not in that cache is an ACP error, logged once as a warning, not as an error on every poll.
 
 ## 0.4.3 – 2026-11-06
 

@@ -48,6 +48,15 @@ import {
   planTerminalSpawn,
   terminalIdsToCancel,
 } from './terminalSpawn';
+import {
+  ReleasedTerminalCache,
+  UnknownTerminalError,
+  answerTerminalOutput,
+  finishedExitStatus,
+  liveTerminalForKill,
+  releaseTerminalRecord,
+  resolveTerminal,
+} from './terminalTombstone';
 import { displayTerminalCommand } from '../util/backgroundCommands';
 
 /** Re-reads of a file after "Allow once" within this window do not ask again (#45). */
@@ -85,6 +94,8 @@ interface ManagedTerminal {
 export class ClientHandlers {
   private readonly log = getLogger();
   private terminals = new Map<TerminalId, ManagedTerminal>();
+  /** Output kept after release so a late terminal/output still succeeds. */
+  private releasedTerminals = new ReleasedTerminalCache<ManagedTerminal>();
   private terminalSeq = 0;
   /** Session-scoped allow-always option ids */
   private sessionAllowAlways = new Set<string>();
@@ -568,34 +579,20 @@ export class ClientHandlers {
   async terminalOutput(
     params: TerminalOutputRequest
   ): Promise<TerminalOutputResponse> {
-    const t = this.terminals.get(params.terminalId);
-    if (!t) {
-      throw new Error(`Unknown terminal: ${params.terminalId}`);
-    }
-    return {
-      output: t.output,
-      truncated: t.truncated,
-      exitStatus: t.exited
-        ? {
-            exitCode: normalizeTerminalExitCode(t.exitCode),
-            signal: t.signal ?? null,
-          }
-        : null,
-    };
+    // Live, or the last output of a terminal this session just released.
+    return answerTerminalOutput(this.terminals, this.releasedTerminals, params.terminalId);
   }
 
   async waitForExit(
     params: WaitForTerminalExitRequest
   ): Promise<WaitForTerminalExitResponse> {
-    const t = this.terminals.get(params.terminalId);
+    const t = resolveTerminal(this.terminals, this.releasedTerminals, params.terminalId);
     if (!t) {
-      throw new Error(`Unknown terminal: ${params.terminalId}`);
+      throw new UnknownTerminalError(params.terminalId);
     }
-    if (t.exited) {
-      return {
-        exitCode: normalizeTerminalExitCode(t.exitCode),
-        signal: t.signal ?? null,
-      };
+    const done = finishedExitStatus(t);
+    if (done) {
+      return done;
     }
     return new Promise((resolve) => {
       t.waiters.push((status) => {
@@ -608,7 +605,8 @@ export class ClientHandlers {
   }
 
   async killTerminal(params: KillTerminalRequest): Promise<Record<string, never>> {
-    const t = this.terminals.get(params.terminalId);
+    // Unknown and already released ids are no-ops.
+    const t = liveTerminalForKill(this.terminals, params.terminalId);
     if (t && !t.exited) {
       this.stopProcess(t);
     }
@@ -619,15 +617,16 @@ export class ClientHandlers {
     params: ReleaseTerminalRequest
   ): Promise<Record<string, never>> {
     const t = this.terminals.get(params.terminalId);
-    if (t) {
-      // ACP: release kills the command if it is still running, then the id
-      // is no longer valid.
-      if (!t.exited) {
-        this.stopProcess(t);
-      }
-      this.terminals.delete(params.terminalId);
-      this.onTerminalActivity?.();
+    if (!t) {
+      return {};
     }
+    // ACP: release kills the command if it is still running, then the id
+    // leaves the live map. The output stays in the released cache.
+    if (!t.exited) {
+      this.stopProcess(t);
+    }
+    releaseTerminalRecord(this.terminals, this.releasedTerminals, params.terminalId);
+    this.onTerminalActivity?.();
     return {};
   }
 
@@ -651,7 +650,7 @@ export class ClientHandlers {
       }
       commands.push(t.displayCommand);
       this.stopProcess(t);
-      this.terminals.delete(id);
+      releaseTerminalRecord(this.terminals, this.releasedTerminals, id);
     }
     this.onTerminalActivity?.();
     this.log.info('session/cancel stopped terminals', sessionId, commands.join(', '));
@@ -671,6 +670,7 @@ export class ClientHandlers {
       }
     }
     this.terminals.clear();
+    this.releasedTerminals.clear();
     this.onTerminalActivity?.();
   }
 }
