@@ -1287,27 +1287,50 @@
     return wrap;
   }
 
+  /**
+   * Thought dot. Production uses GrokToolStatus.thoughtRowStatus (same module
+   * as tool rows). Cancelled is the neutral dot, not the green success dot.
+   */
+  function thoughtRowView(m) {
+    const api = toolStatusApi();
+    if (api && typeof api.thoughtRowStatus === 'function') {
+      return api.thoughtRowStatus(m);
+    }
+    if (m && m.cancelled) {
+      return { running: false, dot: 'cancelled' };
+    }
+    if (m && m.streaming) {
+      return { running: true, dot: 'in_progress' };
+    }
+    return { running: false, dot: 'completed' };
+  }
+
   function renderThoughtRow(m) {
     const wrap = document.createElement('div');
     // Collapsed by default (Grok Build: one line; click to expand)
+    const view = thoughtRowView(m);
     const isOpen = expandedThoughts.has(m.id);
     wrap.className =
-      'thought-row' + (isOpen ? ' open' : '') + (m.streaming ? ' running' : '');
+      'thought-row' +
+      (isOpen ? ' open' : '') +
+      (view.running ? ' running' : '') +
+      (view.dot === 'cancelled' ? ' cancelled' : '');
     wrap.dataset.msgId = m.id;
 
     const head = document.createElement('button');
     head.type = 'button';
     head.className = 'thought-row-head';
     const preview = (m.content || '').replace(/\s+/g, ' ').trim().slice(0, 72);
-    const label = m.streaming
+    const label = view.running
       ? 'Thinking…'
       : preview
         ? `Thought · ${preview}${(m.content || '').length > 72 ? '…' : ''}`
         : 'Thought';
     head.innerHTML = `
-      <span class="agent-dot ${m.streaming ? 'in_progress' : 'completed'}"></span>
+      <span class="agent-dot ${escapeHtml(view.dot || '')}"></span>
       <span class="tool-kind kind-think">Thought</span>
       <span class="tool-title">${escapeHtml(label)}</span>
+      ${view.dot === 'cancelled' ? '<span class="tool-meta">Cancelled</span>' : ''}
       <span class="tool-chevron">${isOpen ? '▾' : '▸'}</span>
     `;
     head.addEventListener('click', () => {
@@ -1323,7 +1346,7 @@
     if (isOpen) {
       const body = document.createElement('div');
       body.className =
-        'thought-row-body' + (m.streaming ? ' streaming-cursor' : '');
+        'thought-row-body' + (view.running ? ' streaming-cursor' : '');
       body.textContent = m.content || '';
       wrap.appendChild(body);
     }
@@ -1417,6 +1440,7 @@
             m.role +
             ':' +
             (m.streaming ? '1' : '0') +
+            (m.cancelled ? ':c' : '') +
             ':' +
             (m.role === 'thought' && expandedThoughts.has(m.id) ? '1' : '0') +
             systemContentKey(m)

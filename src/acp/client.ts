@@ -270,6 +270,10 @@ export class AcpClient extends EventEmitter {
   }
 
   cancel(sessionId: SessionId): void {
+    // The agent often does not terminal/kill on cancel, and shell:true
+    // would survive that kill anyway. Stop the processes here, then tell
+    // the agent. Do this even if the transport is already closed.
+    this.handlers.cancelSessionTerminals(sessionId);
     if (!this.transport || this.transport.isClosed) {
       return;
     }
