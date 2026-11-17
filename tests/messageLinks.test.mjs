@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { findMessageLinks, isSafeIssueTemplate } = require('../dist-test/messageLinks.js');
+const {
+  findMessageLinks,
+  isSafeIssueTemplate,
+  decodePercentEncodedPath,
+} = require('../dist-test/messageLinks.js');
 const { resolveAssistantFile } = require('../dist-test/assistantPath.js');
 const {
   forgeIssueTemplate,
@@ -232,6 +236,49 @@ describe('findMessageLinks paths', () => {
     );
   });
 
+  it('links a percent-encoded path and keeps the written text (CLI 1.0.86)', () => {
+    assert.deepEqual(paths('Open src/my%20file.ts next'), [
+      { text: 'src/my%20file.ts', path: 'src/my%20file.ts' },
+    ]);
+    assert.deepEqual(paths('Open src/my%20file.ts:4:2 next'), [
+      { text: 'src/my%20file.ts:4:2', path: 'src/my%20file.ts', line: 4, column: 2 },
+    ]);
+    assert.deepEqual(paths('`src/my%20docs/file.ts:10-12`'), [
+      {
+        text: 'src/my%20docs/file.ts:10-12',
+        path: 'src/my%20docs/file.ts',
+        line: 10,
+        endLine: 12,
+      },
+    ]);
+    assert.deepEqual(paths('see ~/Library/Application%20Support/foo.txt please.'), [
+      {
+        text: '~/Library/Application%20Support/foo.txt',
+        path: '~/Library/Application%20Support/foo.txt',
+      },
+    ]);
+    const win = paths('Edit C:\\Program%20Files\\Grok\\grok.exe:10 now');
+    assert.equal(win.length, 1);
+    assert.equal(win[0].path, 'C:\\Program%20Files\\Grok\\grok.exe');
+    assert.equal(win[0].line, 10);
+  });
+
+  it('still links a path that contains a literal space', () => {
+    assert.deepEqual(paths('see src/my file.ts for notes'), [
+      { text: 'src/my file.ts', path: 'src/my file.ts' },
+    ]);
+    assert.deepEqual(paths('Open `src/my file.ts:4:2` next'), [
+      { text: 'src/my file.ts:4:2', path: 'src/my file.ts', line: 4, column: 2 },
+    ]);
+  });
+
+  it('does not treat a bare percent as part of a path', () => {
+    assert.deepEqual(paths('100% of the work is in src/cli/compat.ts'), [
+      { text: 'src/cli/compat.ts', path: 'src/cli/compat.ts' },
+    ]);
+    assert.deepEqual(paths('src/100%done.ts'), []);
+  });
+
   it('does not treat non-paths as spaced file links', () => {
     const samples = [
       '`hello world`',
@@ -370,6 +417,18 @@ describe('isSafeIssueTemplate', () => {
   });
 });
 
+describe('decodePercentEncodedPath', () => {
+  it('decodes %20 and leaves a literal space alone', () => {
+    assert.equal(decodePercentEncodedPath('src/my%20file.ts'), 'src/my file.ts');
+    assert.equal(decodePercentEncodedPath('src/my file.ts'), 'src/my file.ts');
+    assert.equal(decodePercentEncodedPath('src/my%20file%20name.ts'), 'src/my file name.ts');
+    assert.equal(decodePercentEncodedPath('caf%C3%A9.ts'), 'café.ts');
+    assert.equal(decodePercentEncodedPath('src/100%done.ts'), 'src/100%done.ts');
+    assert.equal(decodePercentEncodedPath('a%20b%ZZc'), 'a b%ZZc');
+    assert.equal(decodePercentEncodedPath('src/my%2520file.ts'), 'src/my%20file.ts');
+  });
+});
+
 describe('resolveAssistantFile', () => {
   const files = new Set([
     '/work/src/cli/compat.ts',
@@ -421,6 +480,37 @@ describe('resolveAssistantFile', () => {
     assert.equal(
       resolveAssistantFile('https://example.com/a.ts', { roots: ['/work'], isFile, platform: 'linux' }),
       null
+    );
+  });
+
+  it('decodes %20 before resolving and still opens a literal space', () => {
+    const files = new Set([
+      '/work/src/my file.ts',
+      '/work/src/my%20literal.ts',
+      '/home/me/Library/Application Support/foo.txt',
+    ]);
+    const opts = {
+      roots: ['/work'],
+      homedir: '/home/me',
+      isFile: (p) => files.has(p),
+      platform: 'linux',
+    };
+    assert.equal(resolveAssistantFile('src/my%20file.ts', opts), '/work/src/my file.ts');
+    assert.equal(resolveAssistantFile('src/my file.ts', opts), '/work/src/my file.ts');
+    assert.equal(
+      resolveAssistantFile('~/Library/Application%20Support/foo.txt', opts),
+      '/home/me/Library/Application Support/foo.txt'
+    );
+    assert.equal(
+      resolveAssistantFile('src/my%20literal.ts', opts),
+      '/work/src/my%20literal.ts'
+    );
+    assert.equal(
+      resolveAssistantFile('src/my%2520file.ts', {
+        ...opts,
+        isFile: (p) => p === '/work/src/my%20file.ts',
+      }),
+      '/work/src/my%20file.ts'
     );
   });
 

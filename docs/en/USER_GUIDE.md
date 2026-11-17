@@ -17,7 +17,7 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 1. **VS Code** ≥ 1.90 (or compatible, e.g. Cursor)  
 2. **Grok Build CLI** installed and signed in  
    - Docs: https://x.ai/cli  
-   - Check: `grok --version` — **1.0.77 or newer recommended** (tested with **1.0.77 stable**); older 1.0.x works with a warning banner  
+   - Check: `grok --version` — **1.0.88 or newer recommended** (tested with **1.0.88 stable**); older 1.0.x works with a warning banner  
 3. Optional for development: **Node.js** ≥ 18  
 
 ### Install the extension
@@ -270,7 +270,7 @@ Only trust folders whose hooks and MCP servers you have reviewed: hooks run shel
 In **Grok's answers** (your own messages stay plain text):
 
 - A path that looks like a file is a link: `src/cli/compat.ts`, `./README.md`, `../docs/en/USER_GUIDE.md`, `src/cli/compat.ts:42`, `src/cli/compat.ts:42:7`. Click it to open the file. With a line (and optional column) the editor selects that position; lines and columns start at 1. `path:10-20` selects that line range.
-- A path with spaces is one link, not the piece before the first space (same as Grok CLI 1.0.74, which does this for inline code such as `` `~/Library/Application Support/Grok/config.toml:12` ``). In a sentence the link is only the path: `see src/my file.ts for notes` opens `src/my file.ts`, and `:line` / `:line:col` still jump to that position. A relative path needs a file extension, so `src/my folder` stays plain text. When the first folder name itself contains a space, or the absolute path has no extension, wrap it in inline code or quotes (`` `My Documents/readme.md` ``, `` `~/Library/Application Support` ``) so the whole path is one link.
+- A path with spaces is one link, not the piece before the first space (same as Grok CLI 1.0.74, which does this for inline code such as `` `~/Library/Application Support/Grok/config.toml:12` ``). In a sentence the link is only the path: `see src/my file.ts for notes` opens `src/my file.ts`, and `:line` / `:line:col` still jump to that position. A relative path needs a file extension, so `src/my folder` stays plain text. A percent-encoded space (`%20`) is decoded before the file opens (`src/my%20file.ts` opens `src/my file.ts`), matching Grok CLI 1.0.86. A path already written with a literal space is unchanged. When the first folder name itself contains a space, or the absolute path has no extension, wrap it in inline code or quotes (`` `My Documents/readme.md` ``, `` `~/Library/Application Support` ``) so the whole path is one link.
 - The file has to exist. A relative path is resolved against the open workspace folders (first match). An absolute path, including one outside the workspace, opens when that file exists. Otherwise the editor shows **File not found**.
 - These stay plain text: a bare name (`README.md`), a package version (`1.0.72`, `lodash@4.17.21`), a URL, and a markdown `[label](https://…)` link. Those https links still open in the browser.
 - `#123` opens that issue or pull request when the workspace has a git remote (GitHub, GitLab, Bitbucket, or a similar forge; read once from `origin`, otherwise the first remote). With no remote, `#123` stays plain text. GitHub-style remotes use `/issues/123` (GitHub sends pull requests there). GitLab remotes use `/-/issues/123`.
@@ -357,7 +357,7 @@ Install walkthrough also lists these: [INSTALL_VSIX.md §7](./INSTALL_VSIX.md#7-
 | `noMemory` | `false` | **Deprecated** → use `memory: "off"`. Still mapped to `GROK_MEMORY=0` when `memory` is `default`. |
 | `experimentalMemory` | `false` | **Deprecated** → use `memory: "on"`. Still mapped to `GROK_MEMORY=1` when `memory` is `default` (`noMemory` wins). |
 | `disableWebSearch` | `false` | `--disable-web-search` |
-| `sandbox` | `""` | `--sandbox <PROFILE>` |
+| `sandbox` | `""` | `--sandbox <PROFILE>` as a free string (also env `GROK_SANDBOX`). Built-in profiles: `off` (default), `workspace`, `devbox`, `read-only`, `strict`, and **`minimal`** (CLI ≥ 1.0.82, in stable 1.0.88). `minimal` is the small base for a custom profile: the agent can read the launch folder, `~/.grok`, and the system paths it needs to start, and it can write `~/.grok/sessions`, not the launch folder. Child-process network is blocked on Linux. A custom profile in `~/.grok/sandbox.toml` or `.grok/sandbox.toml` is selected by the same name. Its **`workspace_write`** option (CLI ≥ 1.0.82) is a boolean: `true` adds write access to the folder Grok started in, `false` removes the base profile's grant, and omitting it keeps the base. This setting passes the profile name only. |
 | `tools` | `""` | `--tools` allow-list (comma-separated) |
 | `disallowedTools` | `""` | `--disallowed-tools` |
 | `rules` | `""` | `--rules` extra system rules |

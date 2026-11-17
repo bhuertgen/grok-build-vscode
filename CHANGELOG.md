@@ -6,6 +6,15 @@
 - A tool call whose ACP status is `cancelled` stops spinning and shows a neutral **Cancelled** label (not failed, not still running). The same happens to any tool still pending or in progress when that turn ends with `stopReason: cancelled`. A later `completed` does not clear `cancelled`, and an unknown status is not shown as done. Cancelling one chat does not change another chat's tool rows (#29).
 - When a turn ends and a terminal created for that session is still running, the chat shows an info line such as `1 background command still running: \`npm run dev\`` (plural for more than one, long commands truncated, at most three listed plus "and N more"). The line updates or disappears when those terminals exit or are released. No new setting and no modal (Grok CLI 1.0.79).
 
+### Fixed
+- A file link that contains percent-encoding (for example `%20`) is decoded before the editor opens it, so `src/my%20file.ts` opens `src/my file.ts`. A path that is already written with a literal space still opens that file. When the decoded path is missing and a file is literally named with `%20`, that file still opens. This matches Grok CLI 1.0.86 (#65).
+
+### Docs
+- `grokBuild.sandbox` stays a free string passed to `--sandbox`. The setting description and the user guides (EN/DE) now name the `minimal` profile and the custom-profile `workspace_write` option (CLI ≥ 1.0.82, in stable 1.0.88).
+
+### Compatibility
+- Tested with Grok CLI **1.0.88 stable** (2026-11-17, build 2fe3608f7398). The recommended soft floor is raised from 1.0.77 to **1.0.88**, following the policy "soft floor = latest tested stable". The ACP wire is unchanged versus 1.0.77. Older 1.0.x keep working with a dismissable warning banner; hard floor stays 1.0.0.
+
 ## 0.4.3 – 2026-11-06
 
 ### Added
