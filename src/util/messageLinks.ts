@@ -17,6 +17,10 @@
  *   (`` `~/Library/Application Support` ``). Relative spaced paths still
  *   need an extension; `~/`, `/`, and drive paths may omit one inside
  *   those delimiters.
+ * - A percent-encoded byte (`%20`, `%C3%A9`) is part of the path token
+ *   (CLI 1.0.86). The hit keeps the text as written. Decode with
+ *   `decodePercentEncodedPath` before resolving, so `%20` opens the file
+ *   with a space. A path that already contains a literal space is unchanged.
  * - Bare words (`README.md`, `compat.ts`), package versions (`1.0.72`,
  *   `lodash@4.17.21`), mime types (`image/png`), and branch-like tokens
  *   (`feat/clickable-paths`) are not paths.
@@ -61,9 +65,52 @@ export function isSafeIssueTemplate(tpl: string): boolean {
   return ISSUE_TEMPLATE_RE.test(tpl);
 }
 
-const SEG = '[A-Za-z0-9_+@-]{1,64}';
+/**
+ * Decode `%HH` sequences in a file path (CLI 1.0.86).
+ * `%20` becomes a space. A path that already contains a literal space is
+ * unchanged. A bare `%` or a non-hex tail stays as written. Valid UTF-8
+ * sequences (`%C3%A9`) decode as one character.
+ */
+export function decodePercentEncodedPath(raw: string): string {
+  if (!raw.includes('%')) {
+    return raw;
+  }
+  let out = '';
+  for (let i = 0; i < raw.length; ) {
+    if (
+      raw[i] === '%' &&
+      i + 2 < raw.length &&
+      /[0-9A-Fa-f]{2}/.test(raw.slice(i + 1, i + 3))
+    ) {
+      let j = i;
+      let encoded = '';
+      while (
+        j + 2 < raw.length &&
+        raw[j] === '%' &&
+        /[0-9A-Fa-f]{2}/.test(raw.slice(j + 1, j + 3))
+      ) {
+        encoded += raw.slice(j, j + 3);
+        j += 3;
+      }
+      try {
+        out += decodeURIComponent(encoded);
+      } catch {
+        out += encoded;
+      }
+      i = j;
+      continue;
+    }
+    out += raw[i];
+    i++;
+  }
+  return out;
+}
+
+/** One percent-encoded byte (`%20`). A bare `%` is not a path character. */
+const PCT = '%[0-9A-Fa-f]{2}';
+const SEG = `(?:[A-Za-z0-9_+@-]|${PCT}){1,80}`;
 /** Directory segment that may include dots (`.claude`, `probes-1.0.77`). */
-const SEG_DOT = '[A-Za-z0-9_+@.-]{1,64}';
+const SEG_DOT = `(?:[A-Za-z0-9_+@.-]|${PCT}){1,80}`;
 const FILE = `${SEG}(?:\\.${SEG}){0,6}\\.[A-Za-z][A-Za-z0-9]{0,9}`;
 const DOTFILE = '\\.[A-Za-z][A-Za-z0-9_-]{0,40}';
 const FINAL = `(?:${FILE}|${DOTFILE})`;
@@ -233,7 +280,7 @@ function pathHit(
 }
 
 /** One filename word. Spaces join words; dots stay extension separators. */
-const WORD = "[A-Za-z0-9_+@()'&,]+";
+const WORD = `(?:[A-Za-z0-9_+@()'&,]|${PCT})+`;
 const SPACED = `${WORD}(?: +${WORD})*`;
 const SPACED_FILE = `(?:${SPACED}(?:\\.${WORD}){0,6}\\.[A-Za-z][A-Za-z0-9]{0,9}|${DOTFILE})`;
 
@@ -278,15 +325,32 @@ function atPathBoundary(text: string, i: number): boolean {
   return !/[A-Za-z0-9._+/\\-]/.test(text[i - 1]);
 }
 
+function isPercentByte(text: string, i: number, limit: number): boolean {
+  return (
+    i + 2 < limit &&
+    text[i] === '%' &&
+    /[0-9A-Fa-f]/.test(text[i + 1]) &&
+    /[0-9A-Fa-f]/.test(text[i + 2])
+  );
+}
+
 function readWord(text: string, i: number, limit: number): number {
-  if (i >= limit || !WORD_CHAR.test(text[i])) {
+  if (i >= limit || (!WORD_CHAR.test(text[i]) && !isPercentByte(text, i, limit))) {
     return -1;
   }
-  let j = i + 1;
-  while (j < limit && WORD_CHAR.test(text[j])) {
-    j++;
+  let j = i;
+  while (j < limit) {
+    if (WORD_CHAR.test(text[j])) {
+      j++;
+      continue;
+    }
+    if (isPercentByte(text, j, limit)) {
+      j += 3;
+      continue;
+    }
+    break;
   }
-  return j;
+  return j > i ? j : -1;
 }
 
 /** Extension `[A-Za-z][A-Za-z0-9]{0,9}`. Fails when more alphanumerics remain. */

@@ -451,7 +451,7 @@
         "grokBuild.sandbox": {
           "type": "string",
           "default": "",
-          "description": "CLI --sandbox <PROFILE> (also env GROK_SANDBOX)."
+          "description": "CLI --sandbox <PROFILE> as a free string (also env GROK_SANDBOX). Built-in profiles include off, workspace, devbox, read-only, strict, and minimal (CLI 1.0.82+, in stable 1.0.88). minimal reads the launch folder, ~/.grok, and the system paths needed to start; it writes ~/.grok/sessions but not the launch folder, and it blocks child-process network on Linux. A custom profile name from sandbox.toml is passed the same way. On a custom profile, workspace_write (CLI 1.0.82+) adds (true) or removes (false) write access to the folder Grok started in; omit it to keep the base profile."
         },
         "grokBuild.tools": {
           "type": "string",
