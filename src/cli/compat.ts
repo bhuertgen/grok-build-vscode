@@ -12,8 +12,10 @@ export const CLI_HARD_MIN = '1.0.0';
  * Below this (but ≥ hard) → soft warning banner; extension still usable.
  * Raised independently when a newer 1.x patch becomes the recommended baseline.
  * Policy: the soft floor is the latest tested stable.
- * 1.0.88 (stable promoted 2026-11-17, build 2fe3608f7398).
- * The ACP wire is unchanged versus 1.0.77.
+ * 1.0.89 (stable promoted 2026-11-18, build 28be5bb1bf65).
+ * ACP flags are identical to 1.0.88; the ACP wire is unchanged versus 1.0.88.
+ * Earlier floor 1.0.88 (stable promoted 2026-11-17, build 2fe3608f7398).
+ * The ACP wire was unchanged versus 1.0.77.
  * Earlier floor 1.0.77 (stable promoted 2026-11-06, build 50ca579fa996).
  * Alpha 1.0.78 was TUI-only and was not that floor.
  * Earlier floor 1.0.70 (tested stable, 2026-10-23: first stable after 1.0.67;
@@ -30,10 +32,10 @@ export const CLI_HARD_MIN = '1.0.0';
  * Earlier floor 1.0.52: GROK_MEMORY env (old --no-memory flag rejected),
  * multi-select elicitation (1.0.51), `cancelled` tool status (1.0.50).
  */
-export const CLI_SOFT_MIN = '1.0.88';
+export const CLI_SOFT_MIN = '1.0.89';
 
 /** Newest CLI this release was tested with (shown in docs, not enforced). */
-export const CLI_TESTED_WITH = '1.0.88';
+export const CLI_TESTED_WITH = '1.0.89';
 
 export type CliCompatLevel =
   | 'ok'

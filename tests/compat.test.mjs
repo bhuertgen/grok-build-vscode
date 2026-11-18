@@ -47,29 +47,29 @@ describe('assessCliCompat', () => {
     assert.match(a.message, /too old/i);
   });
 
-  it('1.0.88+ is ok (tested stable)', () => {
-    for (const v of ['grok 1.0.88 (2fe3608f7398) [stable]', '1.0.89', '1.1.0']) {
+  it('1.0.89+ is ok (tested stable)', () => {
+    for (const v of ['grok 1.0.89 (28be5bb1bf65) [stable]', '1.0.90', '1.1.0']) {
       const a = assessCliCompat({ detected: true, rawVersion: v });
       assert.equal(a.level, 'ok', v);
       assert.equal(a.usable, true);
       assert.equal(shouldShowCompatBanner(a.level), false);
-      assert.match(a.message, /≥ 1\.0\.88/);
+      assert.match(a.message, /≥ 1\.0\.89/);
     }
   });
 
-  it('soft floor follows the latest tested stable: 1.0.88', () => {
-    assert.equal(CLI_SOFT_MIN, '1.0.88');
-    assert.equal(CLI_TESTED_WITH, '1.0.88');
+  it('soft floor follows the latest tested stable: 1.0.89', () => {
+    assert.equal(CLI_SOFT_MIN, '1.0.89');
+    assert.equal(CLI_TESTED_WITH, '1.0.89');
     assert.equal(CLI_HARD_MIN, '1.0.0');
   });
 
-  it('1.0.0..1.0.87 is usable with soft warning recommending 1.0.88', () => {
-    for (const v of ['1.0.0', '1.0.52', '1.0.62', '1.0.67', '1.0.70', '1.0.77', 'grok 1.0.87 [stable]', '1.0.87']) {
+  it('1.0.0..1.0.88 is usable with soft warning recommending 1.0.89', () => {
+    for (const v of ['1.0.0', '1.0.52', '1.0.62', '1.0.67', '1.0.70', '1.0.77', 'grok 1.0.88 [stable]', '1.0.88']) {
       const a = assessCliCompat({ detected: true, rawVersion: v });
       assert.equal(a.level, 'soft_warn', v);
       assert.equal(a.usable, true, v);
       assert.equal(shouldShowCompatBanner(a.level), true, v);
-      assert.match(a.message, /≥ 1\.0\.88 is recommended/, v);
+      assert.match(a.message, /≥ 1\.0\.89 is recommended/, v);
     }
   });
 
@@ -85,7 +85,7 @@ describe('assessCliCompat', () => {
 
   it('floors target CLI 1.0.x era', () => {
     assert.equal(CLI_HARD_MIN, '1.0.0');
-    assert.equal(CLI_SOFT_MIN, '1.0.88');
+    assert.equal(CLI_SOFT_MIN, '1.0.89');
   });
 
   it('soft_warn when below soft but above hard', () => {
