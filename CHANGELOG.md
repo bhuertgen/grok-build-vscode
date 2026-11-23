@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- `file://` links in assistant messages open like bare paths (Grok CLI 1.0.92). That includes percent-decoding, `#L12` / `#L12-L20`, `:line` / `:line:col`, markdown `[label](file://…)`, and Windows `file:///C:/…`. The same workspace and outside-workspace rules as a bare path apply.
+
+### Fixed
+- When the Grok CLI exits before ACP `initialize` or `session/new` — for example `--sandbox` with an unknown profile, or an unknown key in `sandbox.toml` (a hard error since CLI 1.0.90) — the chat and the session status show the `error:` lines from stderr instead of only `Agent process exited (code=1, signal=null)`. A non-zero exit later in the session includes the same tail. ANSI codes are stripped and the tail is truncated.
+- `model_changed` keeps the model chip, the effort choices for that model, and the saved session in sync when CLI 1.0.90 switches models because the selected one was removed. The chat shows `Model X is no longer available, switched to Y`. The initial `model_switch` at session start does not show that note. A cold start that sends no `model_changed` still follows `configOptions`.
+
+### Compatibility
+- Tested with Grok CLI **1.0.92 stable** (2026-11-23, build b06756fd6256). The recommended soft floor is raised from 1.0.89 to **1.0.92**, following the policy "soft floor = latest tested stable". ACP is unchanged versus 1.0.89. Older 1.0.x keep working with a dismissable warning banner; hard floor stays 1.0.0.
+
 ## 0.4.4 – 2026-11-18
 
 ### Added

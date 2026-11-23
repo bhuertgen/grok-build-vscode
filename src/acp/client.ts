@@ -56,7 +56,7 @@ import {
 export interface AcpClientEvents {
   sessionUpdate: [SessionNotification];
   connected: [];
-  disconnected: [code: number | null, signal: NodeJS.Signals | null];
+  disconnected: [code: number | null, signal: NodeJS.Signals | null, detail?: string];
   error: [Error];
   stderr: [string];
 }
@@ -186,10 +186,13 @@ export class AcpClient extends EventEmitter {
     this.transport.on('notification', (n: JsonRpcNotification) => {
       this.handleNotification(n);
     });
-    this.transport.on('close', (code: number | null, signal: NodeJS.Signals | null) => {
-      this.initialized = false;
-      this.emit('disconnected', code, signal);
-    });
+    this.transport.on(
+      'close',
+      (code: number | null, signal: NodeJS.Signals | null, detail?: string) => {
+        this.initialized = false;
+        this.emit('disconnected', code, signal, detail);
+      }
+    );
     this.transport.on('error', (err: Error) => this.emit('error', err));
     this.transport.on('stderr', (text: string) => this.emit('stderr', text));
 

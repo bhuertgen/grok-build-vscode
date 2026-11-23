@@ -7,6 +7,7 @@ const {
   findMessageLinks,
   isSafeIssueTemplate,
   decodePercentEncodedPath,
+  parseFileUrl,
 } = require('../dist-test/messageLinks.js');
 const { resolveAssistantFile } = require('../dist-test/assistantPath.js');
 const {
@@ -337,6 +338,78 @@ describe('findMessageLinks false positives', () => {
     }
   });
 
+  it('links file:// URLs the same way as bare paths (CLI 1.0.92)', () => {
+    assert.deepEqual(paths('Open file:///workspace/src/cli/compat.ts please.'), [
+      {
+        text: 'file:///workspace/src/cli/compat.ts',
+        path: '/workspace/src/cli/compat.ts',
+      },
+    ]);
+    assert.deepEqual(paths('See file:///workspace/src/cli/compat.ts#L12.'), [
+      {
+        text: 'file:///workspace/src/cli/compat.ts#L12',
+        path: '/workspace/src/cli/compat.ts',
+        line: 12,
+      },
+    ]);
+    assert.deepEqual(paths('file:///workspace/src/util/cwd.ts#L12-L20'), [
+      {
+        text: 'file:///workspace/src/util/cwd.ts#L12-L20',
+        path: '/workspace/src/util/cwd.ts',
+        line: 12,
+        endLine: 20,
+      },
+    ]);
+    assert.deepEqual(paths('file:///workspace/src/cli/compat.ts:42:7'), [
+      {
+        text: 'file:///workspace/src/cli/compat.ts:42:7',
+        path: '/workspace/src/cli/compat.ts',
+        line: 42,
+        column: 7,
+      },
+    ]);
+    assert.deepEqual(paths('file:///home/me/my%20file.ts#L4'), [
+      {
+        text: 'file:///home/me/my%20file.ts#L4',
+        path: '/home/me/my file.ts',
+        line: 4,
+      },
+    ]);
+    const win = paths('Edit file:///C:/src/foo.ts#L10-L12 now');
+    assert.equal(win.length, 1);
+    assert.equal(win[0].path, 'C:/src/foo.ts');
+    assert.equal(win[0].line, 10);
+    assert.equal(win[0].endLine, 12);
+    assert.deepEqual(paths('file://localhost/usr/local/bin/grok'), [
+      { text: 'file://localhost/usr/local/bin/grok', path: '/usr/local/bin/grok' },
+    ]);
+    assert.deepEqual(parseFileUrl('file:///C|/Program%20Files/Grok/grok.exe:3'), {
+      path: 'C:/Program Files/Grok/grok.exe',
+      line: 3,
+    });
+  });
+
+  it('links a markdown file:// target and leaves https links alone', () => {
+    assert.deepEqual(
+      paths('See [the file](file:///workspace/src/my%20file.ts#L12-L20) and src/cli/compat.ts.'),
+      [
+        {
+          text: 'the file',
+          path: '/workspace/src/my file.ts',
+          line: 12,
+          endLine: 20,
+        },
+        { text: 'src/cli/compat.ts', path: 'src/cli/compat.ts' },
+      ]
+    );
+    assert.deepEqual(paths('See [docs](https://example.com/a/b.ts) and file:///etc/hosts.'), [
+      { text: 'file:///etc/hosts', path: '/etc/hosts' },
+    ]);
+    assert.deepEqual(paths('```\nfile:///workspace/src/cli/compat.ts\n```\nAfter src/util/cwd.ts'), [
+      { text: 'src/util/cwd.ts', path: 'src/util/cwd.ts' },
+    ]);
+  });
+
   it('does not link paths inside URLs or markdown https links', () => {
     assert.deepEqual(
       paths('https://github.com/bhuertgen/grok-build-vscode/blob/main/src/cli/compat.ts'),
@@ -481,6 +554,10 @@ describe('resolveAssistantFile', () => {
       resolveAssistantFile('https://example.com/a.ts', { roots: ['/work'], isFile, platform: 'linux' }),
       null
     );
+    assert.equal(
+      resolveAssistantFile('file:///work/src/cli/compat.ts', { roots: ['/work'], isFile, platform: 'linux' }),
+      null
+    );
   });
 
   it('decodes %20 before resolving and still opens a literal space', () => {
@@ -496,6 +573,10 @@ describe('resolveAssistantFile', () => {
       platform: 'linux',
     };
     assert.equal(resolveAssistantFile('src/my%20file.ts', opts), '/work/src/my file.ts');
+    assert.equal(
+      resolveAssistantFile(parseFileUrl('file:///work/src/my%20file.ts#L4').path, opts),
+      '/work/src/my file.ts'
+    );
     assert.equal(resolveAssistantFile('src/my file.ts', opts), '/work/src/my file.ts');
     assert.equal(
       resolveAssistantFile('~/Library/Application%20Support/foo.txt', opts),
@@ -541,6 +622,17 @@ describe('resolveAssistantFile', () => {
       resolveAssistantFile('C:\\Program Files\\Grok\\grok.exe', {
         roots: ['C:\\work'],
         isFile: (p) => winFiles.has(p),
+        platform: 'win32',
+      }),
+      'C:\\Program Files\\Grok\\grok.exe'
+    );
+    const fromUrl = parseFileUrl('file:///C:/Program%20Files/Grok/grok.exe#L12-L20');
+    assert.equal(fromUrl.line, 12);
+    assert.equal(fromUrl.endLine, 20);
+    assert.equal(
+      resolveAssistantFile(fromUrl.path, {
+        roots: ['C:\\work'],
+        isFile: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/program files/grok/grok.exe',
         platform: 'win32',
       }),
       'C:\\Program Files\\Grok\\grok.exe'

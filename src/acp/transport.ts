@@ -8,6 +8,7 @@ import type {
   JsonRpcSuccess,
 } from './types';
 import { getLogger } from '../util/logger';
+import { formatAgentExitError, StderrTail } from './stderrTail';
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -29,6 +30,8 @@ export class AcpTransport extends EventEmitter {
   private disposed = false;
   private killTimer?: NodeJS.Timeout;
   private readonly log = getLogger();
+  /** Last stderr lines, so an exit before initialize can name its cause. */
+  private readonly stderrTail = new StderrTail();
 
   constructor(private readonly proc: ChildProcessWithoutNullStreams) {
     super();
@@ -41,10 +44,16 @@ export class AcpTransport extends EventEmitter {
       this.log.debug('Agent stdin error', err);
     });
     proc.stderr.on('data', (chunk: string) => {
-      const text = chunk.trim();
-      if (text) {
-        this.log.debug(`[agent stderr] ${text}`);
-        this.emit('stderr', text);
+      const { warnLines, debugText } = this.stderrTail.push(chunk);
+      for (const line of warnLines) {
+        this.log.warn(`[agent stderr] ${line}`);
+      }
+      if (debugText) {
+        this.log.debug(`[agent stderr] ${debugText}`);
+      }
+      const emitted = [...warnLines, debugText].filter((part) => part.trim()).join('\n');
+      if (emitted) {
+        this.emit('stderr', emitted);
       }
     });
     proc.on('error', (err) => {
@@ -67,11 +76,19 @@ export class AcpTransport extends EventEmitter {
         this.emit('exited', code, signal);
         return;
       }
+      for (const line of this.stderrTail.flush()) {
+        this.log.warn(`[agent stderr] ${line}`);
+      }
+      // Before/during initialize or session start there is still a pending
+      // request. A non-zero exit (sandbox profile, sandbox.toml) is the same
+      // failure later in the session. A clean exit with nothing in flight
+      // keeps the historical message.
+      const inFlight = this.pending.size > 0;
+      const abnormal = code !== 0 || signal != null;
+      const detail = inFlight || abnormal ? this.stderrTail.meaningful() : '';
       this.log.info(`Agent process closed code=${code} signal=${signal}`);
-      this.emit('close', code, signal);
-      this.failAll(
-        new Error(`Agent process exited (code=${code}, signal=${signal})`)
-      );
+      this.emit('close', code, signal, detail);
+      this.failAll(new Error(formatAgentExitError(code, signal, detail)));
     });
   }
 
