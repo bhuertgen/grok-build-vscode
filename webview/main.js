@@ -941,7 +941,9 @@
       case 'error':
         return s.lastError ? `Error: ${truncate(s.lastError, 80)}` : 'Error';
       case 'idle':
-        return 'Idle — send a message to start the agent';
+        return s.lastError
+          ? `Error: ${truncate(s.lastError, 80)}`
+          : 'Idle — send a message to start the agent';
       default:
         return s.status;
     }
@@ -1976,8 +1978,10 @@
   /**
    * Assistant text only: file paths and `#123` become controls.
    * Spans come from GrokMessageLinks (src/util/messageLinks.ts), which skips
-   * fenced code, bare URLs, and markdown https links so those links are not
-   * wrapped a second time. A path with spaces is one span, not the piece
+   * fenced code, bare https URLs, and markdown https links so those links are not
+   * wrapped a second time. `file://` URLs become the same path button as a bare
+   * path (CLI 1.0.92), including `#L12` and Windows `file:///C:/…`.
+   * A path with spaces is one span, not the piece
    * before the first space (CLI 1.0.74). Placeholders are swapped back to HTML after escape.
    */
   function renderMessageLink(hit) {
@@ -3754,7 +3758,10 @@
     renderChips();
   });
 
-  // Path buttons open in the editor; https links open in the browser.
+  // Path buttons open in the editor. https links open in the browser.
+  // A `file://` anchor (CLI 1.0.92) uses the same open path as a bare path,
+  // including line position. `getAttribute` keeps the raw URL; `a.href` may
+  // be rewritten by the webview.
   document.addEventListener('click', (e) => {
     const t = e.target;
     if (!t || !t.closest) {
@@ -3772,9 +3779,32 @@
       return;
     }
     const a = t.closest('a[href]');
-    if (a && a.href.startsWith('http')) {
+    if (!a) {
+      return;
+    }
+    const rawHref = a.getAttribute('href') || '';
+    const linkApi = typeof GrokMessageLinks !== 'undefined' ? GrokMessageLinks : null;
+    const fileLink =
+      linkApi && typeof linkApi.parseFileUrl === 'function'
+        ? linkApi.parseFileUrl(rawHref)
+        : null;
+    if (fileLink && fileLink.path) {
       e.preventDefault();
-      post('openExternal', { url: a.href });
+      post('openAssistantPath', {
+        path: fileLink.path,
+        line: fileLink.line,
+        column: fileLink.column,
+        endLine: fileLink.endLine,
+      });
+      return;
+    }
+    if (
+      rawHref.startsWith('http://') ||
+      rawHref.startsWith('https://') ||
+      (a.href && a.href.startsWith('http'))
+    ) {
+      e.preventDefault();
+      post('openExternal', { url: a.href || rawHref });
     }
   });
 

@@ -90,6 +90,22 @@ describe('webview assistant link html', () => {
     assert.match(html, /data-path="src\/util\/cwd.ts"/);
   });
 
+  it('renders a file:// URL as a path button with the decoded path and line', () => {
+    const html = formatMarkdown(
+      'Open file:///workspace/src/my%20file.ts#L12-L20 and [notes](file:///C:/src/foo.ts:4:2).',
+      { linkify: true }
+    );
+    assert.match(
+      html,
+      /<button type="button" class="path-link" data-path="\/workspace\/src\/my file.ts" data-line="12" data-end-line="20">file:\/\/\/workspace\/src\/my%20file.ts#L12-L20<\/button>/
+    );
+    assert.match(
+      html,
+      /<button type="button" class="path-link" data-path="C:\/src\/foo.ts" data-line="4" data-col="2">notes<\/button>/
+    );
+    assert.doesNotMatch(html, /<a href="file:/);
+  });
+
   it('skips file links in user text and skips #123 without a remote', () => {
     const plain = formatMarkdown('src/cli/compat.ts and #65', { linkify: false });
     assert.doesNotMatch(plain, /path-link|<a /);

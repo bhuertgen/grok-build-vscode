@@ -98,11 +98,15 @@ import {
   sliceLines,
 } from '../util/fileRangeMention';
 import {
+  applyModelChanged,
   applyModelsUpdate,
+  isModelSwitchSetup,
   retainConfigOptions,
-  upsertEffortCurrent,
+  type GrokModelEntry,
   type GrokModelsUpdate,
+  type ModelChangedUpdate,
 } from '../util/configOptionsUi';
+import { formatDisconnectNotice } from '../acp/stderrTail';
 import { planModeTooOldHint, resolveInitialMode } from '../util/initialMode';
 import { permissionRuleNoticeFromMeta } from '../util/permissionRuleWarnings';
 import { pushNotice } from '../util/restoreNotices';
@@ -144,6 +148,22 @@ export interface SessionState {
   usage?: UsageInfo;
   modes?: SessionModeState;
   configOptions?: SessionConfigOption[];
+  /**
+   * Last `_x.ai/models/update` catalog. Not persisted. Effort choices for a
+   * `model_changed` model are rebuilt from this.
+   */
+  modelCatalog?: GrokModelEntry[];
+  /**
+   * Set once the first start has finished. `model_changed` before that is
+   * the session/new model being set, not a removal. A cold start that never
+   * sends `model_changed` still settles, and `configOptions` stay authoritative.
+   */
+  modelSettled?: boolean;
+  /**
+   * Previous model dropped by a catalog update, consumed by the following
+   * `model_changed`. Not persisted.
+   */
+  droppedModel?: { from: string; to: string };
   /** Slash commands from ACP `available_commands_update` (+ local fallbacks) */
   availableCommands: AvailableCommand[];
   busy: boolean;
@@ -528,6 +548,7 @@ export class SessionManager extends EventEmitter {
       );
 
       await this.persistNow(state);
+      state.modelSettled = true;
       this.log.info(
         `Session ${localId} ready (agentSessionId=${state.agentSessionId}, processes=${this.clients.size})`
       );
@@ -679,6 +700,7 @@ export class SessionManager extends EventEmitter {
           state.modes = res.modes ?? undefined;
           state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
           state.status = 'ready';
+          state.modelSettled = true;
           state.agentContext = 'resumed';
           state.seedHistoryOnNextPrompt = false;
           this.pushSystem(
@@ -693,6 +715,7 @@ export class SessionManager extends EventEmitter {
           state.modes = res.modes ?? undefined;
           state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
           state.status = 'ready';
+          state.modelSettled = true;
           if (hasLocalHistory) {
             state.agentContext = 'local-only';
             this.pushSystem(
@@ -712,6 +735,7 @@ export class SessionManager extends EventEmitter {
         state.modes = res.modes ?? undefined;
         state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
         state.status = 'ready';
+        state.modelSettled = true;
         if (hasLocalHistory) {
           state.agentContext = 'local-only';
           this.pushSystem(
@@ -1675,6 +1699,7 @@ export class SessionManager extends EventEmitter {
 
       state.model = id;
       state.status = 'ready';
+      state.modelSettled = true;
       try {
         await vscode.workspace
           .getConfiguration('grokBuild')
@@ -1801,6 +1826,7 @@ export class SessionManager extends EventEmitter {
     state.modes = res.modes ?? undefined;
     state.configOptions = retainConfigOptions(state.configOptions, normalizeConfigOptions(res.configOptions));
     state.status = 'ready';
+    state.modelSettled = true;
     state.lastError = undefined;
     this.pushPermissionRuleWarnings(state, res);
 
@@ -1938,7 +1964,7 @@ export class SessionManager extends EventEmitter {
     client.on('sessionUpdate', (n: SessionNotification) => {
       this.onSessionUpdate(localId, n);
     });
-    client.on('disconnected', () => {
+    client.on('disconnected', (_code, _signal, detail?: string) => {
       // A replaced client (model switch, restart) must not mark the session
       // of its successor as disconnected.
       if (this.clients.get(localId) !== client) {
@@ -1955,10 +1981,12 @@ export class SessionManager extends EventEmitter {
         }
         state.busy = false;
         this.syncQueue(state);
-        this.pushSystem(
-          state,
-          'Agent process disconnected. Send a message to reconnect.'
-        );
+        const tail = typeof detail === 'string' ? detail.trim() : '';
+        if (tail) {
+          // Header status (idle + lastError) shows the same cause as the chat.
+          state.lastError = tail;
+        }
+        this.pushSystem(state, formatDisconnectNotice(tail));
         this.emitChange(localId);
       }
     });
@@ -1970,9 +1998,24 @@ export class SessionManager extends EventEmitter {
       if (!state) {
         return;
       }
+      if (update.availableModels?.length) {
+        state.modelCatalog = update.availableModels;
+      }
+      const previous = state.model;
       const res = applyModelsUpdate(state.configOptions, update);
       if (!res) {
         return;
+      }
+      const next = res.modelId;
+      const stillListed = (update.availableModels ?? []).some((m) => m.modelId === previous);
+      if (
+        state.modelSettled &&
+        previous &&
+        next &&
+        previous !== next &&
+        !stillListed
+      ) {
+        state.droppedModel = { from: previous, to: next };
       }
       state.configOptions = res.options as SessionConfigOption[];
       if (res.modelId) {
@@ -2032,6 +2075,7 @@ export class SessionManager extends EventEmitter {
         this.pushPermissionRuleWarnings(state, res);
       }
       state.status = 'ready';
+      state.modelSettled = true;
       state.lastError = undefined;
     } catch (err) {
       state.status = 'error';
@@ -2064,6 +2108,13 @@ export class SessionManager extends EventEmitter {
   private applyUpdate(state: SessionState, update: SessionUpdate): void {
     const u = update as SessionUpdate & Record<string, unknown>;
     const kind = String(u.sessionUpdate);
+    // A catalog drop is explained only by the model_changed that follows it
+    // (a config_option_update in between may restate the same model).
+    // Any other update means that switch was not announced.
+    const pendingDrop = state.droppedModel;
+    if (kind !== 'model_changed' && kind !== 'model_switch') {
+      state.droppedModel = undefined;
+    }
 
     if (kind === 'agent_message_chunk') {
       const content = u.content as ContentBlock | undefined;
@@ -2250,31 +2301,70 @@ export class SessionManager extends EventEmitter {
 
     if (kind === 'config_option_update') {
       // Empty/partial updates must not clear chips already painted at start.
+      const previous = state.model;
       state.configOptions = retainConfigOptions(
         state.configOptions,
         normalizeConfigOptions(u.configOptions)
       );
       const modelOpt = findModelConfigOption(state.configOptions);
-      if (modelOpt?.currentValue && typeof modelOpt.currentValue === 'string') {
-        state.model = modelOpt.currentValue;
+      const next =
+        modelOpt?.currentValue && typeof modelOpt.currentValue === 'string'
+          ? modelOpt.currentValue
+          : undefined;
+      const ids = (modelOpt?.options ?? []).map((o) => o.value).filter((id) => !!id);
+      if (
+        state.modelSettled &&
+        previous &&
+        next &&
+        previous !== next &&
+        ids.length > 0 &&
+        !ids.includes(previous)
+      ) {
+        // The list dropped the model. `model_changed` explains it; remember
+        // the id in case this update already moved `state.model`.
+        state.droppedModel = { from: previous, to: next };
+      }
+      if (next) {
+        state.model = next;
+      }
+      if (!state.droppedModel && pendingDrop && next === pendingDrop.to) {
+        state.droppedModel = pendingDrop;
       }
       return;
     }
 
-    if (kind === 'model_changed') {
+    if (kind === 'model_changed' || kind === 'model_switch') {
       // Advertised at session start on `_x.ai/session_notification`
       // (often before session/new returns) with the live reasoning_effort.
-      const modelId = String(u.model_id ?? u.modelId ?? '');
-      if (modelId) {
-        state.model = modelId;
+      // CLI 1.0.90 also sends `model_changed` when the selected model is
+      // removed and the session is switched. `model_switch` is only the
+      // initial set. A cold start after a CLI upgrade sends neither;
+      // configOptions from session/new stay authoritative.
+      const dropped = state.droppedModel;
+      const announced = String(u.model_id ?? u.modelId ?? '').trim();
+      const previous =
+        dropped && announced && dropped.to === announced ? dropped.from : state.model;
+      const changed = u as ModelChangedUpdate;
+      const res = applyModelChanged({
+        options: state.configOptions,
+        previousModel: previous,
+        catalog: state.modelCatalog,
+        update: { ...changed, sessionUpdate: kind },
+        initial: !state.modelSettled || kind === 'model_switch' || isModelSwitchSetup(changed),
+      });
+      state.droppedModel = undefined;
+      if (!res) {
+        return;
       }
-      const effortRaw = u.reasoning_effort ?? u.reasoningEffort;
-      if (typeof effortRaw === 'string' && effortRaw.trim()) {
-        state.configOptions = upsertEffortCurrent(
-          state.configOptions,
-          effortRaw.trim()
-        ) as SessionConfigOption[];
+      state.configOptions = res.options as SessionConfigOption[];
+      if (res.modelId) {
+        state.model = res.modelId;
       }
+      if (res.notice) {
+        this.pushSystem(state, res.notice);
+        void vscode.window.showInformationMessage(res.notice);
+      }
+      this.schedulePersist(state);
       return;
     }
 

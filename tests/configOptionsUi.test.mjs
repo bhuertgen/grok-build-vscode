@@ -11,6 +11,9 @@ const {
   retainConfigOptions,
   upsertEffortCurrent,
   applyModelsUpdate,
+  applyModelChanged,
+  isModelSwitchSetup,
+  modelRemovedNotice,
 } = require('../dist-test/configOptionsUi.js');
 
 describe('uiConfigControls', () => {
@@ -254,5 +257,156 @@ describe('applyModelsUpdate (_x.ai/models/update)', () => {
     assert.equal(res.modelId, 'grok-4.20-0309-reasoning');
     assert.equal(applyModelsUpdate(prev, { currentModelId: 'x', availableModels: [] }), undefined);
     assert.equal(applyModelsUpdate(prev, null), undefined);
+  });
+});
+
+const NARROW = {
+  availableModels: [
+    {
+      modelId: 'grok-narrow',
+      name: 'Narrow',
+      _meta: {
+        supportsReasoningEffort: true,
+        reasoningEffort: 'high',
+        reasoningEfforts: [
+          { value: 'xhigh', label: 'Extra High' },
+          { value: 'high', label: 'High', default: true },
+        ],
+      },
+    },
+    {
+      modelId: 'grok-4.7',
+      name: 'Grok 4.7',
+      _meta: { supportsReasoningEffort: true, reasoningEffort: 'high', reasoningEfforts: EFFORTS },
+    },
+    { modelId: 'grok-4.7-fast', name: 'Grok 4.7 Fast', _meta: { supportsReasoningEffort: false } },
+  ],
+};
+
+function modelChangedBase() {
+  return [
+    {
+      id: 'model',
+      name: 'Model',
+      category: 'model',
+      type: 'select',
+      currentValue: 'grok-4.7',
+      options: [
+        { value: 'grok-4.7', name: 'Grok 4.7' },
+        { value: 'grok-retired', name: 'Retired' },
+      ],
+    },
+    {
+      id: 'reasoning_effort',
+      name: 'Reasoning Effort',
+      category: 'thought_level',
+      type: 'select',
+      currentValue: 'low',
+      options: [{ value: 'low', name: 'Low' }, { value: 'high', name: 'High' }],
+    },
+  ];
+}
+
+describe('applyModelChanged', () => {
+  it('cold start with no model_changed leaves session/new configOptions authoritative', () => {
+    const options = COLD_SESSION_NEW_OPTIONS.map((o) => ({
+      ...o,
+      options: o.options.map((c) => ({ ...c })),
+    }));
+    assert.equal(applyModelChanged({ options, update: {}, initial: true }), undefined);
+    assert.equal(applyModelChanged({ options, update: null, initial: false }), undefined);
+    assert.equal(options[0].currentValue, 'grok-4.20-0309-non-reasoning');
+    const refreshed = applyModelsUpdate(options, MODELS_UPDATE);
+    assert.equal(refreshed.modelId, 'grok-4.7');
+    assert.equal(options[0].currentValue, 'grok-4.20-0309-non-reasoning');
+  });
+
+  it('session/new model_switch sets the model and does not say it was removed', () => {
+    assert.equal(isModelSwitchSetup({ sessionUpdate: 'model_switch' }), true);
+    assert.equal(isModelSwitchSetup({ sessionUpdate: 'model_changed', reason: 'model_switch' }), true);
+    const res = applyModelChanged({
+      options: modelChangedBase(),
+      previousModel: 'grok-retired',
+      catalog: NARROW.availableModels,
+      update: { sessionUpdate: 'model_switch', model_id: 'grok-narrow', reasoning_effort: 'xhigh' },
+      initial: false,
+    });
+    assert.equal(res.notice, undefined);
+    assert.equal(res.modelId, 'grok-narrow');
+    const model = res.options.find((o) => isModelConfigOption(o));
+    assert.equal(model.currentValue, 'grok-narrow');
+    const effort = res.options.find((o) => o.id === 'reasoning_effort');
+    assert.deepEqual(effort.options.map((c) => c.value), ['xhigh', 'high']);
+    assert.equal(effort.currentValue, 'xhigh');
+    const duringStart = applyModelChanged({
+      options: modelChangedBase(),
+      previousModel: 'grok-retired',
+      catalog: NARROW.availableModels,
+      update: { sessionUpdate: 'model_changed', model_id: 'grok-narrow' },
+      initial: true,
+    });
+    assert.equal(duringStart.notice, undefined);
+    assert.equal(duringStart.options.find((o) => isModelConfigOption(o)).currentValue, 'grok-narrow');
+    assert.equal(
+      duringStart.options.find((o) => o.id === 'reasoning_effort').currentValue,
+      'high'
+    );
+  });
+
+  it('rebuilds effort and notices when an established model is gone', () => {
+    const res = applyModelChanged({
+      options: modelChangedBase(),
+      previousModel: 'grok-retired',
+      catalog: NARROW.availableModels,
+      update: { sessionUpdate: 'model_changed', modelId: 'grok-narrow' },
+      initial: false,
+    });
+    assert.equal(res.notice, modelRemovedNotice('grok-retired', 'grok-narrow'));
+    assert.equal(res.notice, 'Model grok-retired is no longer available, switched to grok-narrow');
+    const effort = res.options.find((o) => o.id === 'reasoning_effort');
+    assert.deepEqual(effort.options.map((c) => c.value), ['xhigh', 'high']);
+    assert.equal(effort.currentValue, 'high');
+    assert.equal(res.options.find((o) => isModelConfigOption(o)).currentValue, 'grok-narrow');
+  });
+
+  it('a switch to a model that is still listed is not a removal', () => {
+    const res = applyModelChanged({
+      options: modelChangedBase(),
+      previousModel: 'grok-4.7',
+      catalog: NARROW.availableModels,
+      update: { model_id: 'grok-narrow', reasoning_effort: 'low' },
+      initial: false,
+    });
+    assert.equal(res.notice, undefined);
+    assert.equal(res.options.find((o) => isModelConfigOption(o)).currentValue, 'grok-narrow');
+    // low is not offered by the new model, so the catalog default stays
+    assert.equal(res.options.find((o) => o.id === 'reasoning_effort').currentValue, 'high');
+  });
+
+  it('drops effort when the new model does not support it', () => {
+    const res = applyModelChanged({
+      options: modelChangedBase(),
+      previousModel: 'grok-retired',
+      catalog: MODELS_UPDATE.availableModels,
+      update: { model_id: 'grok-4.7-fast', reasoning_effort: 'high' },
+      initial: false,
+    });
+    assert.equal(res.options.some((o) => isEffortConfigOption(o) && !isModelConfigOption(o)), false);
+    assert.match(res.notice, /grok-retired/);
+    assert.match(res.notice, /grok-4\.7-fast/);
+  });
+
+  it('seeds effort from the notification when no catalog has arrived yet', () => {
+    const res = applyModelChanged({
+      options: [{ id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'grok-4.7', options: [{ value: 'grok-4.7', name: 'Grok 4.7' }] }],
+      previousModel: 'grok-4.7',
+      update: { model_id: 'grok-4.7', reasoning_effort: 'medium' },
+      initial: true,
+    });
+    assert.equal(res.notice, undefined);
+    const effort = res.options.find((o) => o.id === 'reasoning_effort');
+    assert.equal(effort.currentValue, 'medium');
+    assert.ok(effort.options.some((c) => c.value === 'medium'));
+    assert.equal(res.options.find((o) => isModelConfigOption(o)).currentValue, 'grok-4.7');
   });
 });

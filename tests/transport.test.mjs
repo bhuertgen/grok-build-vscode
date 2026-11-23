@@ -83,4 +83,55 @@ describe('AcpTransport shutdown', () => {
     await new Promise((r) => setTimeout(r, 60));
     assert.deepEqual(proc2.signals, ['SIGTERM']);
   });
+
+  it('exit during initialize includes the stderr cause and hides noise', async () => {
+    const proc = fakeProc();
+    const t = new AcpTransport(proc);
+    const pending = t.request('initialize', {});
+    proc.stderr.write('\u001b[31mdebug: listening\u001b[0m\n');
+    proc.stderr.write('error: unknown sandbox profile "bogusprofile"\n');
+    proc.stderr.write('error: token=supersecretvalue should be hidden\n');
+    proc.exit(1, null);
+    await assert.rejects(pending, (err) => {
+      assert.match(err.message, /unknown sandbox profile "bogusprofile"/);
+      assert.match(err.message, /Agent process exited \(code=1, signal=null\)/);
+      assert.doesNotMatch(err.message, /debug: listening/);
+      assert.doesNotMatch(err.message, /supersecretvalue/);
+      assert.match(err.message, /<redacted>/);
+      return true;
+    });
+  });
+
+  it('includes stderr when the process exits during a request even with code 0', async () => {
+    const proc = fakeProc();
+    const t = new AcpTransport(proc);
+    const pending = t.request('session/new', {});
+    proc.stderr.write('error: stopped before the session started');
+    proc.exit(0, null);
+    await assert.rejects(pending, /stopped before the session started/);
+  });
+
+  it('a non-zero exit with no in-flight request still reports the tail', () => {
+    const proc = fakeProc();
+    const t = new AcpTransport(proc);
+    let detail = '';
+    t.on('close', (_code, _signal, reported) => {
+      detail = reported;
+    });
+    proc.stderr.write('error: unknown key `nope` in sandbox.toml\n');
+    proc.exit(1, null);
+    assert.match(detail, /unknown key `nope` in sandbox.toml/);
+  });
+
+  it('a clean exit does not attach stderr noise', () => {
+    const proc = fakeProc();
+    const t = new AcpTransport(proc);
+    let detail = 'unset';
+    t.on('close', (_code, _signal, reported) => {
+      detail = reported ?? '';
+    });
+    proc.stderr.write('debug: bye\n');
+    proc.exit(0, null);
+    assert.equal(detail, '');
+  });
 });

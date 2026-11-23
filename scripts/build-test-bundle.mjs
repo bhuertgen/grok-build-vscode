@@ -45,6 +45,7 @@ await esbuild.build({
     restoreNotices: 'src/util/restoreNotices.ts',
     permissionRuleWarnings: 'src/util/permissionRuleWarnings.ts',
     transport: 'src/acp/transport.ts',
+    stderrTail: 'src/acp/stderrTail.ts',
     terminalSpawn: 'src/acp/terminalSpawn.ts',
     terminalTombstone: 'src/acp/terminalTombstone.ts',
     toolStatus: 'src/util/toolStatus.ts',

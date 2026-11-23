@@ -348,3 +348,205 @@ export function applyModelsUpdate(
   }
   return { options: list, modelId: currentId };
 }
+
+/** Fields Grok sends on `_x.ai/session_notification` `model_changed` / `model_switch`. */
+export interface ModelChangedUpdate {
+  sessionUpdate?: string;
+  model_id?: string;
+  modelId?: string;
+  currentModelId?: string;
+  reasoning_effort?: string;
+  reasoningEffort?: string;
+  /** Why the model moved. `model_switch` is the session/new setup, not a removal. */
+  reason?: string;
+  cause?: string;
+  source?: string;
+  availableModels?: GrokModelEntry[];
+  available_models?: GrokModelEntry[];
+}
+
+export interface ApplyModelChangedInput {
+  options: ConfigOptionLike[] | undefined | null;
+  /** Model the session was using before this notification. */
+  previousModel?: string;
+  /** Last `_x.ai/models/update` catalog, when the notification has none. */
+  catalog?: GrokModelEntry[] | null;
+  update: ModelChangedUpdate | undefined | null;
+  /**
+   * True while the session is still starting. The first `model_changed`
+   * (and every `model_switch`) only sets the model; it is not "removed".
+   */
+  initial: boolean;
+}
+
+export interface ApplyModelChangedResult {
+  options: ConfigOptionLike[];
+  modelId?: string;
+  /** Set when an established model disappeared from the available list. */
+  notice?: string;
+}
+
+/** `Model X is no longer available, switched to Y` */
+export function modelRemovedNotice(previous: string, next: string): string {
+  return `Model ${previous} is no longer available, switched to ${next}`;
+}
+
+function changedModelId(update: ModelChangedUpdate): string {
+  const raw = update.model_id ?? update.modelId ?? update.currentModelId;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function changedEffort(update: ModelChangedUpdate): string {
+  const raw = update.reasoning_effort ?? update.reasoningEffort;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+/**
+ * Session start advertises the model with `model_switch` (or `reason:
+ * "model_switch"`). That is the model being set, not a later removal.
+ */
+export function isModelSwitchSetup(update: ModelChangedUpdate | undefined | null): boolean {
+  if (!update) {
+    return false;
+  }
+  if (update.sessionUpdate === 'model_switch') {
+    return true;
+  }
+  const reason = String(update.reason ?? update.cause ?? update.source ?? '')
+    .trim()
+    .toLowerCase();
+  return reason === 'model_switch' || reason === 'initial' || reason === 'session_new';
+}
+
+function catalogFrom(
+  update: ModelChangedUpdate,
+  fallback: GrokModelEntry[] | null | undefined
+): GrokModelEntry[] | undefined {
+  const raw = update.availableModels ?? update.available_models;
+  if (Array.isArray(raw) && raw.length) {
+    return raw;
+  }
+  return fallback?.length ? fallback : undefined;
+}
+
+function modelIdsOf(
+  options: ConfigOptionLike[],
+  catalog: GrokModelEntry[] | undefined
+): string[] {
+  if (catalog?.length) {
+    return catalog.map((m) => m.modelId).filter((id) => typeof id === 'string' && id.trim());
+  }
+  const model = options.find((o) => isModelConfigOption(o));
+  return (model?.options ?? []).map((c) => c.value).filter((id) => !!id);
+}
+
+/** Point the model chip at `modelId` without inventing a one-entry catalog. */
+function syncModelCurrent(options: ConfigOptionLike[], modelId: string): ConfigOptionLike[] {
+  const list = options.map((o) => ({ ...o, options: o.options?.map((c) => ({ ...c })) }));
+  const idx = list.findIndex((o) => isModelConfigOption(o));
+  if (idx < 0) {
+    list.unshift({
+      id: 'model',
+      name: 'Model',
+      category: 'model',
+      type: 'select',
+      currentValue: modelId,
+      options: [{ value: modelId, name: modelId }],
+    });
+    return list;
+  }
+  const opt = list[idx];
+  const choices = opt.options ?? [];
+  const has = choices.some((c) => c.value === modelId);
+  list[idx] = {
+    ...opt,
+    type: opt.type || 'select',
+    currentValue: modelId,
+    options: !choices.length || has ? choices : [...choices, { value: modelId, name: modelId }],
+  };
+  return list;
+}
+
+function overlayEffort(options: ConfigOptionLike[], effort: string, hadCatalog: boolean): ConfigOptionLike[] {
+  const idx = options.findIndex((o) => !isModelConfigOption(o) && isEffortConfigOption(o));
+  if (idx < 0) {
+    // The catalog said this model has no effort. Do not invent the chip.
+    return hadCatalog ? options : upsertEffortCurrent(options, effort);
+  }
+  const choices = options[idx].options ?? [];
+  if (choices.length && !choices.some((c) => c.value === effort)) {
+    return options;
+  }
+  const next = options.map((o) => ({ ...o }));
+  next[idx] = { ...next[idx], currentValue: effort };
+  return next;
+}
+
+/**
+ * Apply `model_changed` / `model_switch`.
+ *
+ * - Model chip `currentValue` follows the announced id.
+ * - Effort choices are rebuilt for that model from the catalog
+ *   (`applyModelsUpdate`). A `reasoning_effort` on the notification wins
+ *   when the new model still offers it.
+ * - When the session was already running and the previous model is gone
+ *   from the list, `notice` is the info line to show. The session/new
+ *   `model_switch` (and any update before the session has settled) does
+ *   not notice: the model is only being set.
+ * - No model id and no effort → `undefined` (caller leaves configOptions
+ *   alone). A cold start that never sends `model_changed` does not call
+ *   this; `configOptions` from `session/new` stay authoritative.
+ */
+export function applyModelChanged(
+  input: ApplyModelChangedInput
+): ApplyModelChangedResult | undefined {
+  const update = input.update;
+  if (!update) {
+    return undefined;
+  }
+  const modelId = changedModelId(update);
+  const effort = changedEffort(update);
+  if (!modelId && !effort) {
+    return undefined;
+  }
+
+  const catalog = catalogFrom(update, input.catalog);
+  let options: ConfigOptionLike[] = input.options?.length
+    ? input.options.map((o) => ({ ...o, options: o.options?.map((c) => ({ ...c })) }))
+    : [];
+
+  if (modelId && catalog?.length) {
+    const applied = applyModelsUpdate(options, {
+      currentModelId: modelId,
+      availableModels: catalog,
+    });
+    if (applied) {
+      options = applied.options;
+    }
+    // The announced id wins even when a stale catalog still prefers the old one.
+    options = syncModelCurrent(options, modelId);
+  } else if (modelId) {
+    options = syncModelCurrent(options, modelId);
+  }
+
+  if (effort) {
+    options = overlayEffort(options, effort, !!catalog?.length);
+  }
+
+  const previous = (input.previousModel ?? '').trim();
+  const ids = modelIdsOf(options, catalog);
+  const initial = input.initial || isModelSwitchSetup(update);
+  let notice: string | undefined;
+  if (
+    !initial &&
+    modelId &&
+    previous &&
+    previous !== modelId &&
+    ids.length > 0 &&
+    !ids.includes(previous)
+  ) {
+    notice = modelRemovedNotice(previous, modelId);
+  }
+
+  return { options, modelId: modelId || undefined, notice };
+}

@@ -24,8 +24,12 @@
  * - Bare words (`README.md`, `compat.ts`), package versions (`1.0.72`,
  *   `lodash@4.17.21`), mime types (`image/png`), and branch-like tokens
  *   (`feat/clickable-paths`) are not paths.
- * - URLs and markdown `[label](https://…)` spans are skipped so https links
- *   are not wrapped again. Fenced code blocks are skipped.
+ * - https URLs and markdown `[label](https://…)` spans are skipped so https
+ *   links are not wrapped again. Fenced code blocks are skipped.
+ * - `file://` URLs (bare or markdown `[label](file://…)`) are path links,
+ *   the same as a bare path (CLI 1.0.92). Percent-encoding is decoded.
+ *   `#L12`, `#L12-L20`, and a trailing `:line` / `:line:col` set the
+ *   position. Windows `file:///C:/…` keeps the drive.
  * - `#123` is an issue/PR ref. Hex colors (`#fff`), entities (`&#123;`),
  *   headings (`## Title`), and `@file#12-34` ranges are not.
  * - Subagent / task ids are intentionally not detected.
@@ -106,6 +110,154 @@ export function decodePercentEncodedPath(raw: string): string {
   return out;
 }
 
+export interface FileUrlLink {
+  /** Decoded filesystem path (`/home/me/my file.ts`, `C:/src/foo.ts`). */
+  path: string;
+  /** 1-based. */
+  line?: number;
+  /** 1-based. */
+  column?: number;
+  /** 1-based inclusive end line for `#L12-L20` or `:start-end`. */
+  endLine?: number;
+}
+
+function inRange(n: number, max: number): boolean {
+  return Number.isInteger(n) && n >= 1 && n <= max;
+}
+
+/** `#L12`, `#L12-L20`, `#L12-20`. Other fragments are not a position. */
+function parseFileFragment(fragment: string): Pick<FileUrlLink, 'line' | 'endLine'> | undefined {
+  if (!fragment) {
+    return undefined;
+  }
+  const decoded = decodePercentEncodedPath(fragment);
+  const m = /^L(\d{1,7})(?:-L?(\d{1,7}))?$/i.exec(decoded);
+  if (!m) {
+    return undefined;
+  }
+  const line = Number(m[1]);
+  const endLine = m[2] != null ? Number(m[2]) : undefined;
+  if (!inRange(line, 1_000_000)) {
+    return undefined;
+  }
+  if (endLine != null && !inRange(endLine, 1_000_000)) {
+    return undefined;
+  }
+  return endLine != null ? { line, endLine } : { line };
+}
+
+/**
+ * `:line`, `:line:col`, or `:start-end` at the end of a file URL path.
+ * The drive colon in `C:/…` is not a line (`C` has no slash or dot yet).
+ */
+function splitFileLocation(pathPart: string): {
+  path: string;
+  line?: number;
+  column?: number;
+  endLine?: number;
+} {
+  const m = /:(\d{1,7})(?::(\d{1,6})|-(\d{1,7}))?$/.exec(pathPart);
+  if (!m || m.index <= 1) {
+    return { path: pathPart };
+  }
+  const prefix = pathPart.slice(0, m.index);
+  if (!prefix.includes('/') && !prefix.includes('\\') && !prefix.includes('.')) {
+    return { path: pathPart };
+  }
+  const line = Number(m[1]);
+  const column = m[2] != null ? Number(m[2]) : undefined;
+  const endLine = m[3] != null ? Number(m[3]) : undefined;
+  if (!inRange(line, 1_000_000)) {
+    return { path: pathPart };
+  }
+  if (column != null && !inRange(column, 100_000)) {
+    return { path: pathPart };
+  }
+  if (endLine != null && !inRange(endLine, 1_000_000)) {
+    return { path: pathPart };
+  }
+  return {
+    path: prefix,
+    line,
+    column,
+    endLine,
+  };
+}
+
+/**
+ * Turn a `file://` URL into the path `openAssistantPath` already opens.
+ * Returns null for anything that is not a local file URL.
+ * `file:///C:/src/foo.ts#L12-L20` → `{ path: 'C:/src/foo.ts', line: 12, endLine: 20 }`.
+ * `%20` is a space. A trailing sentence period is not part of the URL.
+ */
+export function parseFileUrl(raw: string): FileUrlLink | null {
+  let url = raw.trim();
+  if (url.startsWith('<') && url.endsWith('>') && url.length >= 2) {
+    url = url.slice(1, -1).trim();
+  }
+  url = url.replace(/[.,;!?]+$/g, '');
+  if (!/^file:\/\//i.test(url)) {
+    return null;
+  }
+  const hash = url.indexOf('#');
+  const beforeHash = hash >= 0 ? url.slice(0, hash) : url;
+  const fragment = hash >= 0 ? url.slice(hash + 1) : '';
+  const q = beforeHash.indexOf('?');
+  const withoutQuery = q >= 0 ? beforeHash.slice(0, q) : beforeHash;
+  const rest = withoutQuery.replace(/^file:\/\//i, '');
+  if (!rest) {
+    return null;
+  }
+
+  let pathPart: string;
+  if (rest.startsWith('/')) {
+    pathPart = rest;
+  } else {
+    const slash = rest.indexOf('/');
+    if (slash < 0) {
+      if (/^[A-Za-z]:[\\/]/.test(rest)) {
+        pathPart = rest;
+      } else {
+        return null;
+      }
+    } else {
+      const host = rest.slice(0, slash);
+      if (/^[A-Za-z]:$/.test(host)) {
+        pathPart = rest;
+      } else if (host === '' || host.toLowerCase() === 'localhost') {
+        pathPart = rest.slice(slash);
+      } else {
+        return null;
+      }
+    }
+  }
+
+  if (/^\/[A-Za-z][|:]/.test(pathPart)) {
+    pathPart = pathPart.slice(1);
+  }
+  pathPart = pathPart.replace(/^([A-Za-z])\|/, '$1:');
+
+  const frag = parseFileFragment(fragment);
+  const loc = splitFileLocation(pathPart);
+  const decoded = decodePercentEncodedPath(loc.path);
+  if (!decoded || decoded.length > 1024 || /[\0\r\n]/.test(decoded)) {
+    return null;
+  }
+  const hit: FileUrlLink = { path: decoded };
+  const line = frag?.line ?? loc.line;
+  const endLine = frag?.endLine ?? loc.endLine;
+  if (line != null) {
+    hit.line = line;
+  }
+  if (frag == null && loc.column != null) {
+    hit.column = loc.column;
+  }
+  if (endLine != null) {
+    hit.endLine = endLine;
+  }
+  return hit;
+}
+
 /** One percent-encoded byte (`%20`). A bare `%` is not a path character. */
 const PCT = '%[0-9A-Fa-f]{2}';
 const SEG = `(?:[A-Za-z0-9_+@-]|${PCT}){1,80}`;
@@ -166,7 +318,7 @@ function maskRanges(text: string): Range[] {
   }
 
   const patterns = [
-    /\[[^\]]*\]\(\s*(?:https?|file):[^)\s]+\)/gi,
+    /\[[^\]]*\]\(\s*https?:[^)\s]+\)/gi,
   ];
   for (const re of patterns) {
     let m: RegExpExecArray | null;
@@ -179,13 +331,13 @@ function maskRanges(text: string): Range[] {
 }
 
 /**
- * Bare http(s)/file URLs. A space ends the URL unless the next token still
+ * Bare http(s) URLs. A space ends the URL unless the next token still
  * looks like a path (`https://example.com/my docs/file.ts`), so that tail is
- * not detected as a file.
+ * not detected as a file. `file://` is not masked: it becomes a path link.
  */
 function maskBareUrls(text: string): Range[] {
   const ranges: Range[] = [];
-  const re = /\b(?:https?|file):\/\/[^\s<>)\]'"]+/gi;
+  const re = /\bhttps?:\/\/[^\s<>)\]'"]+/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     let end = m.index + m[0].length;
@@ -614,11 +766,81 @@ function dedupe(hits: MessageLinkHit[]): MessageLinkHit[] {
   return out;
 }
 
+function fileUrlHit(
+  start: number,
+  end: number,
+  text: string,
+  parsed: FileUrlLink
+): PathLinkHit {
+  const hit: PathLinkHit = {
+    kind: 'path',
+    start,
+    end,
+    text,
+    path: parsed.path,
+  };
+  if (parsed.line != null) {
+    hit.line = parsed.line;
+  }
+  if (parsed.column != null) {
+    hit.column = parsed.column;
+  }
+  if (parsed.endLine != null) {
+    hit.endLine = parsed.endLine;
+  }
+  return hit;
+}
+
+/**
+ * Bare `file://` URLs and markdown `[label](file://…)`. The hit covers the
+ * whole URL (or the whole markdown link) so the inner path is not linked a
+ * second time. The button path is the decoded filesystem path.
+ */
+function collectFileLinks(text: string, masks: Range[]): PathLinkHit[] {
+  const hits: PathLinkHit[] = [];
+  const markdown = /\[([^\]]*)\]\(\s*(file:[^)\s]+)\s*\)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = markdown.exec(text))) {
+    const start = m.index;
+    const end = start + m[0].length;
+    if (overlaps(masks, start, end)) {
+      continue;
+    }
+    const parsed = parseFileUrl(m[2]);
+    if (!parsed) {
+      continue;
+    }
+    const label = m[1].trim();
+    hits.push(fileUrlHit(start, end, label || m[2], parsed));
+  }
+  const bare = /\bfile:\/\/[^\s<>)'"]+/gi;
+  while ((m = bare.exec(text))) {
+    const trimmed = m[0].replace(/[.,;!?]+$/g, '');
+    const start = m.index;
+    const end = start + trimmed.length;
+    if (overlaps(masks, start, end) || hits.some((h) => start >= h.start && start < h.end)) {
+      continue;
+    }
+    const parsed = parseFileUrl(trimmed);
+    if (!parsed) {
+      continue;
+    }
+    hits.push(fileUrlHit(start, end, text.slice(start, end), parsed));
+  }
+  return hits;
+}
+
 /** Non-overlapping path and `#123` hits, in source order. */
 export function findMessageLinks(text: string): MessageLinkHit[] {
   if (!text) {
     return [];
   }
   const masks = maskRanges(text);
-  return dedupe([...collectPaths(text, masks), ...collectPrs(text, masks)]);
+  const fileHits = collectFileLinks(text, masks);
+  const withFiles = masks.concat(fileHits.map((h) => [h.start, h.end] as Range));
+  return dedupe([
+    ...fileHits,
+    ...collectPaths(text, withFiles),
+    ...collectPrs(text, withFiles),
+  ]);
 }

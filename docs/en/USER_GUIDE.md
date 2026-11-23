@@ -17,7 +17,7 @@ Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · Multi-agent: [MULTI_AGENT.
 1. **VS Code** ≥ 1.90 (or compatible, e.g. Cursor)  
 2. **Grok Build CLI** installed and signed in  
    - Docs: https://x.ai/cli  
-   - Check: `grok --version` — **1.0.89 or newer recommended** (tested with **1.0.89 stable**); older 1.0.x works with a warning banner  
+   - Check: `grok --version` — **1.0.92 or newer recommended** (tested with **1.0.92 stable**); older 1.0.x works with a warning banner  
 3. Optional for development: **Node.js** ≥ 18  
 
 ### Install the extension
